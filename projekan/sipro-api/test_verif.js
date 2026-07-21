@@ -1,0 +1,1 @@
+fetch('http://localhost:8000/api/verifikasi', {method: 'POST', headers: {'Content-Type': 'application/json', 'Accept': 'application/json'}, body: JSON.stringify({pengadaanId: 'PD-006', pengadaanNama: 'Test', departemen: 'CTIT', nominal: '1000', tipe: 'npp', submitBy: 'Test'})}).then(r => r.json()).then(console.log).catch(console.error);
