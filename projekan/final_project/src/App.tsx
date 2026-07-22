@@ -99,6 +99,12 @@ function UserApp() {
               onSelectItem={(item) => handleSelectItem(item, "pr-detail")}
             />
           )}
+          {screen === "pembayaran-payment-request" && (
+            <DaftarPembayaranScreen
+              type="payment-request"
+              onSelectItem={(item) => handleSelectItem(item, "pr-detail")}
+            />
+          )}
           {screen === "pembayaran-umd" && (
             <DaftarPembayaranScreen
               type="umd"

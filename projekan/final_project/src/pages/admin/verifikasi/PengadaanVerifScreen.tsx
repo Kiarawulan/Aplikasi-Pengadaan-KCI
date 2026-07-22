@@ -169,14 +169,14 @@ export function PengadaanVerifScreen() {
   };
 
   const columns = [
-    { key: "nama", label: "Nama Pengadaan", render: (r: VerifRecord) => (
-      <div><p className="font-semibold text-gray-800 text-[12px]">{r.pengadaanNama}</p><p className="text-gray-400 text-[10px]">{r.pengadaanId}</p></div>
+    { key: "pengadaanId", label: "No Pengadaan", render: (r: VerifRecord) => <span className="text-[12px] text-gray-700 font-medium">{r.pengadaanId}</span> },
+    { key: "nama", label: "Procurement Title", render: (r: VerifRecord) => (
+      <div><p className="font-semibold text-gray-800 text-[12px]">{r.pengadaanNama}</p></div>
     )},
-    { key: "dept", label: "Dept", render: (r: VerifRecord) => <span className="text-[11.5px] text-gray-600">{r.departemen}</span> },
-    { key: "nominal", label: "Nominal", render: (r: VerifRecord) => <span className="text-[12px] font-medium text-gray-700">{r.nominal}</span> },
-    { key: "submitBy", label: "Diajukan", render: (r: VerifRecord) => (
-      <div><p className="text-[11.5px] text-gray-700">{r.submitBy}</p><p className="text-gray-400 text-[10px]">{new Date(r.submitAt).toLocaleDateString("id-ID")}</p></div>
-    )},
+    { key: "nominal", label: "RKAP Value", render: (r: VerifRecord) => <span className="text-[12px] font-medium text-gray-700">{r.nominal}</span> },
+    { key: "dept", label: "Department", render: (r: VerifRecord) => <span className="text-[11.5px] text-gray-600">{r.departemen}</span> },
+    { key: "pbj", label: "PBJ", render: (r: VerifRecord) => <span className="text-[11.5px] text-gray-600">-</span> },
+    { key: "cost", label: "Cost", render: (r: VerifRecord) => <span className="text-[11.5px] text-gray-600">-</span> },
     { key: "status", label: "Status", render: (r: VerifRecord) => <StatusChip status={r.status} /> },
   ];
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Eye, Trash2, Clock } from "lucide-react";
+import { Search, Plus, Eye, Trash2, Clock, Edit2 } from "lucide-react";
 import type { PengadaanItem } from "../types";
 import { PARK_STEPS } from "../constants/steps";
 import { TopBar } from "../components/layout/TopBar";
@@ -11,6 +11,7 @@ export function PurchaseRequestionScreen({ onSelectItem }: {
   onSelectItem: (item: PengadaanItem) => void;
 }) {
   const [showPopup, setShowPopup] = useState(false);
+  const [editingItem, setEditingItem] = useState<PengadaanItem | null>(null);
   const [items, setItems] = useState<PengadaanItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -34,18 +35,33 @@ export function PurchaseRequestionScreen({ onSelectItem }: {
 
   const handleCreate = async (newItem: any) => {
     try {
-      const res = await api.post('/pengadaan', {
-        nama: newItem.nama,
-        departemen: newItem.departemen,
-        nominal: newItem.nominal,
-        flow: 'pr',
-      });
-      await fetchItems();
-      setShowPopup(false);
-      onSelectItem(res.data);
+      if (editingItem) {
+        // Update
+        await api.put(`/pengadaan/${editingItem.id}`, {
+          nama: newItem.nama,
+          departemen: newItem.departemen,
+          nominal: newItem.nominal,
+          flow: 'pr',
+          form_data: newItem.formData
+        });
+        await fetchItems();
+        setEditingItem(null);
+      } else {
+        // Create
+        const res = await api.post('/pengadaan', {
+          nama: newItem.nama,
+          departemen: newItem.departemen,
+          nominal: newItem.nominal,
+          flow: 'pr',
+          form_data: newItem.formData
+        });
+        await fetchItems();
+        setShowPopup(false);
+        onSelectItem(res.data);
+      }
     } catch (err) {
-      console.error("Gagal membuat PR baru:", err);
-      alert("Gagal membuat PR baru. Coba lagi.");
+      console.error("Gagal menyimpan PR:", err);
+      alert("Gagal menyimpan PR. Coba lagi.");
     }
   };
 
@@ -143,6 +159,11 @@ export function PurchaseRequestionScreen({ onSelectItem }: {
                         <button onClick={() => onSelectItem(item)} className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100" title="Buka Detail">
                           <Eye size={11} className="text-blue-600" />
                         </button>
+                        {(item.status === "pending" || item.status === "revisi") && (
+                          <button onClick={() => { setEditingItem(item); setShowPopup(true); }} className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center hover:bg-amber-100" title="Edit PR">
+                            <Edit2 size={11} className="text-amber-600" />
+                          </button>
+                        )}
                         <button onClick={(e) => handleDelete(item.id, e)} className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100" title="Hapus">
                           <Trash2 size={11} className="text-red-500" />
                         </button>
@@ -157,9 +178,10 @@ export function PurchaseRequestionScreen({ onSelectItem }: {
       </div>
       {showPopup && (
         <PembelianBaruPopup
-          title="Pengadaan Baru"
-          submitLabel="Buat Pengadaan →"
-          onClose={() => setShowPopup(false)}
+          title={editingItem ? "Edit Pengadaan" : "Pengadaan Baru"}
+          submitLabel={editingItem ? "Simpan Perubahan" : "Buat Pengadaan →"}
+          initialData={editingItem?.formData}
+          onClose={() => { setShowPopup(false); setEditingItem(null); }}
           onSubmit={handleCreate}
         />
       )}

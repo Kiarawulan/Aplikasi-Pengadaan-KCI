@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Eye, Trash2, Clock } from "lucide-react";
+import { Search, Plus, Eye, Trash2, Clock, Edit2 } from "lucide-react";
 import type { PengadaanItem } from "../types";
 import { TopBar } from "../components/layout/TopBar";
 import { StatusBadge } from "../components/common/StatusBadge";
@@ -10,6 +10,7 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
   onSelectItem: (item: PengadaanItem) => void;
 }) {
   const [showPopup, setShowPopup] = useState(false);
+  const [editingItem, setEditingItem] = useState<PengadaanItem | null>(null);
   const [items, setItems] = useState<PengadaanItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -33,19 +34,34 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
 
   const handleCreate = async (newItem: any) => {
     try {
-      const res = await api.post('/pengadaan', {
-        nama: newItem.nama,
-        departemen: newItem.departemen,
-        nominal: newItem.nominal,
-      });
-      // Refresh list
-      await fetchItems();
-      setShowPopup(false);
-      // Auto open detail
-      onSelectItem(res.data);
-    } catch (err) {
+      if (editingItem) {
+        await api.put(`/pengadaan/${editingItem.id}`, {
+          nama: newItem.nama,
+          departemen: newItem.departemen,
+          nominal: newItem.nominal,
+          form_data: newItem.formData
+        });
+        await fetchItems();
+        setEditingItem(null);
+        setShowPopup(false);
+      } else {
+        const res = await api.post('/pengadaan', {
+          nama: newItem.nama,
+          departemen: newItem.departemen,
+          nominal: newItem.nominal,
+          form_data: newItem.formData
+        });
+        // Refresh list
+        await fetchItems();
+        setShowPopup(false);
+        // Auto open detail
+        onSelectItem(res.data);
+      }
+    } catch (err: any) {
       console.error("Gagal membuat pengadaan baru:", err);
-      alert("Gagal membuat pengadaan baru. Coba lagi.");
+      const msg = err.response?.data?.message || err.message || "Unknown error";
+      const errs = err.response?.data?.errors ? JSON.stringify(err.response.data.errors) : "";
+      alert(`Gagal membuat pengadaan baru. Coba lagi. Error: ${msg} ${errs}`);
     }
   };
 
@@ -126,6 +142,11 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
                         <button onClick={() => onSelectItem(item)} className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100" title="Buka Detail">
                           <Eye size={11} className="text-blue-600" />
                         </button>
+                        {(item.status === "pending" || item.status === "revisi") && (
+                          <button onClick={() => { setEditingItem(item); setShowPopup(true); }} className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center hover:bg-amber-100" title="Edit Park Document">
+                            <Edit2 size={11} className="text-amber-600" />
+                          </button>
+                        )}
                         <button onClick={(e) => handleDelete(item.id, e)} className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100" title="Hapus">
                           <Trash2 size={11} className="text-red-500" />
                         </button>
@@ -138,12 +159,14 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
           </table>
         )}
       </div>
+
       {showPopup && (
         <PembelianBaruPopup
-          title="Buat Park Document"
-          submitLabel="Buat Park Document →"
-          initialStep="pengajuan-dana"
-          onClose={() => setShowPopup(false)}
+          title={editingItem ? "Edit Park Document" : "Park Document Baru"}
+          submitLabel={editingItem ? "Simpan Perubahan" : "Buat Park Document →"}
+          initialData={editingItem?.formData}
+          initialStep={editingItem ? "pengajuan-dana" : "pengajuan-dana"}
+          onClose={() => { setShowPopup(false); setEditingItem(null); }}
           onSubmit={handleCreate}
         />
       )}

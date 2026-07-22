@@ -11,6 +11,7 @@ export type Screen =
   | "daftar-pengujian"
   | "pembayaran-outsource"
   | "pembayaran-non-outsource"
+  | "pembayaran-payment-request"
   | "pembayaran-umd";
 
 // ─── Admin App Screens ────────────────────────────────────────────────────────

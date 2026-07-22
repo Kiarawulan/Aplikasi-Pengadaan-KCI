@@ -11,11 +11,12 @@ export function DaftarPembayaranNavItem({ screen, backScreen, onNavigate, collap
   const isActive = [
     "pembayaran-outsource",
     "pembayaran-non-outsource",
+    "pembayaran-payment-request",
     "pembayaran-umd"
   ].includes(screen) || (
     ["pd-detail", "pr-detail"].includes(screen) &&
     backScreen &&
-    ["pembayaran-outsource", "pembayaran-non-outsource", "pembayaran-umd"].includes(backScreen)
+    ["pembayaran-outsource", "pembayaran-non-outsource", "pembayaran-payment-request", "pembayaran-umd"].includes(backScreen)
   );
 
   const activeSubScreen = ["pd-detail", "pr-detail"].includes(screen) && backScreen ? backScreen : screen;
@@ -50,6 +51,12 @@ export function DaftarPembayaranNavItem({ screen, backScreen, onNavigate, collap
       {showInlineMenu && (
         <div className="ml-[22px] mt-0.5 pl-3 border-l border-white/18 flex flex-col gap-0.5 pb-0.5">
           <button
+            onClick={() => onNavigate("pembayaran-payment-request")}
+            className={`text-left py-1.5 px-1 rounded transition-colors text-[12px] w-full ${activeSubScreen === "pembayaran-payment-request" ? "text-white font-semibold" : "text-white/50 hover:text-white/75"}`}
+          >
+            Payment Request
+          </button>
+          <button
             onClick={() => onNavigate("pembayaran-outsource")}
             className={`text-left py-1.5 px-1 rounded transition-colors text-[12px] w-full ${isOutsource ? "text-white font-semibold" : "text-white/50 hover:text-white/75"}`}
           >
@@ -78,6 +85,12 @@ export function DaftarPembayaranNavItem({ screen, backScreen, onNavigate, collap
           onMouseEnter={open_}
           onMouseLeave={close_}
         >
+          <button
+            onClick={() => { onNavigate("pembayaran-payment-request"); setOpen(false); }}
+            className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors hover:bg-white/10 ${activeSubScreen === "pembayaran-payment-request" ? "text-white font-semibold" : "text-white/65"}`}
+          >
+            Payment Request
+          </button>
           <button
             onClick={() => { onNavigate("pembayaran-outsource"); setOpen(false); }}
             className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors hover:bg-white/10 ${isOutsource ? "text-white font-semibold" : "text-white/65"}`}

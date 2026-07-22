@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, X, Check } from "lucide-react";
+import { Search, Plus, X, Check, Edit2, Eye } from "lucide-react";
 import { TopBar } from "../components/layout/TopBar";
 import { StatusBadge } from "../components/common/StatusBadge";
 import { useAuth } from "../store/authStore";
-import { getRupList, addRup, addVerifRecord, generateId } from "../store/dataStore";
+import { getRupList, addRup, updateRup, addVerifRecord, generateId } from "../store/dataStore";
 import { PARK_STEPS } from "../constants/steps";
 import { api } from "../services/api";
 import type { RupItem } from "../types";
@@ -11,6 +11,8 @@ import type { RupItem } from "../types";
 export function RupListScreen() {
   const { currentUser } = useAuth();
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isViewOnly, setIsViewOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [items, setItems] = useState<RupItem[]>(getRupList());
@@ -48,7 +50,7 @@ export function RupListScreen() {
   const [form, setForm] = useState({
     judul: "",
     bebanBiaya: "",
-    peli: "",
+    pbj: "",
     sumberDana: "",
     jenisKontrak: "Barang",
     nilaiRkap: "",
@@ -62,7 +64,6 @@ export function RupListScreen() {
 
   const handleCreateRup = (e: React.FormEvent) => {
     e.preventDefault();
-    const id = generateId("RUP");
     const today = new Date().toISOString().split("T")[0];
 
     const formattedNilai = form.nilaiRkap
@@ -71,42 +72,70 @@ export function RupListScreen() {
         : `Rp ${form.nilaiRkap}`
       : "Rp 0";
 
-    const newRup: RupItem = {
-      id,
-      nama: form.judul || "Pengadaan RUP Baru",
-      jenis: form.jenisKontrak,
-      metode: "Tender",
-      nilai: formattedNilai,
-      status: "pending",
-      progress: "0/14",
-      departemen: currentUser?.departemen || "Umum",
-      createdBy: currentUser?.id || "unknown",
-      createdAt: today,
-    };
+    if (editingId) {
+      updateRup(editingId, {
+        nama: form.judul,
+        jenis: form.jenisKontrak,
+        nilai: formattedNilai,
+        status: "pending"
+      });
+      addVerifRecord({
+        id: generateId("VR"),
+        pengadaanId: editingId,
+        pengadaanNama: form.judul,
+        departemen: currentUser?.departemen || "Umum",
+        nominal: formattedNilai,
+        tipe: "rup",
+        submitBy: currentUser?.name || "User",
+        submitAt: new Date().toISOString(),
+        status: "pending",
+      });
+      api.put(`/rup/${editingId}`, {
+        nama: form.judul,
+        jenis: form.jenisKontrak,
+        nilai: formattedNilai,
+        status: "pending"
+      }).catch(() => {});
+    } else {
+      const id = generateId("RUP");
+      const newRup: RupItem = {
+        id,
+        nama: form.judul || "Pengadaan RUP Baru",
+        jenis: form.jenisKontrak,
+        metode: "Tender",
+        nilai: formattedNilai,
+        status: "pending",
+        progress: "0/14",
+        departemen: currentUser?.departemen || "Umum",
+        createdBy: currentUser?.id || "unknown",
+        createdAt: today,
+      };
 
-    addRup(newRup);
-    addVerifRecord({
-      id: generateId("VR"),
-      pengadaanId: id,
-      pengadaanNama: newRup.nama,
-      departemen: newRup.departemen,
-      nominal: newRup.nilai,
-      tipe: "rup",
-      submitBy: currentUser?.name || "User",
-      submitAt: new Date().toISOString(),
-      status: "pending",
-    });
+      addRup(newRup);
+      addVerifRecord({
+        id: generateId("VR"),
+        pengadaanId: id,
+        pengadaanNama: newRup.nama,
+        departemen: newRup.departemen,
+        nominal: newRup.nilai,
+        tipe: "rup",
+        submitBy: currentUser?.name || "User",
+        submitAt: new Date().toISOString(),
+        status: "pending",
+      });
+    }
 
     setItems(getRupList());
     setSavedSuccess(true);
-
+    
     setTimeout(() => {
       setSavedSuccess(false);
       setShowModal(false);
+      setEditingId(null);
       setForm({
         judul: "",
         bebanBiaya: "",
-        peli: "",
+        pbj: "",
         sumberDana: "",
         jenisKontrak: "Barang",
         nilaiRkap: "",
@@ -120,6 +149,24 @@ export function RupListScreen() {
     }, 1200);
   };
 
+  const handleEditClick = (item: RupItem) => {
+    setForm({
+      judul: item.nama,
+      bebanBiaya: "",
+      pbj: "",
+      sumberDana: "",
+      jenisKontrak: item.jenis,
+      nilaiRkap: item.nilai.replace(/[^0-9]/g, ''),
+      tahunRkap: new Date(item.createdAt).getFullYear().toString(),
+      typeTax: "PPN 11%",
+      nilaiTax: "",
+      startDate: "",
+      endDate: "",
+      keterangan: "",
+    });
+    setEditingId(item.id);
+    setShowModal(true);
+  };
   const filteredItems = items.filter(
     (item) =>
       item.nama.toLowerCase().includes(search.toLowerCase()) ||
@@ -154,7 +201,24 @@ export function RupListScreen() {
             </div>
 
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => {
+                setEditingId(null);
+                setForm({
+                  judul: "",
+                  bebanBiaya: "",
+                  pbj: "",
+                  sumberDana: "",
+                  jenisKontrak: "Barang",
+                  nilaiRkap: "",
+                  tahunRkap: new Date().getFullYear().toString(),
+                  typeTax: "PPN 11%",
+                  nilaiTax: "",
+                  startDate: "",
+                  endDate: "",
+                  keterangan: "",
+                });
+                setShowModal(true);
+              }}
               className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-semibold text-white transition-all shadow-sm hover:opacity-90 active:scale-[0.98]"
               style={{ background: "linear-gradient(75deg, #e6251c, #ff7676)" }}
             >
@@ -167,7 +231,7 @@ export function RupListScreen() {
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50/80 border-b border-gray-100">
-              {["NO. DOKUMEN", "JUDUL PENGADAAN", "NILAI", "DEPARTEMEN", "TAHAP & PROGRES", "STATUS"].map((h) => (
+              {["NO. DOKUMEN", "JUDUL PENGADAAN", "NILAI RKAP", "DEPARTEMEN", "PBJ", "BEBAN BIAYA", "STATUS", "AKSI"].map((h) => (
                 <th key={h} className="text-left px-5 py-3 text-[10px] font-bold tracking-wider text-gray-400 uppercase">
                   {h}
                 </th>
@@ -177,7 +241,7 @@ export function RupListScreen() {
           <tbody className="divide-y divide-gray-100">
             {filteredItems.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-[12px] text-gray-400">
+                <td colSpan={8} className="px-5 py-10 text-center text-[12px] text-gray-400">
                   Belum ada data RUP. Klik "+ RUP Baru" untuk membuat RUP.
                 </td>
               </tr>
@@ -191,24 +255,23 @@ export function RupListScreen() {
                   </td>
                   <td className="px-5 py-4 text-[12px] font-semibold text-gray-800">{item.nilai}</td>
                   <td className="px-5 py-4 text-[12px] text-gray-600">{item.departemen}</td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-1">
-                      {PARK_STEPS.map((s) => (
-                        <div
-                          key={s.id}
-                          title={s.label}
-                          className={`w-3 h-3 rounded-full ${item.status === "approved" || item.status === "Selesai"
-                              ? "bg-[#e6251c]"
-                              : item.status === "pending" || item.status === "Proses"
-                                ? "bg-[#252271]"
-                                : "bg-gray-100 border border-gray-200"
-                            }`}
-                        />
-                      ))}
-                    </div>
-                  </td>
+                  <td className="px-5 py-4 text-[12px] text-gray-600">-</td>
+                  <td className="px-5 py-4 text-[12px] text-gray-600">-</td>
                   <td className="px-5 py-4">
                     <StatusBadge status={item.status} />
+                  </td>
+                  <td className="px-5 py-4">
+                    <button
+                      onClick={() => {
+                        const canEdit = item.status === 'revisi' || item.status === 'pending';
+                        setIsViewOnly(!canEdit);
+                        handleEditClick(item);
+                      }}
+                      className="flex items-center justify-center p-1.5 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors border border-blue-200 shadow-sm"
+                      title="Lihat Detail"
+                    >
+                      <Eye size={14} />
+                    </button>
                   </td>
                 </tr>
               ))
@@ -223,9 +286,9 @@ export function RupListScreen() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[720px] overflow-hidden my-6 border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header Bar */}
             <div className="bg-[#1e1c60] px-6 py-4 flex items-center justify-between text-white">
-              <h3 className="font-bold text-[16px] tracking-wide">RUP Baru</h3>
+              <h3 className="font-bold text-[16px] tracking-wide">{editingId ? "Edit RUP" : "RUP Baru"}</h3>
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => { setShowModal(false); setEditingId(null); }}
                 className="text-white/60 hover:text-white transition-colors"
               >
                 <X size={18} />
@@ -241,199 +304,218 @@ export function RupListScreen() {
                 </div>
               )}
 
-              {/* Judul Pengadaan */}
-              <div>
-                <label className="block text-[12px] font-medium text-gray-700 mb-1">
-                  Judul Pengadaan <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={form.judul}
-                  onChange={(e) => setForm({ ...form, judul: e.target.value })}
-                  placeholder="Masukkan judul pengadaan..."
-                  className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
-                />
-              </div>
-
-              {/* Row 1: Beban Biaya & PELI */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <fieldset disabled={isViewOnly} className="space-y-4 border-none p-0 m-0">
+                {/* Judul Pengadaan */}
                 <div>
                   <label className="block text-[12px] font-medium text-gray-700 mb-1">
-                    Beban Biaya <span className="text-red-500">*</span>
+                    Judul Pengadaan <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
-                    value={form.bebanBiaya}
-                    onChange={(e) => setForm({ ...form, bebanBiaya: e.target.value })}
-                    placeholder="Masukkan beban biaya..."
+                    value={form.judul}
+                    onChange={(e) => setForm({ ...form, judul: e.target.value })}
+                    placeholder="Masukkan judul pengadaan..."
                     className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
                   />
                 </div>
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
-                    PELI <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.peli}
-                    onChange={(e) => setForm({ ...form, peli: e.target.value })}
-                    placeholder="Masukkan PELI..."
-                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
-                  />
-                </div>
-              </div>
 
-              {/* Row 2: Sumber Dana & Jenis Kontrak */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
-                    Sumber Dana <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.sumberDana}
-                    onChange={(e) => setForm({ ...form, sumberDana: e.target.value })}
-                    placeholder="Masukkan sumber dana..."
-                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
-                  />
+                {/* Row 1: Beban Biaya & PBJ */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                      Beban Biaya <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={form.bebanBiaya}
+                      onChange={(e) => setForm({ ...form, bebanBiaya: e.target.value })}
+                      className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                    >
+                      <option value="">Pilih Beban Biaya...</option>
+                      <option value="CAPEX">CAPEX</option>
+                      <option value="OPEX">OPEX</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                      PBJ <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={form.pbj}
+                      onChange={(e) => setForm({ ...form, pbj: e.target.value })}
+                      className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                    >
+                      <option value="">Pilih PBJ...</option>
+                      <option value="PBJ Logistik">PBJ Logistik</option>
+                      <option value="PBJ IT">PBJ IT</option>
+                      <option value="PBJ Konstruksi">PBJ Konstruksi</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
-                    Jenis Kontrak <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={form.jenisKontrak}
-                    onChange={(e) => setForm({ ...form, jenisKontrak: e.target.value })}
-                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
-                  >
-                    <option value="Barang">Barang</option>
-                    <option value="Jasa">Jasa</option>
-                    <option value="Konstruksi">Konstruksi</option>
-                    <option value="Konsultansi">Konsultansi</option>
-                  </select>
-                </div>
-              </div>
 
-              {/* Row 3: Nilai RKAP & Tahun RKAP */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
-                    Nilai RKAP (Sebelum Pajak) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.nilaiRkap}
-                    onChange={(e) => setForm({ ...form, nilaiRkap: e.target.value })}
-                    placeholder="Rp 0"
-                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
-                  />
+                {/* Row 2: Sumber Dana & Jenis Kontrak */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                      Sumber Dana <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={form.sumberDana}
+                      onChange={(e) => setForm({ ...form, sumberDana: e.target.value })}
+                      className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                    >
+                      <option value="">Pilih Sumber Dana...</option>
+                      <option value="Internal">Internal</option>
+                      <option value="BUMN">BUMN</option>
+                      <option value="APBN">APBN</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                      Jenis Kontrak <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={form.jenisKontrak}
+                      onChange={(e) => setForm({ ...form, jenisKontrak: e.target.value })}
+                      className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                    >
+                      <option value="Barang">Barang</option>
+                      <option value="Jasa">Jasa</option>
+                      <option value="Konstruksi">Konstruksi</option>
+                      <option value="Konsultansi">Konsultansi</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
-                    Tahun RKAP <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.tahunRkap}
-                    onChange={(e) => setForm({ ...form, tahunRkap: e.target.value })}
-                    placeholder="2024"
-                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
-                  />
-                </div>
-              </div>
 
-              {/* Row 4: Type Tax & Nilai Tax */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
-                    Type Tax <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.typeTax}
-                    onChange={(e) => setForm({ ...form, typeTax: e.target.value })}
-                    placeholder="Masukkan type tax..."
-                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
-                  />
+                {/* Row 3: Nilai RKAP & Tahun RKAP */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                      Nilai RKAP (Sebelum Pajak) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={form.nilaiRkap}
+                      onChange={(e) => setForm({ ...form, nilaiRkap: e.target.value })}
+                      placeholder="Rp 0"
+                      className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                      Tahun RKAP <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={form.tahunRkap}
+                      onChange={(e) => setForm({ ...form, tahunRkap: e.target.value })}
+                      className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                    >
+                      <option value="">Pilih Tahun...</option>
+                      {Array.from({length: 5}, (_, i) => new Date().getFullYear() + i).map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
-                    Nilai Tax
-                  </label>
-                  <input
-                    type="text"
-                    value={form.nilaiTax}
-                    onChange={(e) => setForm({ ...form, nilaiTax: e.target.value })}
-                    placeholder="Masukkan nilai tax..."
-                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
-                  />
-                </div>
-              </div>
 
-              {/* Row 5: Start Date & End Date */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
-                    Start Date Pengadaan <span className="text-gray-400 text-[11px] font-normal">(opsional, masukkan dalam hari)</span>
-                  </label>
-                  <input
-                    type="number"
-                    value={form.startDate}
-                    onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                    placeholder="0"
-                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
-                  />
+                {/* Row 4: Type Tax & Nilai Tax */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                      Type Tax <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={form.typeTax}
+                      onChange={(e) => setForm({ ...form, typeTax: e.target.value })}
+                      className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                    >
+                      <option value="">Pilih Type Tax...</option>
+                      <option value="PPN 11%">PPN 11%</option>
+                      <option value="PPN 12%">PPN 12%</option>
+                      <option value="Tanpa PPN">Tanpa PPN</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                      Nilai Tax
+                    </label>
+                    <select
+                      value={form.nilaiTax}
+                      onChange={(e) => setForm({ ...form, nilaiTax: e.target.value })}
+                      className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                    >
+                      <option value="">Pilih Nilai Tax...</option>
+                      <option value="11%">11%</option>
+                      <option value="12%">12%</option>
+                      <option value="0%">0%</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
-                    End Date Pengadaan <span className="text-gray-400 text-[11px] font-normal">(opsional, masukkan dalam hari)</span>
-                  </label>
-                  <input
-                    type="number"
-                    value={form.endDate}
-                    onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                    placeholder="0"
-                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
-                  />
-                </div>
-              </div>
 
-              {/* Keterangan */}
-              <div>
-                <label className="block text-[12px] font-medium text-gray-700 mb-1">
-                  Keterangan <span className="text-gray-400 text-[11px] font-normal">(opsional)</span>
-                </label>
-                <textarea
-                  rows={3}
-                  value={form.keterangan}
-                  onChange={(e) => setForm({ ...form, keterangan: e.target.value })}
-                  placeholder="Tambahkan keterangan jika diperlukan..."
-                  className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all resize-none"
-                />
-              </div>
+                {/* Row 5: Start Date & End Date */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                      Start Date Pengadaan <span className="text-gray-400 text-[11px] font-normal">(opsional)</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={form.startDate}
+                      onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                      className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                      End Date Pengadaan <span className="text-gray-400 text-[11px] font-normal">(opsional)</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={form.endDate}
+                      onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                      className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Keterangan */}
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                    Keterangan <span className="text-gray-400 text-[11px] font-normal">(opsional)</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={form.keterangan}
+                    onChange={(e) => setForm({ ...form, keterangan: e.target.value })}
+                    placeholder="Tambahkan keterangan jika diperlukan..."
+                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all resize-none"
+                  />
+                </div>
+              </fieldset>
 
               {/* Modal Action Buttons */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => { setShowModal(false); setEditingId(null); }}
                   className="px-5 py-2 rounded-xl border border-gray-300 text-[12px] font-medium text-gray-600 hover:bg-gray-50 transition-colors"
                 >
-                  Batal
+                  {isViewOnly ? "Tutup" : "Batal"}
                 </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2 rounded-xl text-[12px] font-semibold text-white bg-[#252271] hover:bg-[#1c1959] transition-all shadow-sm active:scale-[0.98]"
-                >
-                  Simpan RUP
-                </button>
+                {!isViewOnly && (
+                  <button
+                    type="submit"
+                    className="px-6 py-2 rounded-xl text-[12px] font-semibold text-white bg-[#252271] hover:bg-[#1c1959] transition-all shadow-sm active:scale-[0.98]"
+                  >
+                    {editingId ? "Simpan Perubahan" : "Simpan RUP"}
+                  </button>
+                )}
               </div>
             </form>
           </div>

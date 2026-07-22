@@ -43,51 +43,56 @@ class PengadaanController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'nama'       => 'required|string',
-            'departemen' => 'required|string',
-            'nominal'    => 'nullable|string',
-            'flow'       => 'nullable|string',
-        ]);
-
-        $flow = $request->flow ?? 'pd';
-        $status = $flow === 'pr' ? 'Draft PR' : 'Park Dokumen';
-
-        $prefix = $flow === 'pr' ? 'PR-' : 'PD-';
-        $last = Pengadaan::where('id', 'regexp', '^' . $prefix . '[0-9]+$')->orderBy('id', 'desc')->first();
-        $next = $last ? intval(substr($last->id, 3)) + 1 : 1;
-        $id = $prefix . str_pad($next, 3, '0', STR_PAD_LEFT);
-
-        $pengadaan = Pengadaan::create([
-            'id'           => $id,
-            'nama'         => $request->nama,
-            'departemen'   => $request->departemen,
-            'nominal'      => $request->nominal ?? '—',
-            'tanggal'      => now()->toDateString(),
-            'status'       => $status,
-            'current_step' => $flow === 'pr' ? 'npp' : 'memo-internal',
-            'created_by'   => $request->user()->id,
-        ]);
-
-        if ($flow === 'pd' || $flow === 'pr') {
-            // Auto create verifikasi record
-            $lastVerif = Verifikasi::where('id', 'regexp', '^VR-[0-9]+$')->orderBy('id', 'desc')->first();
-            $nextVerif = $lastVerif ? intval(substr($lastVerif->id, 3)) + 1 : Verifikasi::count() + 1;
-            $verifId = 'VR-' . str_pad($nextVerif, 3, '0', STR_PAD_LEFT);
-            Verifikasi::create([
-                'id'             => $verifId,
-                'pengadaan_id'   => $pengadaan->id,
-                'pengadaan_nama' => $pengadaan->nama,
-                'departemen'     => $pengadaan->departemen,
-                'nominal'        => $pengadaan->nominal,
-                'tipe'           => $flow === 'pr' ? 'purchase-requisition' : 'park-dokumen',
-                'submit_by'      => $request->user()->name,
-                'submit_at'      => now(),
-                'status'         => 'pending',
+        try {
+            $request->validate([
+                'nama'       => 'required|string',
+                'departemen' => 'required|string',
+                'nominal'    => 'nullable|string',
+                'flow'       => 'nullable|string',
             ]);
-        }
 
-        return response()->json($pengadaan, 201);
+            $flow = $request->flow ?? 'pd';
+            $status = $flow === 'pr' ? 'Draft PR' : 'Park Dokumen';
+
+            $prefix = $flow === 'pr' ? 'PR-' : 'PD-';
+            $last = Pengadaan::where('id', 'regexp', '^' . $prefix . '[0-9]+$')->orderBy('id', 'desc')->first();
+            $next = $last ? intval(substr($last->id, 3)) + 1 : 1;
+            $id = $prefix . str_pad($next, 3, '0', STR_PAD_LEFT);
+
+            $pengadaan = Pengadaan::create([
+                'id'           => $id,
+                'nama'         => $request->nama,
+                'departemen'   => $request->departemen,
+                'nominal'      => $request->nominal ?? '—',
+                'tanggal'      => now()->toDateString(),
+                'status'       => $status,
+                'current_step' => $flow === 'pr' ? 'npp' : 'memo-internal',
+                'created_by'   => $request->user()->id,
+                'form_data'    => $request->form_data,
+            ]);
+
+            if ($flow === 'pd' || $flow === 'pr') {
+                // Auto create verifikasi record
+                $lastVerif = Verifikasi::where('id', 'regexp', '^VR-[0-9]+$')->orderBy('id', 'desc')->first();
+                $nextVerif = $lastVerif ? intval(substr($lastVerif->id, 3)) + 1 : Verifikasi::count() + 1;
+                $verifId = 'VR-' . str_pad($nextVerif, 3, '0', STR_PAD_LEFT);
+                Verifikasi::create([
+                    'id'             => $verifId,
+                    'pengadaan_id'   => $pengadaan->id,
+                    'pengadaan_nama' => $pengadaan->nama,
+                    'departemen'     => $pengadaan->departemen,
+                    'nominal'        => $pengadaan->nominal,
+                    'tipe'           => $flow === 'pr' ? 'purchase-requisition' : 'park-dokumen',
+                    'submit_by'      => $request->user()->name,
+                    'submit_at'      => now(),
+                    'status'         => 'pending',
+                ]);
+            }
+
+            return response()->json($pengadaan, 201);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()], 500);
+        }
     }
 
     public function show(Pengadaan $pengadaan)

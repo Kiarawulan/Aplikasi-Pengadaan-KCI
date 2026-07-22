@@ -8,7 +8,7 @@ import { api } from "../services/api";
 
 export function DaftarPembayaranScreen({ onSelectItem, type }: {
   onSelectItem: (item: PengadaanItem) => void;
-  type: "outsource" | "non-outsource" | "umd";
+  type: "outsource" | "non-outsource" | "umd" | "payment-request";
 }) {
   const [items, setItems] = useState<PengadaanItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,12 +25,15 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
         const isPembayaran = item.currentStep === "pembayaran" && !completed.includes("pembayaran");
         if (!isPembayaran) return false;
 
+        const isPrFlow = item.id.startsWith("PR-");
         if (type === "umd") {
-          return item.id.startsWith("PD-");
-        } else if (type === "outsource") {
-          return item.id.startsWith("PR-") && item.nama.toLowerCase().includes("outsource");
+          return !isPrFlow; // PD goes to UMD
         } else {
-          return item.id.startsWith("PR-") && !item.nama.toLowerCase().includes("outsource");
+          // PRs go to payment-request, outsource, or non-outsource
+          if (!isPrFlow) return false;
+          const allFd = item.formData || JSON.parse(item.form_data || '{}');
+          const paymentType = allFd["pelunasan"]?.jenis?.toLowerCase() || (item.nama.toLowerCase().includes("payment request") ? "payment-request" : (item.nama.toLowerCase().includes("non") ? "non-outsource" : "outsource"));
+          return paymentType === type;
         }
       });
       setItems(pembayaranItems);
@@ -61,6 +64,13 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
           cardTitle: "Daftar Pembayaran UMD",
           emptyText: "Tidak ada proses pembayaran UMD yang sedang berlangsung."
         };
+      case "payment-request":
+        return {
+          title: "Daftar Pembayaran - Payment Request",
+          subtitle: "Proses pengadaan Payment Request yang sedang berlangsung pada tahap Pembayaran",
+          cardTitle: "Daftar Pembayaran Payment Request",
+          emptyText: "Tidak ada proses pembayaran Payment Request yang sedang berlangsung."
+        };
       case "outsource":
         return {
           title: "Daftar Pembayaran - Outsource",
@@ -74,6 +84,13 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
           subtitle: "Proses pengadaan Non Outsource (PR) yang sedang berlangsung pada tahap Pembayaran",
           cardTitle: "Daftar Pembayaran Non Outsource",
           emptyText: "Tidak ada proses pembayaran Non Outsource yang sedang berlangsung."
+        };
+      default:
+        return {
+          title: "Daftar Pembayaran",
+          subtitle: "Proses pengadaan yang sedang berlangsung pada tahap Pembayaran",
+          cardTitle: "Daftar Pembayaran",
+          emptyText: "Tidak ada proses pembayaran yang sedang berlangsung."
         };
     }
   };

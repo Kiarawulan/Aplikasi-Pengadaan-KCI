@@ -176,6 +176,10 @@ export function PdDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
               currentStep: steps[activeStepIdx + 1].id,
               completedStepId: activeStep.id
             }).catch(() => {});
+          } else {
+            api.put(`/pengadaan/${item.id}`, {
+              status: "Selesai"
+            }).catch(() => {});
           }
           return next;
         });
@@ -256,14 +260,14 @@ export function PdDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
           <div>
             <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary Park Document</p><ApprovedBadge /></div>
             <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
-              <SummaryRow label="Email PIC" value={d["email"] || currentUser?.email || "—"} />
-              <SummaryRow label="Sub Unit" value={d["subUnit"] || "—"} />
-              <SummaryRow label="Jenis Permohonan" value={d["jenisPermohonan"] || "—"} />
+              <SummaryRow label="Email PIC" value={d["emailPic"] || item.formData?.emailPic || currentUser?.email || "—"} />
+              <SummaryRow label="Divisi" value={d["subUnit"] || item.formData?.subUnit || item.departemen || "—"} />
+              <SummaryRow label="Jenis Permohonan" value={d["jenisPermohonan"] || item.formData?.jenisPermohonan || "—"} />
               <SummaryRow label="Judul Permohonan" value={d["judulPermohonan"] || item.nama} />
-              <SummaryRow label="Nominal Permohonan" value={d["nominal"] || item.nominal} />
-              <SummaryRow label="Nominal Konversi" value={d["nominalKonversi"] || item.nominal} />
-              <SummaryRow label="Detail Permohonan" value={d["detail"] || "—"} />
-              <SummaryRow label="Tahun" value={d["tahun"] || "2024"} />
+              <SummaryRow label="Nominal Permohonan" value={d["nominalPermohonan"] || item.nominal} />
+              <SummaryRow label="Nominal Konversi" value={d["nominalKonversi"] || item.formData?.nominalKonversi || item.nominal} />
+              <SummaryRow label="Detail Permohonan" value={d["detailPermohonan"] || item.formData?.detailPermohonan || "—"} />
+              <SummaryRow label="Tahun" value={d["tahun"] || item.formData?.tahun || "2024"} />
             </div>
           </div>
         );
@@ -273,17 +277,23 @@ export function PdDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
 
     if (activeSub.id === "buat-pd") {
       const d = fd("buat-pd");
-      const u = (k: string) => (v: string) => upd("buat-pd", k, v);
+      const isApproved = item.status === "approved" || item.status === "Selesai";
       return (
-        <div className="grid grid-cols-2 gap-x-[12px] gap-y-[12px]">
-          <FieldInput label="Email PIC" placeholder="email@perusahaan.com" type="email" required value={d["email"] ?? currentUser?.email ?? ""} onChange={u("email")} />
-          <FieldInput label="Sub Unit" placeholder="Masukkan sub unit..." required value={d["subUnit"]} onChange={u("subUnit")} />
-          <FieldInput label="Jenis Permohonan" type="select" required value={d["jenisPermohonan"]} onChange={u("jenisPermohonan")} />
-          <FieldInput label="Judul Permohonan" placeholder="Judul permohonan..." required value={d["judulPermohonan"]} onChange={u("judulPermohonan")} />
-          <FieldInput label="Nominal Permohonan" placeholder="0" required value={d["nominal"]} onChange={u("nominal")} />
-          <FieldInput label="Nominal Konversi" placeholder="0" required value={d["nominalKonversi"]} onChange={u("nominalKonversi")} />
-          <FieldInput label="Detail Permohonan" placeholder="Detail permohonan..." required value={d["detail"]} onChange={u("detail")} />
-          <FieldInput label="Tahun" type="select" required value={d["tahun"]} onChange={u("tahun")} />
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p>
+            {isApproved ? <ApprovedBadge /> : <span className="bg-yellow-100 text-yellow-700 text-[10px] font-semibold px-2 py-0.5 rounded">Menunggu Verifikasi</span>}
+          </div>
+          <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
+            <SummaryRow label="Judul Permohonan" value={d["judulPermohonan"] || item.nama} />
+            <SummaryRow label="Email PIC" value={d["emailPic"] || currentUser?.email || "—"} />
+            <SummaryRow label="Divisi" value={d["subUnit"] || "—"} />
+            <SummaryRow label="Jenis Permohonan" value={d["jenisPermohonan"] || "—"} />
+            <SummaryRow label="Nominal Permohonan" value={d["nominal"] || item.nominal} />
+            <SummaryRow label="Nominal Konversi" value={d["nominalKonversi"] || item.nominal} />
+            <SummaryRow label="Detail Permohonan" value={d["detailPermohonan"] || "—"} />
+            <SummaryRow label="Tahun" value={d["tahun"] || "2024"} />
+          </div>
         </div>
       );
     }

@@ -53,30 +53,40 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
       <div className="mt-4 pt-4 border-t border-[#e2e2e2]"><button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><FileText size={13} /> NPP — Lihat Dokumen</button></div>
     </div>
   );
-  if (step === "pengajuan-dana" && subStepId === "buat-pr") return (
-    <div className="grid grid-cols-2 gap-x-[12px] gap-y-[12px]">
-      <FieldInput label="Email PIC" placeholder="email@perusahaan.com" type="email" required value={f("email")} onChange={u("email")} />
-      <FieldInput label="Sub Unit" placeholder="Masukkan sub unit..." required value={f("subUnit")} onChange={u("subUnit")} />
-      <FieldInput label="Jenis Permohonan" type="select" required value={f("jenisPermohonan")} onChange={u("jenisPermohonan")} />
-      <FieldInput label="Judul Permohonan" placeholder="Judul permohonan..." required value={f("judulPermohonan")} onChange={u("judulPermohonan")} />
-      <FieldInput label="Nominal Permohonan" placeholder="0" type="number" required value={f("nominal")} onChange={u("nominal")} />
-      <FieldInput label="Nominal Konversi" placeholder="0" type="number" required value={f("nominalKonversi")} onChange={u("nominalKonversi")} />
-      <FieldInput label="Detail Permohonan" placeholder="Detail permohonan..." required value={f("detail")} onChange={u("detail")} />
-      <FieldInput label="Tahun" type="select" required value={f("tahun")} onChange={u("tahun")} />
-    </div>
-  );
+  if (step === "pengajuan-dana" && subStepId === "buat-pr") {
+    const d = fdFrom("buat-pr");
+    const isApproved = item?.status === "approved" || item?.status === "Selesai";
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p>
+          {isApproved ? <ApprovedBadge /> : <span className="bg-yellow-100 text-yellow-700 text-[10px] font-semibold px-2 py-0.5 rounded">Menunggu Verifikasi</span>}
+        </div>
+        <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
+          <SummaryRow label="Judul Permohonan" value={d["judulPermohonan"] || item?.nama} />
+          <SummaryRow label="Email PIC" value={d["emailPic"] || item?.formData?.emailPic || "—"} />
+          <SummaryRow label="Divisi" value={d["subUnit"] || item?.formData?.subUnit || item?.departemen || "—"} />
+          <SummaryRow label="Jenis Permohonan" value={d["jenisPermohonan"] || item?.formData?.jenisPermohonan || "—"} />
+          <SummaryRow label="Nominal Permohonan" value={d["nominalPermohonan"] || item?.nominal} />
+          <SummaryRow label="Nominal Konversi" value={d["nominalKonversi"] || item?.formData?.nominalKonversi || item?.nominal} />
+          <SummaryRow label="Detail Permohonan" value={d["detailPermohonan"] || item?.formData?.detailPermohonan || "—"} />
+          <SummaryRow label="Tahun" value={d["tahun"] || item?.formData?.tahun || "2024"} />
+        </div>
+      </div>
+    );
+  }
   if (step === "pengajuan-dana" && subStepId === "detail-pr") return (
     <div>
       <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p><StatusDisplay /></div>
       <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
-        <SummaryRow label="Judul Permohonan" value={fdFrom("buat-pr").judulPermohonan || "Pengadaan Laptop"} />
-        <SummaryRow label="Email PIC" value={fdFrom("buat-pr").email || "namaemail@email.com"} />
-        <SummaryRow label="Sub Unit" value={fdFrom("buat-pr").subUnit || "IT"} />
-        <SummaryRow label="Jenis Permohonan" value={fdFrom("buat-pr").jenisPermohonan || "Barang"} />
-        <SummaryRow label="Nominal Permohonan" value={fdFrom("buat-pr").nominal || "Rp 100.000.000"} />
-        <SummaryRow label="Nominal Konversi" value={fdFrom("buat-pr").nominalKonversi || "Rp 100.000.000"} />
-        <SummaryRow label="Detail Permohonan" value={fdFrom("buat-pr").detail || "Lorem ipsum dolor sit amet"} />
-        <SummaryRow label="Tahun" value={fdFrom("buat-pr").tahun || "2024"} />
+        <SummaryRow label="Judul Permohonan" value={fdFrom("buat-pr").judulPermohonan || item?.nama || "Pengadaan Laptop"} />
+        <SummaryRow label="Email PIC" value={fdFrom("buat-pr").emailPic || item?.formData?.emailPic || "namaemail@email.com"} />
+        <SummaryRow label="Divisi" value={fdFrom("buat-pr").subUnit || item?.formData?.subUnit || item?.departemen || "IT"} />
+        <SummaryRow label="Jenis Permohonan" value={fdFrom("buat-pr").jenisPermohonan || item?.formData?.jenisPermohonan || "Barang"} />
+        <SummaryRow label="Nominal Permohonan" value={fdFrom("buat-pr").nominalPermohonan || item?.nominal || "Rp 100.000.000"} />
+        <SummaryRow label="Nominal Konversi" value={fdFrom("buat-pr").nominalKonversi || item?.formData?.nominalKonversi || item?.nominal || "Rp 100.000.000"} />
+        <SummaryRow label="Detail Permohonan" value={fdFrom("buat-pr").detailPermohonan || item?.formData?.detailPermohonan || "Lorem ipsum dolor sit amet"} />
+        <SummaryRow label="Tahun" value={fdFrom("buat-pr").tahun || item?.formData?.tahun || "2024"} />
       </div>
     </div>
   );
@@ -91,17 +101,23 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
         <SummaryRow label="COA" value={fdFrom("buat-npp").coa || "-"} />
         <SummaryRow label="Keterangan" value={fdFrom("buat-npp").keterangan || "-"} />
       </div>
-      <div className="mt-4 pt-4 border-t border-[#e2e2e2]"><button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><FileText size={13} /> Dokumen SP3 dari Admin.pdf (Download)</button></div>
+      {status === "approved" && (
+        <div className="mt-4 pt-4 border-t border-[#e2e2e2]"><button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><FileText size={13} /> Dokumen SP3 dari Admin.pdf (Download)</button></div>
+      )}
     </div>
   );
   if (step === "pbj") return (
-    <div className="grid grid-cols-2 gap-x-[12px] gap-y-[12px]">
-      <FieldInput label="Metode Pengadaan" type="select" required value={f("metode")} onChange={u("metode")} />
-      <FieldInput label="Nama Vendor" placeholder="Nama vendor..." required value={f("vendor")} onChange={u("vendor")} />
-      <FieldInput label="NPWP Vendor" placeholder="xx.xxx.xxx.x-xxx.xxx" required value={f("npwp")} onChange={u("npwp")} />
-      <FieldInput label="Nilai Penawaran" placeholder="0" required value={f("nilai")} onChange={u("nilai")} />
-      <FieldInput label="Tanggal Penawaran" type="date" required value={f("tanggal")} onChange={u("tanggal")} />
-      <FieldInput label="Keterangan" placeholder="Keterangan tambahan..." type="textarea" span2 value={f("keterangan")} onChange={u("keterangan")} />
+    <div>
+      <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">PBJ Details</p><StatusDisplay /></div>
+      <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
+        <SummaryRow label="Nomor PBJ" value={fdFrom("pbj").noPbj || "PBJ-2024-001"} />
+        <SummaryRow label="Tanggal PBJ" value={fdFrom("pbj").tglPbj || "12 Okt 2024"} />
+        <SummaryRow label="Pemenang Tender" value={fdFrom("pbj").pemenang || "PT Vendor IT Sukses"} />
+        <SummaryRow label="Nilai Kontrak" value={fdFrom("pbj").nilaiKontrak || "Rp 95.000.000"} />
+      </div>
+      {status === "approved" && (
+        <div className="mt-4 pt-4 border-t border-[#e2e2e2]"><button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><FileText size={13} /> Berita Acara PBJ.pdf (Download)</button></div>
+      )}
     </div>
   );
   if (step === "contract") return (
@@ -120,12 +136,19 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
   );
   if (step === "pengujian") {
     const pengujianItem = getPengujianList().find(x => x.nama === item?.nama);
-    const statusLabel = pengujianItem?.status ? (pengujianItem.status.charAt(0).toUpperCase() + pengujianItem.status.slice(1)) : "Belum Diajukan";
+    let statusLabel = "Belum Diajukan";
+    if (pengujianItem?.status === "selesai") statusLabel = "Selesai Pengujian";
+    else if (pengujianItem?.status === "diproses" || pengujianItem?.status === "approved") statusLabel = "Dalam Proses";
+    else if (pengujianItem?.status === "pending") statusLabel = "Menunggu Verifikasi";
 
     if (subStepId === "request-pengujian") {
       const isKurang500 = f("opsiNilai") === "<500jt";
       return (
         <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <p className="text-[11.5px] font-semibold text-[#0a0a0a]">Status Verifikasi:</p>
+            <StatusDisplay />
+          </div>
           <div className="flex gap-4 mb-2">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="radio" className="w-3.5 h-3.5 accent-[#252271]" checked={f("opsiNilai") === "<500jt"} onChange={() => u("opsiNilai")("<500jt")} />
@@ -159,7 +182,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
             <div className="pt-4 border-t border-[#e2e2e2] space-y-4">
               <div className="grid grid-cols-2 gap-x-[12px] gap-y-[12px]">
                 <FieldInput label="Kurs" type="select" required value={f("kurs")} onChange={u("kurs")} />
-                <FieldInput label="Nomor Surat Perjanjian" required value={f("noSuratPerjanjian")} onChange={u("noSuratPerjanjian")} />
+                <FieldInput label="Nomor Surat Perjanjian" type="number" required value={f("noSuratPerjanjian")} onChange={u("noSuratPerjanjian")} />
               </div>
 
               <div>
@@ -180,7 +203,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
                   <FieldInput label="No. MI" type="number" required value={f("noMI_500")} onChange={u("noMI_500")} />
                   <FieldInput label="Tanggal MI" type="date" required value={f("tglMI")} onChange={u("tglMI")} />
                   <FieldInput label="Perihal MI" required value={f("perihalMI")} onChange={u("perihalMI")} />
-                  <FieldInput label="No. KAK" required value={f("noKAK")} onChange={u("noKAK")} />
+                  <FieldInput label="No. KAK" type="number" required value={f("noKAK")} onChange={u("noKAK")} />
                   <FieldInput label="Tanggal KAK" type="date" required value={f("tglKAK")} onChange={u("tglKAK")} />
                 </div>
               </div>
@@ -210,7 +233,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
           <p className="text-[11.5px] font-medium text-[#0a0a0a] mb-[5px]">Output BAHP (Dari Admin)</p>
           <div className="flex items-center justify-between bg-[#f9f9f9] border border-[#e2e2e2] rounded px-3 py-2">
             <div><p className="text-[11.5px] font-medium">Draft-BAHP.pdf</p><p className="text-[10px] text-[#6b6b6b]">312 KB</p></div>
-            <button className="flex items-center gap-1.5 bg-[#252271] text-white text-[10px] font-medium px-3 py-1.5 rounded"><Download size={11} /> Download BAHP</button>
+            <button disabled={statusLabel.toLowerCase() !== 'selesai'} className="flex items-center gap-1.5 bg-[#252271] text-white text-[10px] font-medium px-3 py-1.5 rounded disabled:bg-gray-300 disabled:cursor-not-allowed"><Download size={11} /> Download BAHP</button>
           </div>
         </div>
         <div className="pt-2 border-t border-[#e2e2e2]">
@@ -225,37 +248,63 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
     );
   }
   if (step === "pembayaran") {
-    if (subStepId === "pelunasan") return (
-      <div>
-        <p className="text-[11.5px] font-medium mb-2">Jenis Pembayaran<span className="text-[#cc0000] ml-0.5">*</span></p>
-        <div className="flex gap-4 mb-4">
-          {["Outsource", "Non-Outsource", "UMD"].map((opt) => {
-            const isSelected = (f("jenis") || "Outsource") === opt;
-            return (
-              <label key={opt} className="flex items-center gap-2 cursor-pointer" onClick={() => u("jenis")(opt)}>
-                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${isSelected ? "border-[#252271]" : "border-[#aaa]"}`}>{isSelected && <div className="w-2 h-2 rounded-full bg-[#252271]" />}</div>
-                <p className={`text-[11.5px] ${isSelected ? "font-medium" : "text-[#6b6b6b]"}`}>{opt}</p>
-              </label>
-            );
-          })}
+    if (subStepId === "pelunasan") {
+      const jenis = f("jenis") || "Outsource";
+      return (
+        <div>
+          <p className="text-[11.5px] font-medium mb-2">Jenis Pembayaran<span className="text-[#cc0000] ml-0.5">*</span></p>
+          <div className="flex gap-4 mb-4">
+            {["Outsource", "Non-outsource", "UMD"].map((opt) => {
+              const isSelected = jenis === opt;
+              return (
+                <label key={opt} className="flex items-center gap-2 cursor-pointer" onClick={() => u("jenis")(opt)}>
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${isSelected ? "border-[#252271]" : "border-[#aaa]"}`}>{isSelected && <div className="w-2 h-2 rounded-full bg-[#252271]" />}</div>
+                  <p className={`text-[11.5px] ${isSelected ? "font-medium" : "text-[#6b6b6b]"}`}>{opt}</p>
+                </label>
+              );
+            })}
+          </div>
+          <div className="grid grid-cols-1 gap-y-[12px]">
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+               <p className="text-[11.5px] font-medium text-gray-700 mb-2">Pelunasan (Nota dan sebagainya) dari C-Fits</p>
+               <button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><Download size={13} /> Download Pelunasan</button>
+            </div>
+            <FieldInput label="Keterangan" type="textarea" required value={f("keterangan")} onChange={u("keterangan")} />
+            
+            <div className="flex items-center gap-2">
+              <p className="text-[11.5px] font-medium text-[#0a0a0a]">Status:</p>
+              <StatusDisplay />
+            </div>
+
+            {jenis === "UMD" && (
+              <>
+                <div className="pt-2 border-t border-[#e2e2e2]">
+                  <FileUploadInput label="Dokumen Tutupan" required value={f("dokumenTutupan")} onChange={u("dokumenTutupan")} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <p className="text-[11.5px] font-medium text-[#0a0a0a]">Status Verifikasi Dokumen Tutupan:</p>
+                  <StatusDisplay />
+                </div>
+                <FileUploadInput label="Pengembalian Dana (Nota dan sebagainya)" required value={f("pengembalianDana")} onChange={u("pengembalianDana")} />
+                {f("dokumenTutupan") && (
+                  <button onClick={() => { u("dokumenTutupan")(""); u("pengembalianDana")(""); }} className="text-red-500 text-[11px] hover:underline w-fit">
+                    Remove Files (Jika Revisi)
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-x-[12px] gap-y-[12px]">
-          <FieldInput label="Nomor Invoice" placeholder="INV-xxxx-xxxx" required value={f("invoice")} onChange={u("invoice")} />
-          <FieldInput label="Tanggal Invoice" type="date" required value={f("tanggalInvoice")} onChange={u("tanggalInvoice")} />
-          <FieldInput label="Nilai Invoice" placeholder="0" required value={f("nilai")} onChange={u("nilai")} />
-          <FieldInput label="Tanggal Jatuh Tempo" type="date" required value={f("jatuhTempo")} onChange={u("jatuhTempo")} />
-          <FieldInput label="Keterangan" placeholder="Keterangan tambahan..." type="textarea" span2 value={f("keterangan")} onChange={u("keterangan")} />
-        </div>
-      </div>
-    );
+      );
+    }
     if (subStepId === "payment-request") return (
-      <div className="grid grid-cols-2 gap-x-[12px] gap-y-[12px]">
-        <FieldInput label="Nomor Payment Request" placeholder="PR-xxxx-xxxx" required value={f("nomor")} onChange={u("nomor")} />
-        <FieldInput label="Tanggal Pengajuan" type="date" required value={f("tanggal")} onChange={u("tanggal")} />
-        <FieldInput label="Nominal" placeholder="0" required value={f("nominal")} onChange={u("nominal")} />
-        <FieldInput label="Bank Tujuan" placeholder="Nama bank..." required value={f("bank")} onChange={u("bank")} />
-        <FieldInput label="No. Rekening" placeholder="xxxx-xxxx-xxxx" required value={f("rekening")} onChange={u("rekening")} />
-        <FieldInput label="Atas Nama" placeholder="Nama penerima..." required value={f("atasNama")} onChange={u("atasNama")} />
+      <div className="grid grid-cols-1 gap-y-[12px]">
+        <FileUploadInput label="Input File BAHP dengan TTD" required value={f("fileBahp")} onChange={u("fileBahp")} />
+        <FieldInput label="Keterangan" type="textarea" required value={f("keterangan")} onChange={u("keterangan")} />
+        <div className="flex items-center gap-2">
+          <p className="text-[11.5px] font-medium text-[#0a0a0a]">Status:</p>
+          <StatusDisplay />
+        </div>
       </div>
     );
     if (subStepId === "proses-selesai") return (

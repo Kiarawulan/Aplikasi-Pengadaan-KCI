@@ -117,7 +117,7 @@ export function PrDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
   // Check verification status from backend & local
   useEffect(() => {
     // Only check verification if this step requires it (npp, sp3, contract, dll)
-    const verifTypes = ["npp", "pengajuan-dana", "sp3", "contract", "pbj", "timeline", "pembayaran"];
+    const verifTypes = ["npp", "pengajuan-dana", "sp3", "pbj", "timeline", "pembayaran"];
     if (verifTypes.includes(activeStep.id)) {
       api.get("/verifikasi").then(res => {
         // Find if there's a verification record for this pengadaan and step
@@ -130,20 +130,41 @@ export function PrDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
         }
       }).catch(() => setVerifStatus("not_submitted"));
     } else if (activeStep.id === "pengujian") {
+      const updatePengujian = (p: any) => {
+        if (p) {
+          if (p.status === "selesai") setVerifStatus("approved"); // Using "approved" to match verifStatus type
+          else if (p.status === "diproses" || p.status === "approved") setVerifStatus("approved"); // Treating "diproses" as approved for the first sub-step so user can advance
+          else setVerifStatus("pending");
+          
+          setCompletedSubs(prev => {
+            const next = new Set(prev);
+            // If admin has approved the request (diproses or selesai), mark request-pengujian as done
+            if (p.status === "diproses" || p.status === "approved" || p.status === "selesai") {
+              next.add("pengujian.request-pengujian");
+            }
+            // If admin has finished the process (selesai), mark proses-pengujian as done
+            if (p.status === "selesai") {
+              next.add("pengujian.proses-pengujian");
+            }
+            return next;
+          });
+          
+          // Auto advance activeSubIdx if possible
+          if ((p.status === "diproses" || p.status === "approved") && activeSubIdx < 1) {
+             setActiveSubIdx(1);
+          } else if (p.status === "selesai" && activeSubIdx < 2) {
+             setActiveSubIdx(2);
+          }
+        } else {
+          setVerifStatus("not_submitted");
+        }
+      };
+
       api.get("/pengujian").then(res => {
         const p = res.data.find((x: any) => x.nama === item.nama);
-        if (p) {
-          setVerifStatus(p.status === "selesai" ? "approved" : "pending");
-        } else {
-          // Fallback to local
-          const localP = getPengujianList().find(x => x.nama === item.nama);
-          if (localP) setVerifStatus(localP.status === "selesai" ? "approved" : "pending");
-          else setVerifStatus("not_submitted");
-        }
+        updatePengujian(p || getPengujianList().find(x => x.nama === item.nama));
       }).catch(() => {
-        const localP = getPengujianList().find(x => x.nama === item.nama);
-        if (localP) setVerifStatus(localP.status === "selesai" ? "approved" : "pending");
-        else setVerifStatus("not_submitted");
+        updatePengujian(getPengujianList().find(x => x.nama === item.nama));
       });
     } else {
       setVerifStatus("not_submitted"); // No verification needed
@@ -175,7 +196,7 @@ export function PrDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
   }
 
   const goNext = () => {
-    const verifTypes = ["npp", "pengajuan-dana", "sp3", "contract", "pbj", "timeline", "pembayaran"];
+    const verifTypes = ["npp", "pengajuan-dana", "sp3", "pbj", "timeline", "pembayaran"];
 
     if (verifTypes.includes(activeStep.id) && isSubmitPoint && verifStatus === "not_submitted") {
       const paymentType = allFd["pelunasan"]?.jenis?.toLowerCase() || "outsource";
@@ -312,10 +333,11 @@ export function PrDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
                   <button onClick={() => { 
                     setCompletedStepIds(p => {
                       const next = new Set([...p, activeStep.id]);
-                      updatePengadaanItem({ ...item, completedSteps: Array.from(next) });
+                      updatePengadaanItem({ ...item, completedSteps: Array.from(next), status: "Selesai" });
                       return next;
                     }); 
                     flashSave(); 
+                    onNavigate("dashboard");
                   }} className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-green-600 hover:bg-green-700">
                     <Check size={12} /> Selesai
                   </button>
