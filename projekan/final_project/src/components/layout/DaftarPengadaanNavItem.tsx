@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { ShoppingCart, ChevronRight } from "lucide-react";
+import { Package, ChevronRight } from "lucide-react";
 import type { Screen } from "../../types";
 
 export function DaftarPengadaanNavItem({ screen, onNavigate, collapsed }: {
@@ -23,7 +23,7 @@ export function DaftarPengadaanNavItem({ screen, onNavigate, collapsed }: {
         className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg transition-all text-left ${isActive ? "" : "hover:bg-white/10"}`}
         style={isActive ? { background: "rgba(255,255,255,0.18)" } : {}}
       >
-        <span className="text-white/75 shrink-0"><ShoppingCart size={15} /></span>
+        <span className="text-white/75 shrink-0"><Package size={15} /></span>
         {!collapsed && (
           <>
             <span className={`text-[12.5px] truncate flex-1 ${isActive ? "text-white font-semibold" : "text-white/70 font-normal"}`}>Daftar Pengadaan</span>

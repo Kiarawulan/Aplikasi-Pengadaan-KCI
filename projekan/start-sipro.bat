@@ -10,12 +10,12 @@ start /B cmd /c "C:\xampp\mysql_start.bat" >nul 2>&1
 timeout /t 2 /nobreak >nul
 
 echo 2. Menjalankan Server Laravel (Backend API: http://localhost:8000)...
-start "Laravel Backend API" cmd /k "cd /d c:\Users\ASUS TUF A15\Downloads\projekan\sipro-api && php artisan serve --port=8000"
+start "Laravel Backend API" cmd /k "cd /d "%~dp0sipro-api" && php artisan serve --port=8000"
 
 timeout /t 2 /nobreak >nul
 
 echo 3. Menjalankan React Frontend (http://localhost:5173)...
-start "React Frontend" cmd /k "cd /d c:\Users\ASUS TUF A15\Downloads\projekan\final_project && npm run dev"
+start "React Frontend" cmd /k "cd /d "%~dp0final_project" && npm run dev"
 
 echo.
 echo ===================================================

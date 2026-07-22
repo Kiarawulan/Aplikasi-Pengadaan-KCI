@@ -7,7 +7,11 @@ export type Screen =
   | "pr-detail"
   | "template-dokumen"
   | "profile"
-  | "purchase-requisition";
+  | "purchase-requisition"
+  | "daftar-pengujian"
+  | "pembayaran-outsource"
+  | "pembayaran-non-outsource"
+  | "pembayaran-umd";
 
 // ─── Admin App Screens ────────────────────────────────────────────────────────
 export type AdminScreen =

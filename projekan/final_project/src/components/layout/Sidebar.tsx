@@ -1,13 +1,14 @@
-import { LayoutDashboard, FileText, FolderOpen } from "lucide-react";
+import { LayoutDashboard, FileText, FolderOpen, FileSearch } from "lucide-react";
 import type { Screen } from "../../types";
 import { Logo } from "./Logo";
 import { CollapseToggle } from "./CollapseToggle";
 import { UserCard } from "./UserCard";
 import { NavItem } from "./NavItem";
 import { DaftarPengadaanNavItem } from "./DaftarPengadaanNavItem";
+import { DaftarPembayaranNavItem } from "./DaftarPembayaranNavItem";
 
-export function Sidebar({ screen, onNavigate, collapsed, onToggleCollapse }: {
-  screen: Screen; onNavigate: (s: Screen) => void; collapsed: boolean; onToggleCollapse: () => void;
+export function Sidebar({ screen, backScreen, onNavigate, collapsed, onToggleCollapse }: {
+  screen: Screen; backScreen?: Screen; onNavigate: (s: Screen) => void; collapsed: boolean; onToggleCollapse: () => void;
 }) {
   return (
     <div
@@ -19,6 +20,8 @@ export function Sidebar({ screen, onNavigate, collapsed, onToggleCollapse }: {
         <NavItem icon={<LayoutDashboard size={15} />} label="Dashboard" active={screen === "dashboard"} collapsed={collapsed} onClick={() => onNavigate("dashboard")} />
         <NavItem icon={<FileText size={15} />} label="RUP" active={screen === "rup-list"} collapsed={collapsed} onClick={() => onNavigate("rup-list")} />
         <DaftarPengadaanNavItem screen={screen} onNavigate={onNavigate} collapsed={collapsed} />
+        <NavItem icon={<FileSearch size={15} />} label="Daftar Pengujian" active={screen === "daftar-pengujian"} collapsed={collapsed} onClick={() => onNavigate("daftar-pengujian")} />
+        <DaftarPembayaranNavItem screen={screen} backScreen={backScreen} onNavigate={onNavigate} collapsed={collapsed} />
         <NavItem icon={<FolderOpen size={15} />} label="Template Dokumen" active={screen === "template-dokumen"} collapsed={collapsed} onClick={() => onNavigate("template-dokumen")} />
       </nav>
       <UserCard collapsed={collapsed} active={screen === "profile"} onClick={() => onNavigate("profile")} />

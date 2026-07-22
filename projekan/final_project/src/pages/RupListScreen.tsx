@@ -1,64 +1,89 @@
 import { useState, useEffect } from "react";
-import { Search, Check } from "lucide-react";
+import { Search, Plus, X, Check } from "lucide-react";
 import { TopBar } from "../components/layout/TopBar";
 import { StatusBadge } from "../components/common/StatusBadge";
 import { useAuth } from "../store/authStore";
 import { getRupList, addRup, addVerifRecord, generateId } from "../store/dataStore";
+import { PARK_STEPS } from "../constants/steps";
 import { api } from "../services/api";
 import type { RupItem } from "../types";
 
 export function RupListScreen() {
   const { currentUser } = useAuth();
-  const [tab, setTab] = useState<"list" | "buat">("list");
-  const [saved, setSaved] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [search, setSearch] = useState("");
+  const [savedSuccess, setSavedSuccess] = useState(false);
   const [items, setItems] = useState<RupItem[]>(getRupList());
 
-  useEffect(() => {
-    // Fetch from backend to get the latest status (especially after admin approval)
-    api.get("/rup").then(res => {
-      const backendItems = res.data.map((r: any) => ({
-        id: r.id,
-        nama: r.nama,
-        jenis: r.jenis,
-        metode: r.metode,
-        nilai: r.nilai,
-        status: r.status,
-        progress: r.progress,
-        departemen: r.departemen,
-        createdBy: r.created_by,
-        createdAt: r.created_at,
-      }));
-      
-      // Combine with local items (prioritize backend data if ID matches)
-      const mergedMap = new Map<string, RupItem>();
-      getRupList().forEach(item => mergedMap.set(item.id, item));
-      backendItems.forEach((item: RupItem) => mergedMap.set(item.id, item));
-      
-      setItems(Array.from(mergedMap.values()));
-    }).catch(console.error);
-  }, [tab]);
+  const fetchRup = () => {
+    api.get("/rup")
+      .then((res) => {
+        const backendItems = res.data.map((r: any) => ({
+          id: r.id,
+          nama: r.nama,
+          jenis: r.jenis,
+          metode: r.metode,
+          nilai: r.nilai,
+          status: r.status,
+          progress: r.progress || "0/14",
+          departemen: r.departemen,
+          createdBy: r.created_by,
+          createdAt: r.created_at,
+        }));
 
+        const mergedMap = new Map<string, RupItem>();
+        getRupList().forEach((item) => mergedMap.set(item.id, item));
+        backendItems.forEach((item: RupItem) => mergedMap.set(item.id, item));
+
+        setItems(Array.from(mergedMap.values()));
+      })
+      .catch(console.error);
+  };
+
+  useEffect(() => {
+    fetchRup();
+  }, []);
+
+  // Form State matching screenshot
   const [form, setForm] = useState({
-    nama: "", jenis: "Barang", metode: "Tender", nilai: "",
+    judul: "",
+    bebanBiaya: "",
+    peli: "",
+    sumberDana: "",
+    jenisKontrak: "Barang",
+    nilaiRkap: "",
+    tahunRkap: new Date().getFullYear().toString(),
+    typeTax: "PPN 11%",
+    nilaiTax: "",
+    startDate: "",
+    endDate: "",
+    keterangan: "",
   });
 
-  const handleCreate = () => {
+  const handleCreateRup = (e: React.FormEvent) => {
+    e.preventDefault();
     const id = generateId("RUP");
     const today = new Date().toISOString().split("T")[0];
-    
+
+    const formattedNilai = form.nilaiRkap
+      ? form.nilaiRkap.startsWith("Rp")
+        ? form.nilaiRkap
+        : `Rp ${form.nilaiRkap}`
+      : "Rp 0";
+
     const newRup: RupItem = {
       id,
-      nama: form.nama || "Pengadaan Baru",
-      jenis: form.jenis,
-      metode: form.metode,
-      nilai: form.nilai ? `Rp ${form.nilai}` : "Rp 0",
+      nama: form.judul || "Pengadaan RUP Baru",
+      jenis: form.jenisKontrak,
+      metode: "Tender",
+      nilai: formattedNilai,
       status: "pending",
       progress: "0/14",
       departemen: currentUser?.departemen || "Umum",
       createdBy: currentUser?.id || "unknown",
       createdAt: today,
     };
-    
+
     addRup(newRup);
     addVerifRecord({
       id: generateId("VR"),
@@ -71,102 +96,346 @@ export function RupListScreen() {
       submitAt: new Date().toISOString(),
       status: "pending",
     });
-    
+
     setItems(getRupList());
-    setSaved(true);
+    setSavedSuccess(true);
+
     setTimeout(() => {
-      setSaved(false);
-      setTab("list");
-      setForm({ nama: "", jenis: "Barang", metode: "Tender", nilai: "" });
-    }, 1500);
+      setSavedSuccess(false);
+      setShowModal(false);
+      setForm({
+        judul: "",
+        bebanBiaya: "",
+        peli: "",
+        sumberDana: "",
+        jenisKontrak: "Barang",
+        nilaiRkap: "",
+        tahunRkap: new Date().getFullYear().toString(),
+        typeTax: "PPN 11%",
+        nilaiTax: "",
+        startDate: "",
+        endDate: "",
+        keterangan: "",
+      });
+    }, 1200);
   };
+
+  const filteredItems = items.filter(
+    (item) =>
+      item.nama.toLowerCase().includes(search.toLowerCase()) ||
+      item.id.toLowerCase().includes(search.toLowerCase()) ||
+      item.departemen.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div>
-      <TopBar title="Rencana Umum Pengadaan" subtitle="RUP" />
-      <div className="bg-[#f4f4f4] rounded-3xl p-1 flex gap-1 mb-5 max-w-xs">
-        {(["list", "buat"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 py-2 rounded-2xl text-[11.5px] font-medium transition-all ${tab === t ? (t === "list" ? "bg-[#e6251c] text-white shadow-sm" : "bg-[#252271] text-white shadow-sm") : "text-gray-500 hover:text-gray-700"}`}>
-            {t === "list" ? "List RUP" : "Buat RUP"}
-          </button>
-        ))}
-      </div>
-      {tab === "list" ? (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-          <div className="bg-[#272477] px-5 py-4 flex items-center justify-between">
-            <div>
-              <p className="text-white font-semibold text-[13px]">Daftar RUP</p>
-              <p className="text-[#99a1af] text-[10.5px]">{items.length} pengadaan</p>
-            </div>
+      <TopBar title="Rencana Umum Pengadaan - RUP" />
+
+      {/* Main Table Card */}
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+        {/* Dark Navy Header Bar */}
+        <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-4 bg-[#1e1c56] text-white">
+          <div>
+            <h2 className="font-bold text-[15px] tracking-wide">Daftar RUP</h2>
+            <p className="text-white/60 text-[11px] mt-0.5">
+              {filteredItems.length} dari {items.length} pengadaan
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
             <div className="relative">
-              <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#99a1af]" />
-              <input className="bg-[#f3f4f6] pl-8 pr-3 py-1.5 rounded-xl text-[11px] focus:outline-none w-40" placeholder="Pencarian" />
+              <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="bg-white/95 text-gray-800 pl-9 pr-4 py-1.5 rounded-full text-[12px] placeholder-gray-400 focus:outline-none w-44 sm:w-56 shadow-inner"
+                placeholder="Pencarian..."
+              />
             </div>
+
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-semibold text-white transition-all shadow-sm hover:opacity-90 active:scale-[0.98]"
+              style={{ background: "linear-gradient(75deg, #e6251c, #ff7676)" }}
+            >
+              <Plus size={14} /> RUP Baru
+            </button>
           </div>
-          <table className="w-full">
-            <thead><tr className="bg-gray-50/80">{["No", "Nama Pengadaan", "Jenis", "Metode", "Nilai RKAP", "Progress", "Status"].map((h) => <th key={h} className="text-left px-4 py-3 text-[10.5px] font-medium text-gray-500">{h}</th>)}</tr></thead>
-            <tbody className="divide-y divide-gray-50">
-              {items.map((item, i) => {
-                const [done, total] = item.progress.split("/").map(Number);
-                return (
-                  <tr key={item.id} className={i % 2 === 1 ? "bg-gray-50/40" : ""}>
-                    <td className="px-4 py-3.5 text-[11px] text-gray-500">{item.id}</td>
-                    <td className="px-4 py-3.5"><p className="font-medium text-gray-800 text-[11px]">{item.nama}</p><p className="text-gray-400 text-[9.5px]">Tahun {new Date(item.createdAt).getFullYear()}</p></td>
-                    <td className="px-4 py-3.5 text-[11px] text-gray-600">{item.jenis}</td>
-                    <td className="px-4 py-3.5 text-[11px] text-gray-600">{item.metode}</td>
-                    <td className="px-4 py-3.5 text-[11px] font-medium text-gray-700">{item.nilai}</td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-20 bg-gray-100 rounded-full h-1.5"><div className="bg-gray-800 h-1.5 rounded-full" style={{ width: `${(done / total) * 100}%` }} /></div>
-                        <span className="text-[9.5px] text-gray-500">{item.progress}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5"><StatusBadge status={item.status} /></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </div>
-      ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          {saved && <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-2 flex items-center gap-2"><Check size={13} className="text-green-600" /><span className="text-green-700 text-[11.5px]">RUP berhasil disimpan!</span></div>}
-          <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-            <div>
-              <label className="block text-[11px] font-medium text-[#0a0a0a] mb-1">Judul Pengadaan</label>
-              <input type="text" value={form.nama} onChange={e => setForm({...form, nama: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[11px] focus:outline-none focus:border-[#e6251c]" placeholder="Masukkan judul pengadaan" />
+
+        {/* RUP Table */}
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-50/80 border-b border-gray-100">
+              {["NO. DOKUMEN", "JUDUL PENGADAAN", "NILAI", "DEPARTEMEN", "TAHAP & PROGRES", "STATUS"].map((h) => (
+                <th key={h} className="text-left px-5 py-3 text-[10px] font-bold tracking-wider text-gray-400 uppercase">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {filteredItems.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-10 text-center text-[12px] text-gray-400">
+                  Belum ada data RUP. Klik "+ RUP Baru" untuk membuat RUP.
+                </td>
+              </tr>
+            ) : (
+              filteredItems.map((item) => (
+                <tr key={item.id} className="hover:bg-gray-50/60 transition-colors">
+                  <td className="px-5 py-4 text-[12px] font-semibold text-gray-700">{item.id}</td>
+                  <td className="px-5 py-4">
+                    <p className="font-semibold text-gray-800 text-[12px]">{item.nama}</p>
+                    <p className="text-gray-400 text-[10px]">Tahun {new Date(item.createdAt).getFullYear()}</p>
+                  </td>
+                  <td className="px-5 py-4 text-[12px] font-semibold text-gray-800">{item.nilai}</td>
+                  <td className="px-5 py-4 text-[12px] text-gray-600">{item.departemen}</td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-1">
+                      {PARK_STEPS.map((s) => (
+                        <div
+                          key={s.id}
+                          title={s.label}
+                          className={`w-3 h-3 rounded-full ${item.status === "approved" || item.status === "Selesai"
+                              ? "bg-[#e6251c]"
+                              : item.status === "pending" || item.status === "Proses"
+                                ? "bg-[#252271]"
+                                : "bg-gray-100 border border-gray-200"
+                            }`}
+                        />
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <StatusBadge status={item.status} />
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* RUP BARU MODAL POPUP (Matching Right Screenshot) */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[720px] overflow-hidden my-6 border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header Bar */}
+            <div className="bg-[#1e1c60] px-6 py-4 flex items-center justify-between text-white">
+              <h3 className="font-bold text-[16px] tracking-wide">RUP Baru</h3>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-white/60 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
             </div>
-            <div>
-              <label className="block text-[11px] font-medium text-[#0a0a0a] mb-1">Jenis Kontrak</label>
-              <select value={form.jenis} onChange={e => setForm({...form, jenis: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[11px] focus:outline-none focus:border-[#e6251c]">
-                <option value="Barang">Barang</option>
-                <option value="Jasa">Jasa</option>
-                <option value="Konstruksi">Konstruksi</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-[#0a0a0a] mb-1">Metode Pengadaan</label>
-              <select value={form.metode} onChange={e => setForm({...form, metode: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[11px] focus:outline-none focus:border-[#e6251c]">
-                <option value="Tender">Tender</option>
-                <option value="Seleksi Langsung">Seleksi Langsung</option>
-                <option value="Pengadaan Langsung">Pengadaan Langsung</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-[#0a0a0a] mb-1">Nilai RKAP (Sebelum Pajak)</label>
-              <input type="text" value={form.nilai} onChange={e => setForm({...form, nilai: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[11px] focus:outline-none focus:border-[#e6251c]" placeholder="Masukkan nilai RKAP" />
-            </div>
-            {["Beban Biaya", "Sumber Dana", "Tahun RKAP", "Type TAX"].map((f) => (
-              <div key={f}><label className="block text-[11px] font-medium text-[#0a0a0a] mb-1">{f}</label><input type="text" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[11px] focus:outline-none focus:border-[#e6251c]" placeholder={`Masukkan ${f.toLowerCase()}`} /></div>
-            ))}
-            {["Start Date Pengadaan", "End Date Pengadaan"].map((f) => (
-              <div key={f}><label className="block text-[11px] font-medium text-[#0a0a0a] mb-1">{f}</label><input type="date" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[11px] focus:outline-none focus:border-[#e6251c]" /></div>
-            ))}
-            <div className="col-span-2"><label className="block text-[11px] font-medium text-[#0a0a0a] mb-1">Keterangan</label><textarea className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[11px] focus:outline-none focus:border-[#e6251c] h-20 resize-none" placeholder="Masukkan keterangan" /></div>
-          </div>
-          <div className="flex justify-end gap-3 mt-5">
-            <button onClick={() => setTab("list")} className="px-5 py-2 rounded-lg border border-gray-200 text-[11px] text-gray-600 hover:bg-gray-50">Batal</button>
-            <button onClick={handleCreate} className="px-5 py-2 rounded-lg text-[11px] text-white font-semibold" style={{ background: "linear-gradient(75deg, #ff4040, #ff7676)" }}>Simpan RUP</button>
+
+            {/* Modal Form Body */}
+            <form onSubmit={handleCreateRup} className="p-6 space-y-4">
+              {savedSuccess && (
+                <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                  <Check size={16} className="text-green-600 shrink-0" />
+                  <span className="text-green-700 text-[12px] font-medium">Data RUP Baru berhasil disimpan!</span>
+                </div>
+              )}
+
+              {/* Judul Pengadaan */}
+              <div>
+                <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                  Judul Pengadaan <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={form.judul}
+                  onChange={(e) => setForm({ ...form, judul: e.target.value })}
+                  placeholder="Masukkan judul pengadaan..."
+                  className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                />
+              </div>
+
+              {/* Row 1: Beban Biaya & PELI */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                    Beban Biaya <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={form.bebanBiaya}
+                    onChange={(e) => setForm({ ...form, bebanBiaya: e.target.value })}
+                    placeholder="Masukkan beban biaya..."
+                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                    PELI <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={form.peli}
+                    onChange={(e) => setForm({ ...form, peli: e.target.value })}
+                    placeholder="Masukkan PELI..."
+                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Sumber Dana & Jenis Kontrak */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                    Sumber Dana <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={form.sumberDana}
+                    onChange={(e) => setForm({ ...form, sumberDana: e.target.value })}
+                    placeholder="Masukkan sumber dana..."
+                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                    Jenis Kontrak <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={form.jenisKontrak}
+                    onChange={(e) => setForm({ ...form, jenisKontrak: e.target.value })}
+                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                  >
+                    <option value="Barang">Barang</option>
+                    <option value="Jasa">Jasa</option>
+                    <option value="Konstruksi">Konstruksi</option>
+                    <option value="Konsultansi">Konsultansi</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 3: Nilai RKAP & Tahun RKAP */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                    Nilai RKAP (Sebelum Pajak) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={form.nilaiRkap}
+                    onChange={(e) => setForm({ ...form, nilaiRkap: e.target.value })}
+                    placeholder="Rp 0"
+                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                    Tahun RKAP <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={form.tahunRkap}
+                    onChange={(e) => setForm({ ...form, tahunRkap: e.target.value })}
+                    placeholder="2024"
+                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Row 4: Type Tax & Nilai Tax */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                    Type Tax <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={form.typeTax}
+                    onChange={(e) => setForm({ ...form, typeTax: e.target.value })}
+                    placeholder="Masukkan type tax..."
+                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                    Nilai Tax
+                  </label>
+                  <input
+                    type="text"
+                    value={form.nilaiTax}
+                    onChange={(e) => setForm({ ...form, nilaiTax: e.target.value })}
+                    placeholder="Masukkan nilai tax..."
+                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Row 5: Start Date & End Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                    Start Date Pengadaan <span className="text-gray-400 text-[11px] font-normal">(opsional, masukkan dalam hari)</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={form.startDate}
+                    onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                    placeholder="0"
+                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                    End Date Pengadaan <span className="text-gray-400 text-[11px] font-normal">(opsional, masukkan dalam hari)</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={form.endDate}
+                    onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                    placeholder="0"
+                    className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Keterangan */}
+              <div>
+                <label className="block text-[12px] font-medium text-gray-700 mb-1">
+                  Keterangan <span className="text-gray-400 text-[11px] font-normal">(opsional)</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={form.keterangan}
+                  onChange={(e) => setForm({ ...form, keterangan: e.target.value })}
+                  placeholder="Tambahkan keterangan jika diperlukan..."
+                  className="w-full bg-gray-50/70 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#252271]/20 transition-all resize-none"
+                />
+              </div>
+
+              {/* Modal Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-5 py-2 rounded-xl border border-gray-300 text-[12px] font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 rounded-xl text-[12px] font-semibold text-white bg-[#252271] hover:bg-[#1c1959] transition-all shadow-sm active:scale-[0.98]"
+                >
+                  Simpan RUP
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -70,7 +70,7 @@ export function AdminApp() {
         />
       </div>
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-8 py-6">
+        <div className="w-full px-4 sm:px-6 py-5 transition-all duration-200">
           {renderScreen()}
         </div>
       </div>

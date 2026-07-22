@@ -12,6 +12,8 @@ import { PrDetailScreen } from "./pages/PrDetailScreen";
 import { PdDetailScreen } from "./pages/PdDetailScreen";
 import { TemplateDokumenScreen } from "./pages/TemplateDokumenScreen";
 import { ProfileScreen } from "./pages/ProfileScreen";
+import { DaftarPengujianScreen } from "./pages/DaftarPengujianScreen";
+import { DaftarPembayaranScreen } from "./pages/DaftarPembayaranScreen";
 
 // ─── User App (fully synchronized via Laravel MySQL API) ──────────────────────
 function UserApp() {
@@ -24,6 +26,9 @@ function UserApp() {
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem("sipro_user_sidebar_collapsed") === "true";
+  });
+  const [backScreen, setBackScreen] = useState<Screen>(() => {
+    return (localStorage.getItem("sipro_last_back_screen") as Screen) || "dashboard";
   });
 
   const handleNavigate = (s: Screen) => {
@@ -38,6 +43,8 @@ function UserApp() {
   const handleSelectItem = (item: PengadaanItem, s: Screen) => {
     setSelectedItem(item);
     localStorage.setItem("sipro_last_selected_item", JSON.stringify(item));
+    setBackScreen(screen);
+    localStorage.setItem("sipro_last_back_screen", screen);
     setScreen(s);
     localStorage.setItem("sipro_last_user_screen", s);
   };
@@ -53,10 +60,10 @@ function UserApp() {
   return (
     <div className="flex h-screen bg-[#f2f2f2] overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
       <div className="h-full shrink-0" style={{ width: sidebarCollapsed ? "60px" : "224px", transition: "width 0.2s ease" }}>
-        <Sidebar screen={screen} onNavigate={handleNavigate} collapsed={sidebarCollapsed} onToggleCollapse={handleToggleCollapse} />
+        <Sidebar screen={screen} backScreen={backScreen} onNavigate={handleNavigate} collapsed={sidebarCollapsed} onToggleCollapse={handleToggleCollapse} />
       </div>
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-8 py-6">
+        <div className="w-full px-4 sm:px-6 py-5 transition-all duration-200">
           {screen === "dashboard" && <DashboardScreen />}
           {screen === "rup-list" && <RupListScreen />}
           {screen === "daftar-pengadaan" && (
@@ -65,7 +72,7 @@ function UserApp() {
             />
           )}
           {screen === "pd-detail" && selectedItem && (
-            <PdDetailScreen item={selectedItem} onBack={() => handleNavigate("daftar-pengadaan")} onNavigate={handleNavigate} />
+            <PdDetailScreen item={selectedItem} onBack={() => handleNavigate(backScreen)} onNavigate={handleNavigate} />
           )}
           {screen === "purchase-requisition" && (
             <PurchaseRequestionScreen
@@ -73,7 +80,30 @@ function UserApp() {
             />
           )}
           {screen === "pr-detail" && selectedItem && (
-            <PrDetailScreen item={selectedItem} onBack={() => handleNavigate("purchase-requisition")} onNavigate={handleNavigate} />
+            <PrDetailScreen item={selectedItem} onBack={() => handleNavigate(backScreen)} onNavigate={handleNavigate} />
+          )}
+          {screen === "daftar-pengujian" && (
+            <DaftarPengujianScreen
+              onSelectItem={(item) => handleSelectItem(item, item.id.startsWith("PR-") ? "pr-detail" : "pd-detail")}
+            />
+          )}
+          {screen === "pembayaran-outsource" && (
+            <DaftarPembayaranScreen
+              type="outsource"
+              onSelectItem={(item) => handleSelectItem(item, "pr-detail")}
+            />
+          )}
+          {screen === "pembayaran-non-outsource" && (
+            <DaftarPembayaranScreen
+              type="non-outsource"
+              onSelectItem={(item) => handleSelectItem(item, "pr-detail")}
+            />
+          )}
+          {screen === "pembayaran-umd" && (
+            <DaftarPembayaranScreen
+              type="umd"
+              onSelectItem={(item) => handleSelectItem(item, "pd-detail")}
+            />
           )}
           {screen === "template-dokumen" && <TemplateDokumenScreen />}
           {screen === "profile" && <ProfileScreen />}

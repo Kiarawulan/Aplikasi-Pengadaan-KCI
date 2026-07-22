@@ -12,20 +12,20 @@ export function DashboardScreen() {
     <div>
       <TopBar title="Dashboard" />
       <div className="bg-[#f5f5f5] rounded-3xl p-3 space-y-3">
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {cards.map((c) => (
             <div key={c.label}
-              className={`rounded-3xl p-5 h-44 flex flex-col justify-between shadow-[0px_0px_7.6px_0px_rgba(0,0,0,0.14)] ${c.gradient ? "" : "bg-white"}`}
+              className={`rounded-3xl p-5 min-h-[160px] flex flex-col justify-between shadow-[0px_0px_7.6px_0px_rgba(0,0,0,0.14)] ${c.gradient ? "" : "bg-white"}`}
               style={c.gradient ? { background: "linear-gradient(198deg, #d61b12 11%, #700e09 152%)" } : {}}>
               <p className={`text-[11.5px] font-medium ${c.gradient ? "text-white/80" : "text-gray-500"}`}>{c.label}</p>
               <div>
-                <p className={`text-5xl font-black ${c.gradient ? "text-white" : "text-[#252271]"}`}>{c.value}</p>
+                <p className={`text-4xl sm:text-5xl font-black ${c.gradient ? "text-white" : "text-[#252271]"}`}>{c.value}</p>
                 <p className={`text-[10px] mt-1 ${c.gradient ? "text-white/60" : "text-gray-400"}`}>{c.sub}</p>
               </div>
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <div className="bg-white rounded-3xl shadow-[0px_0px_10.9px_0px_rgba(0,0,0,0.09)] p-5 h-52">
             <p className="text-[11.5px] font-semibold text-gray-600 mb-4">Progres Pengadaan</p>
             <div className="space-y-3">
