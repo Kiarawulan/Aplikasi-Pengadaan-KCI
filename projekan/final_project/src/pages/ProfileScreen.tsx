@@ -29,7 +29,7 @@ export function ProfileScreen() {
             {[
               { label: "Nama Lengkap", value: currentUser?.name ?? "—" },
               { label: "Email", value: currentUser?.email ?? "—" },
-              { label: "Departemen", value: currentUser?.departemen ?? "—" },
+              { label: "Divisi", value: currentUser?.departemen ?? "—" },
               { label: "Role Permission", value: currentRole?.name ?? "—" },
               { label: "Status Akun", value: currentUser?.isActive ? "Aktif" : "Non-aktif" },
               { label: "Terakhir Login", value: currentUser?.lastLogin ? new Date(currentUser.lastLogin).toLocaleString("id-ID") : "Sekarang" },

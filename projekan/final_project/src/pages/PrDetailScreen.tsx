@@ -296,7 +296,7 @@ export function PrDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
 
   const cardHeader = () => {
     if (activeStep.id === "npp") return subId === "buat-npp" ? "NPP — Nota Permintaan Pengadaan" : "Detail NPP";
-    if (activeStep.id === "pengajuan-dana") return subId === "buat-pr" ? "Purchase Requisition" : "Detail Purchase Requisition";
+    if (activeStep.id === "pengajuan-dana") return subId === "buat-pr" ? "Pengajuan Dana" : "Detail Pengajuan Dana";
     if (activeStep.id === "pengujian") return activeStep.subSteps.find(s => s.id === subId)?.label ?? "Pengujian";
     if (activeStep.id === "pembayaran") return activeStep.subSteps.find(s => s.id === subId)?.label ?? "Pembayaran";
     return activeStep.label;
@@ -304,8 +304,8 @@ export function PrDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
 
   return (
     <div>
-      <Breadcrumb segments={[{ label: "Daftar Pengadaan", screen: "daftar-pengadaan" }, { label: "Purchase Requisition", screen: "purchase-requisition" }, { label: item.nama }]} onNavigate={onNavigate} />
-      <DetailHeaderCard item={item} />
+      <Breadcrumb segments={[{ label: "Daftar Pengadaan", screen: "daftar-pengadaan" }, { label: "Pengajuan Dana", screen: "purchase-requisition" }, { label: item.nama }]} onNavigate={onNavigate} />
+      <DetailHeaderCard item={item} allFd={allFd} />
       {flash && <div className="mb-3 bg-green-50 border border-green-200 rounded-xl px-4 py-2 flex items-center gap-2"><Check size={12} className="text-green-600" /><span className="text-green-700 text-[11px]">Data berhasil disimpan!</span></div>}
 
       <div className="flex gap-5 items-start">

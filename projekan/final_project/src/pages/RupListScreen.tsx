@@ -3,7 +3,7 @@ import { Search, Plus, X, Check, Edit2, Eye } from "lucide-react";
 import { TopBar } from "../components/layout/TopBar";
 import { StatusBadge } from "../components/common/StatusBadge";
 import { useAuth } from "../store/authStore";
-import { getRupList, addRup, updateRup, addVerifRecord, generateId } from "../store/dataStore";
+import { getRupList, addRup, updateRup, addVerifRecord, generateId, getVerifRecords, updateVerifRecord } from "../store/dataStore";
 import { PARK_STEPS } from "../constants/steps";
 import { api } from "../services/api";
 import type { RupItem } from "../types";
@@ -15,6 +15,7 @@ export function RupListScreen() {
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [revisionNote, setRevisionNote] = useState<string | null>(null);
   const [items, setItems] = useState<RupItem[]>(getRupList());
 
   const fetchRup = () => {
@@ -79,17 +80,23 @@ export function RupListScreen() {
         nilai: formattedNilai,
         status: "pending"
       });
-      addVerifRecord({
-        id: generateId("VR"),
-        pengadaanId: editingId,
-        pengadaanNama: form.judul,
-        departemen: currentUser?.departemen || "Umum",
-        nominal: formattedNilai,
-        tipe: "rup",
-        submitBy: currentUser?.name || "User",
-        submitAt: new Date().toISOString(),
-        status: "pending",
-      });
+      const existingVerif = getVerifRecords().find(r => r.pengadaanId === editingId);
+      if (existingVerif) {
+        updateVerifRecord(existingVerif.id, { status: "pending", catatanAdmin: "" });
+        api.put(`/verifikasi/${existingVerif.id}`, { status: "pending", catatan_admin: "" }).catch(() => {});
+      } else {
+        addVerifRecord({
+          id: generateId("VR"),
+          pengadaanId: editingId,
+          pengadaanNama: form.judul,
+          departemen: currentUser?.departemen || "Umum",
+          nominal: formattedNilai,
+          tipe: "rup",
+          submitBy: currentUser?.name || "User",
+          submitAt: new Date().toISOString(),
+          status: "pending",
+        });
+      }
       api.put(`/rup/${editingId}`, {
         nama: form.judul,
         jenis: form.jenisKontrak,
@@ -164,6 +171,8 @@ export function RupListScreen() {
       endDate: "",
       keterangan: "",
     });
+    const verif = getVerifRecords().find(r => r.pengadaanId === item.id && (item.status === 'revisi' || item.status === 'rejected'));
+    setRevisionNote(verif?.catatanAdmin || null);
     setEditingId(item.id);
     setShowModal(true);
   };
@@ -263,7 +272,7 @@ export function RupListScreen() {
                   <td className="px-5 py-4">
                     <button
                       onClick={() => {
-                        const canEdit = item.status === 'revisi' || item.status === 'pending';
+                        const canEdit = (item.status === 'revisi' || item.status === 'pending') && currentUser?.departemen === item.departemen;
                         setIsViewOnly(!canEdit);
                         handleEditClick(item);
                       }}
@@ -301,6 +310,13 @@ export function RupListScreen() {
                 <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
                   <Check size={16} className="text-green-600 shrink-0" />
                   <span className="text-green-700 text-[12px] font-medium">Data RUP Baru berhasil disimpan!</span>
+                </div>
+              )}
+
+              {revisionNote && (
+                <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
+                  <p className="text-red-700 text-[11px] font-bold mb-1">Catatan Revisi dari Admin:</p>
+                  <p className="text-red-600 text-[12px]">{revisionNote}</p>
                 </div>
               )}
 

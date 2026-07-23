@@ -35,12 +35,7 @@ const SECTIONS = [
     description: "Verifikasi Rencana Umum Pengadaan, Approve / Reject RUP",
     filterTypes: ["rup"],
   },
-  {
-    id: "purchase-requisition",
-    title: "Purchase Requisition (PR)",
-    description: "Verifikasi Pengajuan Purchase Requisition",
-    filterTypes: ["purchase-requisition"],
-  },
+
   {
     id: "pengajuan-dana",
     title: "Pengajuan Dana (Park Document)",
@@ -212,9 +207,9 @@ export function PengadaanVerifScreen() {
               data={sectionData}
               searchKeys={["pengadaanNama", "departemen", "submitBy"]}
               onView={handleViewDetail}
-              onApprove={(r) => r.status === "pending" && handleApprove(r)}
-              onRevisi={(r) => r.status === "pending" && (setShowRevisi(r), setCatatan(""))}
-              onReject={(r) => r.status === "pending" && (setShowReject(r), setCatatan(""))}
+              onApprove={(r) => (r.status === "pending" || r.status === "revisi") && handleApprove(r)}
+              onRevisi={(r) => (r.status === "pending" || r.status === "revisi") && (setShowRevisi(r), setCatatan(""))}
+              onReject={(r) => (r.status === "pending" || r.status === "revisi") && (setShowReject(r), setCatatan(""))}
               showVerifActions={true}
               showCrudActions={true}
               filterOptions={[
@@ -286,7 +281,7 @@ export function PengadaanVerifScreen() {
                 </div>
               </div>
             )}
-            {showDetail.status === "pending" && (
+            {(showDetail.status === "pending" || showDetail.status === "revisi") && (
               <div className="flex gap-2 pt-2">
                 <button onClick={() => { handleApprove(showDetail); setShowDetail(null); setSp3File(""); }} className="flex-1 h-8 rounded-lg bg-green-600 text-white text-[11.5px] font-semibold">✓ Setujui</button>
                 <button onClick={() => { setShowRevisi(showDetail); setShowDetail(null); setSp3File(""); }} className="flex-1 h-8 rounded-lg bg-blue-500 text-white text-[11.5px] font-semibold">Revisi</button>

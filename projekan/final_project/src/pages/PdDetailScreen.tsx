@@ -359,7 +359,7 @@ export function PdDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
   return (
     <div>
       <Breadcrumb segments={[{ label: "Daftar Pengadaan", screen: "daftar-pengadaan" }, { label: "Park Dokumen", screen: "daftar-pengadaan" }, { label: item.nama }]} onNavigate={onNavigate} />
-      <DetailHeaderCard item={item} />
+      <DetailHeaderCard item={item} allFd={allFd} />
 
       {/* Synchronized Admin Status Banner */}
       {verifState.status === "pending" && (

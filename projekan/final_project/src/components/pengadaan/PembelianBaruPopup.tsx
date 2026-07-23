@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import type { ParkStep, PengadaanItem, RupItem } from "../../types";
 import { getRupList } from "../../store/dataStore";
+import { api } from "../../services/api";
 
 export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Pengadaan Baru", submitLabel = "Submit", initialStep = "npp" as ParkStep, initialData, isViewOnly }: {
   onClose: () => void; onSubmit: (item: any) => void;
@@ -13,8 +14,28 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
   const [dropdownOpen, setDropdownOpen] = useState(false);
   
   useEffect(() => {
-    // In real app, fetch from API. For now, use store.
-    setRupList(getRupList().filter(r => r.status?.toLowerCase() === "approved"));
+    api.get("/rup")
+      .then((res) => {
+        const backendItems = res.data.map((r: any) => ({
+          id: r.id,
+          nama: r.nama,
+          jenis: r.jenis,
+          metode: r.metode,
+          nilai: r.nilai,
+          status: r.status,
+          progress: r.progress || "0/14",
+          departemen: r.departemen,
+          createdBy: r.created_by,
+          createdAt: r.created_at,
+        }));
+        const mergedMap = new Map<string, RupItem>();
+        getRupList().forEach((item) => mergedMap.set(item.id, item));
+        backendItems.forEach((item: RupItem) => mergedMap.set(item.id, item));
+        setRupList(Array.from(mergedMap.values()).filter(r => r.status?.toLowerCase() === "approved"));
+      })
+      .catch(() => {
+        setRupList(getRupList().filter(r => r.status?.toLowerCase() === "approved"));
+      });
   }, []);
 
   const [form, setForm] = useState({

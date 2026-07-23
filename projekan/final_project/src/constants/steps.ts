@@ -33,7 +33,7 @@ export const PD_MAIN_STEPS: MainStep[] = [
 
 export const PR_MAIN_STEPS: MainStep[] = [
   { id: "npp", label: "NPP", subSteps: [{ id: "buat-npp", label: "Buat NPP" }, { id: "detail-npp", label: "Detail NPP" }] },
-  { id: "pengajuan-dana", label: "Pengajuan Dana", subSteps: [{ id: "buat-pr", label: "Buat Purchase Requisition" }, { id: "detail-pr", label: "Detail Purchase Requisition" }] },
+  { id: "pengajuan-dana", label: "Pengajuan Dana", subSteps: [{ id: "buat-pr", label: "Buat Pengajuan Dana" }, { id: "detail-pr", label: "Detail Pengajuan Dana" }] },
   { id: "sp3", label: "SP3", subSteps: [] },
   { id: "pbj", label: "PBJ", subSteps: [] },
   { id: "contract", label: "Contract", subSteps: [] },

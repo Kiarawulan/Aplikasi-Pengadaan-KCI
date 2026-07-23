@@ -50,12 +50,15 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
         <SummaryRow label="Metode" value={fdFrom("buat-npp").metode || "Pengadaan Langsung"} />
         {fdFrom("buat-npp").keterangan && <SummaryRow label="Keterangan" value={fdFrom("buat-npp").keterangan} />}
       </div>
-      <div className="mt-4 pt-4 border-t border-[#e2e2e2]"><button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><FileText size={13} /> NPP — Lihat Dokumen</button></div>
+      {status === "approved" && (
+        <div className="mt-4 pt-4 border-t border-[#e2e2e2]"><button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><FileText size={13} /> NPP — Lihat Dokumen</button></div>
+      )}
     </div>
   );
   if (step === "pengajuan-dana" && subStepId === "buat-pr") {
     const d = fdFrom("buat-pr");
     const isApproved = item?.status === "approved" || item?.status === "Selesai";
+    const af = allFd as any;
     return (
       <div>
         <div className="flex items-center gap-2 mb-4">
@@ -63,33 +66,36 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
           {isApproved ? <ApprovedBadge /> : <span className="bg-yellow-100 text-yellow-700 text-[10px] font-semibold px-2 py-0.5 rounded">Menunggu Verifikasi</span>}
         </div>
         <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
-          <SummaryRow label="Judul Permohonan" value={d["judulPermohonan"] || item?.nama} />
-          <SummaryRow label="Email PIC" value={d["emailPic"] || item?.formData?.emailPic || "—"} />
-          <SummaryRow label="Divisi" value={d["subUnit"] || item?.formData?.subUnit || item?.departemen || "—"} />
-          <SummaryRow label="Jenis Permohonan" value={d["jenisPermohonan"] || item?.formData?.jenisPermohonan || "—"} />
-          <SummaryRow label="Nominal Permohonan" value={d["nominalPermohonan"] || item?.nominal} />
-          <SummaryRow label="Nominal Konversi" value={d["nominalKonversi"] || item?.formData?.nominalKonversi || item?.nominal} />
-          <SummaryRow label="Detail Permohonan" value={d["detailPermohonan"] || item?.formData?.detailPermohonan || "—"} />
-          <SummaryRow label="Tahun" value={d["tahun"] || item?.formData?.tahun || "2024"} />
+          <SummaryRow label="Judul Permohonan" value={d["judulPermohonan"] || af.judulPermohonan || item?.nama} />
+          <SummaryRow label="Email PIC" value={d["emailPic"] || af.emailPic || item?.formData?.emailPic || "—"} />
+          <SummaryRow label="Divisi" value={d["subUnit"] || af.subUnit || af.divisi || item?.formData?.subUnit || item?.departemen || "—"} />
+          <SummaryRow label="Jenis Permohonan" value={d["jenisPermohonan"] || af.jenisPermohonan || item?.formData?.jenisPermohonan || "—"} />
+          <SummaryRow label="Nominal Permohonan" value={d["nominalPermohonan"] || af.nominalPermohonan || item?.nominal} />
+          <SummaryRow label="Nominal Konversi" value={d["nominalKonversi"] || af.nominalKonversi || item?.formData?.nominalKonversi || item?.nominal} />
+          <SummaryRow label="Detail Permohonan" value={d["detailPermohonan"] || af.detailPermohonan || item?.formData?.detailPermohonan || "—"} />
+          <SummaryRow label="Tahun" value={d["tahun"] || af.tahun || item?.formData?.tahun || "2024"} />
         </div>
       </div>
     );
   }
-  if (step === "pengajuan-dana" && subStepId === "detail-pr") return (
-    <div>
-      <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p><StatusDisplay /></div>
-      <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
-        <SummaryRow label="Judul Permohonan" value={fdFrom("buat-pr").judulPermohonan || item?.nama || "Pengadaan Laptop"} />
-        <SummaryRow label="Email PIC" value={fdFrom("buat-pr").emailPic || item?.formData?.emailPic || "namaemail@email.com"} />
-        <SummaryRow label="Divisi" value={fdFrom("buat-pr").subUnit || item?.formData?.subUnit || item?.departemen || "IT"} />
-        <SummaryRow label="Jenis Permohonan" value={fdFrom("buat-pr").jenisPermohonan || item?.formData?.jenisPermohonan || "Barang"} />
-        <SummaryRow label="Nominal Permohonan" value={fdFrom("buat-pr").nominalPermohonan || item?.nominal || "Rp 100.000.000"} />
-        <SummaryRow label="Nominal Konversi" value={fdFrom("buat-pr").nominalKonversi || item?.formData?.nominalKonversi || item?.nominal || "Rp 100.000.000"} />
-        <SummaryRow label="Detail Permohonan" value={fdFrom("buat-pr").detailPermohonan || item?.formData?.detailPermohonan || "Lorem ipsum dolor sit amet"} />
-        <SummaryRow label="Tahun" value={fdFrom("buat-pr").tahun || item?.formData?.tahun || "2024"} />
+  if (step === "pengajuan-dana" && subStepId === "detail-pr") {
+    const af = allFd as any;
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p><StatusDisplay /></div>
+        <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
+          <SummaryRow label="Judul Permohonan" value={fdFrom("buat-pr").judulPermohonan || af.judulPermohonan || item?.nama || "Pengadaan Laptop"} />
+          <SummaryRow label="Email PIC" value={fdFrom("buat-pr").emailPic || af.emailPic || item?.formData?.emailPic || "namaemail@email.com"} />
+          <SummaryRow label="Divisi" value={fdFrom("buat-pr").subUnit || af.subUnit || af.divisi || item?.formData?.subUnit || item?.departemen || "IT"} />
+          <SummaryRow label="Jenis Permohonan" value={fdFrom("buat-pr").jenisPermohonan || af.jenisPermohonan || item?.formData?.jenisPermohonan || "Barang"} />
+          <SummaryRow label="Nominal Permohonan" value={fdFrom("buat-pr").nominalPermohonan || af.nominalPermohonan || item?.nominal || "Rp 100.000.000"} />
+          <SummaryRow label="Nominal Konversi" value={fdFrom("buat-pr").nominalKonversi || af.nominalKonversi || item?.formData?.nominalKonversi || item?.nominal || "Rp 100.000.000"} />
+          <SummaryRow label="Detail Permohonan" value={fdFrom("buat-pr").detailPermohonan || af.detailPermohonan || item?.formData?.detailPermohonan || "Lorem ipsum dolor sit amet"} />
+          <SummaryRow label="Tahun" value={fdFrom("buat-pr").tahun || af.tahun || item?.formData?.tahun || "2024"} />
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
   if (step === "sp3") return (
     <div>
       <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p><StatusDisplay /></div>
@@ -106,34 +112,46 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
       )}
     </div>
   );
-  if (step === "pbj") return (
-    <div>
-      <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">PBJ Details</p><StatusDisplay /></div>
-      <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
-        <SummaryRow label="Nomor PBJ" value={fdFrom("pbj").noPbj || "PBJ-2024-001"} />
-        <SummaryRow label="Tanggal PBJ" value={fdFrom("pbj").tglPbj || "12 Okt 2024"} />
-        <SummaryRow label="Pemenang Tender" value={fdFrom("pbj").pemenang || "PT Vendor IT Sukses"} />
-        <SummaryRow label="Nilai Kontrak" value={fdFrom("pbj").nilaiKontrak || "Rp 95.000.000"} />
+  if (step === "pbj") {
+    let pbjStatus = <StatusDisplay />;
+    if (status === "pending") pbjStatus = <span className="bg-yellow-100 text-yellow-700 text-[10px] font-semibold px-2 py-0.5 rounded">Menunggu Verifikasi</span>;
+    else if (status === "revisi") pbjStatus = <span className="bg-blue-100 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded">Dalam Proses</span>;
+    else if (status === "approved") pbjStatus = <span className="bg-green-100 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded">Proses Selesai</span>;
+
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">PBJ Details</p>{pbjStatus}</div>
+        <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
+          <SummaryRow label="Nomor PBJ" value={fdFrom("pbj").noPbj || "PBJ-2024-001"} />
+          <SummaryRow label="Tanggal PBJ" value={fdFrom("pbj").tglPbj || "12 Okt 2024"} />
+          <SummaryRow label="Pemenang Tender" value={fdFrom("pbj").pemenang || "PT Vendor IT Sukses"} />
+          <SummaryRow label="Nilai Kontrak" value={fdFrom("pbj").nilaiKontrak || "Rp 95.000.000"} />
+        </div>
       </div>
-      {status === "approved" && (
-        <div className="mt-4 pt-4 border-t border-[#e2e2e2]"><button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><FileText size={13} /> Berita Acara PBJ.pdf (Download)</button></div>
-      )}
-    </div>
-  );
-  if (step === "contract") return (
-    <div>
-      <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p><StatusDisplay /></div>
-      <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
-        <SummaryRow label="Judul Pengadaan" value={item?.nama || "Judul Pengadaan"} />
-        <SummaryRow label="Email PIC" value={fdFrom("buat-pr").email || "admin@perusahaan.com"} />
-        <SummaryRow label="Nominal" value={fdFrom("pbj").nilai || item?.nominal || fdFrom("buat-npp").nilaiPr || "Nominal"} />
-        <SummaryRow label="Vendor" value={fdFrom("pbj").vendor || fdFrom("buat-npp").vendor || "Vendor"} />
-        <SummaryRow label="COA" value={fdFrom("buat-npp").coa || "-"} />
-        <SummaryRow label="Kurs" value={fdFrom("buat-npp").kurs || "IDR"} />
+    );
+  }
+  if (step === "contract") {
+    let contractStatus = <StatusDisplay />;
+    if (status === "pending") contractStatus = <span className="bg-blue-100 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded">Dalam Proses</span>;
+    else if (status === "approved") contractStatus = <span className="bg-green-100 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded">Proses Selesai</span>;
+
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p>{contractStatus}</div>
+        <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
+          <SummaryRow label="Judul Pengadaan" value={item?.nama || "Judul Pengadaan"} />
+          <SummaryRow label="Email PIC" value={fdFrom("buat-pr").emailPic || "admin@perusahaan.com"} />
+          <SummaryRow label="Nominal" value={fdFrom("pbj").nilaiKontrak || item?.nominal || fdFrom("buat-npp").nilaiPr || "Nominal"} />
+          <SummaryRow label="Vendor" value={fdFrom("pbj").pemenang || fdFrom("buat-npp").vendor || "Vendor"} />
+          <SummaryRow label="COA" value={fdFrom("buat-npp").coa || "-"} />
+          <SummaryRow label="Kurs" value={fdFrom("buat-npp").kurs || "IDR"} />
+        </div>
+        {status === "approved" && (
+          <div className="mt-4 pt-4 border-t border-[#e2e2e2]"><button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><FileText size={13} /> Dokumen Contract Final.pdf (Download)</button></div>
+        )}
       </div>
-      <div className="mt-4 pt-4 border-t border-[#e2e2e2]"><button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><FileText size={13} /> Dokumen Contract dari Admin.pdf (Download)</button></div>
-    </div>
-  );
+    );
+  }
   if (step === "pengujian") {
     const pengujianItem = getPengujianList().find(x => x.nama === item?.nama);
     let statusLabel = "Belum Diajukan";
@@ -143,8 +161,10 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
 
     if (subStepId === "request-pengujian") {
       const isKurang500 = f("opsiNilai") === "<500jt";
+      const isFormDisabled = status === "pending" || status === "approved" || status === "selesai";
+
       return (
-        <div className="space-y-4">
+        <fieldset disabled={isFormDisabled} className="space-y-4 border-none p-0 m-0">
           <div className="flex items-center gap-2 mb-2">
             <p className="text-[11.5px] font-semibold text-[#0a0a0a]">Status Verifikasi:</p>
             <StatusDisplay />
@@ -209,7 +229,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
               </div>
             </div>
           )}
-        </div>
+        </fieldset>
       );
     }
     
