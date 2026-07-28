@@ -209,6 +209,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    const fetchUser = async () => {
+      const token = localStorage.getItem(LS_TOKEN);
+      if (!token) return;
+      try {
+        const res = await api.get('/auth/me');
+        const apiUserData = res.data;
+        
+        const appUser: AppUser = {
+          id: apiUserData.id,
+          email: apiUserData.email,
+          name: apiUserData.name,
+          password: '',
+          roleId: apiUserData.role_id,
+          departemen: apiUserData.departemen,
+          isActive: apiUserData.is_active,
+          isAdmin: apiUserData.is_admin,
+          mustResetPassword: apiUserData.must_reset_password,
+          lastLogin: apiUserData.last_login_at,
+          createdAt: new Date().toISOString(),
+        };
+
+        if (apiUserData.permissions) {
+          setApiRole({
+            id: apiUserData.role_id,
+            name: apiUserData.role_name || 'User',
+            description: '',
+            isSystem: false,
+            color: apiUserData.role_color || '#64748b',
+            createdAt: '',
+            permissions: apiUserData.permissions,
+          });
+        }
+        setCurrentUser(appUser);
+      } catch (err) {
+        // ignore if failed
+      }
+    };
+
+    if (currentUser) {
+      fetchUser();
+    }
+  }, []);
+
+  useEffect(() => {
     if (currentUser) {
       localStorage.setItem(LS_CURRENT, JSON.stringify(currentUser));
     }

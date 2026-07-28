@@ -47,12 +47,77 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
     jenisPermohonan: initialData?.jenisPermohonan || "",
     nominalPermohonan: initialData?.nominalPermohonan || "",
     nominalKonversi: initialData?.nominalKonversi || "",
+    kurs: initialData?.kurs || "USD",
     detailPermohonan: initialData?.detailPermohonan || ""
   });
 
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [key]: e.target.value }));
-  const setNumber = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value.replace(/[^0-9]/g, '') }));
+  
+  const formatCurrency = (value: string, currency: string) => {
+    const raw = value.replace(/[^0-9]/g, '');
+    if (!raw) return '';
+    const num = parseInt(raw, 10);
+    if (currency === 'IDR') return `Rp ${new Intl.NumberFormat('id-ID').format(num)}`;
+    if (currency === 'USD') return `$ ${new Intl.NumberFormat('en-US').format(num)}`;
+    if (currency === 'JPY') return `¥ ${new Intl.NumberFormat('ja-JP').format(num)}`;
+    if (currency === 'KRW') return `₩ ${new Intl.NumberFormat('ko-KR').format(num)}`;
+    if (currency === 'EUR') return `€ ${new Intl.NumberFormat('de-DE').format(num)}`;
+    return raw;
+  };
+
+  const EXCHANGE_RATES: Record<string, number> = {
+    USD: 18000, // 1 USD = 18,000 IDR
+    JPY: 110,   // 1 JPY = 110 IDR
+    KRW: 12.34, // 1 KRW = 12.34 IDR
+    EUR: 20500, // 1 EUR = 20,500 IDR
+  };
+
+  const handleNominalPermohonanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawIDR = e.target.value.replace(/[^0-9]/g, '');
+    const formattedIDR = formatCurrency(e.target.value, 'IDR');
+    
+    let newNominalKonversi = form.nominalKonversi;
+    if (rawIDR) {
+       const idrValue = parseInt(rawIDR, 10);
+       const rate = EXCHANGE_RATES[form.kurs] || 1;
+       const converted = Math.round(idrValue / rate);
+       newNominalKonversi = formatCurrency(converted.toString(), form.kurs);
+    } else {
+       newNominalKonversi = "";
+    }
+
+    setForm(f => ({ 
+      ...f, 
+      nominalPermohonan: formattedIDR,
+      nominalKonversi: newNominalKonversi
+    }));
+  };
+
+  const handleNominalKonversiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm(f => ({ ...f, nominalKonversi: formatCurrency(e.target.value, f.kurs) }));
+  };
+
+  const handleKursChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newKurs = e.target.value;
+    const rawIDR = form.nominalPermohonan.replace(/[^0-9]/g, '');
+    
+    let newNominalKonversi = form.nominalKonversi;
+    if (rawIDR) {
+       const idrValue = parseInt(rawIDR, 10);
+       const rate = EXCHANGE_RATES[newKurs] || 1;
+       const converted = Math.round(idrValue / rate);
+       newNominalKonversi = formatCurrency(converted.toString(), newKurs);
+    } else {
+       newNominalKonversi = formatCurrency(form.nominalKonversi, newKurs);
+    }
+
+    setForm(f => ({
+      ...f,
+      kurs: newKurs,
+      nominalKonversi: newNominalKonversi
+    }));
+  };
 
   const toggleRup = (id: string) => {
     setForm(f => {
@@ -63,7 +128,7 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
         ...f,
         rupIds: newRupIds,
         judulPermohonan: newRupIds.length === 1 && firstRup ? firstRup.nama : f.judulPermohonan,
-        nominalPermohonan: newRupIds.length === 1 && firstRup ? firstRup.nilai.replace(/[^0-9]/g, '') : f.nominalPermohonan
+        nominalPermohonan: newRupIds.length === 1 && firstRup ? formatCurrency(firstRup.nilai, 'IDR') : f.nominalPermohonan
       };
     });
   };
@@ -94,6 +159,7 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
         subUnit: form.divisi,
         jenisPermohonan: form.jenisPermohonan,
         nominalKonversi: form.nominalKonversi,
+        kurs: form.kurs,
         detailPermohonan: form.detailPermohonan
       }
     });
@@ -157,11 +223,28 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
               <label className="block text-[11.5px] font-medium text-[#0a0a0a] mb-1.5">Divisi <span className="text-[#e6251c]">*</span></label>
               <select value={form.divisi} onChange={set("divisi")} className={`w-full border rounded-xl px-3 py-2 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] bg-white ${errors.divisi ? "border-red-400" : "border-gray-200"}`}>
                 <option value="" disabled>Pilih Divisi</option>
-                <option value="IT">IT</option>
-                <option value="HRD">HRD</option>
-                <option value="Finance">Finance</option>
-                <option value="Operasional">Operasional</option>
-                <option value="Legal">Legal</option>
+                <option value="CUS - CORPORATE SECRETARY">CUS - CORPORATE SECRETARY</option>
+                <option value="CUL - GRC AND LEGAL">CUL - GRC AND LEGAL</option>
+                <option value="CUG - LOGISTIC">CUG - LOGISTIC</option>
+                <option value="CUI - INTERNAL AUDIT">CUI - INTERNAL AUDIT</option>
+                <option value="CUP - STRATEGIC PLANNING">CUP - STRATEGIC PLANNING</option>
+                <option value="COS - HSE AND SECURITY">COS - HSE AND SECURITY</option>
+                <option value="COC - COMMERCIAL">COC - COMMERCIAL</option>
+                <option value="COH - TRAIN SERVICES FACILITIES AND CUSTOMER CARE">COH - TRAIN SERVICES FACILITIES AND CUSTOMER CARE</option>
+                <option value="COLA - LOCAL TRAIN">COLA - LOCAL TRAIN</option>
+                <option value="COLB - AREA II BANDUNG">COLB - AREA II BANDUNG</option>
+                <option value="COLS - AREA VIII SURABAYA">COLS - AREA VIII SURABAYA</option>
+                <option value="CTI - INFORMATION TECHNOLOGY">CTI - INFORMATION TECHNOLOGY</option>
+                <option value="CTP - MAINTENANCE PLANNING AND EVALUATING">CTP - MAINTENANCE PLANNING AND EVALUATING</option>
+                <option value="CTR - ROLLING STOCK">CTR - ROLLING STOCK</option>
+                <option value="CTS - INFRASTRUCTURE">CTS - INFRASTRUCTURE</option>
+                <option value="COCB - BASOETTA DEPARTMENT">COCB - BASOETTA DEPARTMENT</option>
+                <option value="CARM - RISK MANAGEMENT">CARM - RISK MANAGEMENT</option>
+                <option value="CUT - TESTING COMMITEE">CUT - TESTING COMMITEE</option>
+                <option value="CAF - FINANCE">CAF - FINANCE</option>
+                <option value="CAA - BUDGETING AND ACCOUNTING">CAA - BUDGETING AND ACCOUNTING</option>
+                <option value="CAH - HUMAN CAPITAL">CAH - HUMAN CAPITAL</option>
+                <option value="CAP - PSO AND TAC">CAP - PSO AND TAC</option>
               </select>
             </div>
             <div>
@@ -184,11 +267,19 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[11.5px] font-medium text-[#0a0a0a] mb-1.5">Nominal Permohonan <span className="text-[#e6251c]">*</span></label>
-              <input type="text" pattern="[0-9]*" inputMode="numeric" value={form.nominalPermohonan} onChange={setNumber("nominalPermohonan")} className={`w-full border rounded-xl px-3 py-2 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] ${errors.nominalPermohonan ? "border-red-400" : "border-gray-200"}`} placeholder="0" />
+              <input type="text" value={form.nominalPermohonan} onChange={handleNominalPermohonanChange} className={`w-full border rounded-xl px-3 py-2 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] ${errors.nominalPermohonan ? "border-red-400" : "border-gray-200"}`} placeholder="Rp 0" />
             </div>
             <div>
               <label className="block text-[11.5px] font-medium text-[#0a0a0a] mb-1.5">Nominal Konversi</label>
-              <input type="text" pattern="[0-9]*" inputMode="numeric" value={form.nominalKonversi} onChange={setNumber("nominalKonversi")} className="w-full border rounded-xl px-3 py-2 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] border-gray-200" placeholder="0" />
+              <div className="flex gap-2">
+                <select value={form.kurs} onChange={handleKursChange} className="w-16 shrink-0 border rounded-xl px-2 py-2 text-[11.5px] font-bold focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] border-gray-200 bg-white text-center">
+                  <option value="USD">$</option>
+                  <option value="JPY">¥</option>
+                  <option value="KRW">₩</option>
+                  <option value="EUR">€</option>
+                </select>
+                <input type="text" value={form.nominalKonversi} onChange={handleNominalKonversiChange} className="flex-1 border rounded-xl px-3 py-2 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] border-gray-200" placeholder="0" />
+              </div>
             </div>
           </div>
 

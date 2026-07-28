@@ -8,14 +8,28 @@ import type { AppUser, AppRole } from "../../types";
 import { useAuth } from "../../store/authStore";
 
 const DEPARTEMEN_OPTIONS = [
-  { value: "CTIT", label: "CTIT" },
-  { value: "Logistik", label: "Logistik" },
-  { value: "Finance", label: "Finance" },
-  { value: "HRD", label: "HRD" },
-  { value: "PBJ", label: "PBJ" },
-  { value: "Management", label: "Management" },
-  { value: "Warehouse", label: "Warehouse" },
-  { value: "Contract", label: "Contract" },
+  { value: "CUS - CORPORATE SECRETARY", label: "CUS - CORPORATE SECRETARY" },
+  { value: "CUL - GRC AND LEGAL", label: "CUL - GRC AND LEGAL" },
+  { value: "CUG - LOGISTIC", label: "CUG - LOGISTIC" },
+  { value: "CUI - INTERNAL AUDIT", label: "CUI - INTERNAL AUDIT" },
+  { value: "CUP - STRATEGIC PLANNING", label: "CUP - STRATEGIC PLANNING" },
+  { value: "COS - HSE AND SECURITY", label: "COS - HSE AND SECURITY" },
+  { value: "COC - COMMERCIAL", label: "COC - COMMERCIAL" },
+  { value: "COH - TRAIN SERVICES FACILITIES AND CUSTOMER CARE", label: "COH - TRAIN SERVICES FACILITIES AND CUSTOMER CARE" },
+  { value: "COLA - LOCAL TRAIN", label: "COLA - LOCAL TRAIN" },
+  { value: "COLB - AREA II BANDUNG", label: "COLB - AREA II BANDUNG" },
+  { value: "COLS - AREA VIII SURABAYA", label: "COLS - AREA VIII SURABAYA" },
+  { value: "CTI - INFORMATION TECHNOLOGY", label: "CTI - INFORMATION TECHNOLOGY" },
+  { value: "CTP - MAINTENANCE PLANNING AND EVALUATING", label: "CTP - MAINTENANCE PLANNING AND EVALUATING" },
+  { value: "CTR - ROLLING STOCK", label: "CTR - ROLLING STOCK" },
+  { value: "CTS - INFRASTRUCTURE", label: "CTS - INFRASTRUCTURE" },
+  { value: "COCB - BASOETTA DEPARTMENT", label: "COCB - BASOETTA DEPARTMENT" },
+  { value: "CARM - RISK MANAGEMENT", label: "CARM - RISK MANAGEMENT" },
+  { value: "CUT - TESTING COMMITEE", label: "CUT - TESTING COMMITEE" },
+  { value: "CAF - FINANCE", label: "CAF - FINANCE" },
+  { value: "CAA - BUDGETING AND ACCOUNTING", label: "CAA - BUDGETING AND ACCOUNTING" },
+  { value: "CAH - HUMAN CAPITAL", label: "CAH - HUMAN CAPITAL" },
+  { value: "CAP - PSO AND TAC", label: "CAP - PSO AND TAC" },
 ];
 
 export function UserManagementScreen() {
