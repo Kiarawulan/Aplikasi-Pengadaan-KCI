@@ -1,13 +1,215 @@
 import { useState } from "react";
 import {
-  Users, Package, ClipboardCheck, AlertTriangle, TrendingUp,
-  CheckCircle, Clock, Activity
+  Users, Package, CheckCircle, AlertTriangle, Activity,
+  ChevronDown, Search
 } from "lucide-react";
 import { AdminTopBar } from "../../components/admin/AdminTopBar";
 import { useAuth } from "../../store/authStore";
 import { getPengadaan, getVerifRecords } from "../../store/dataStore";
 import { getUsers } from "../../store/authStore";
 import { PARK_STEPS } from "../../constants/steps";
+
+// ─── C-FITS Data ────────────────────────────────────────────────────────────
+const BANKS = ["BCA", "BNI", "BRI", "Mandiri", "Non Himbara", "Payroll", "Non Bank"];
+const STATUS_COLS = ["Belum Verifikasi", "Sudah Verifikasi", "Siap Bayar", "Sirkulir", "Total"];
+
+const CFITS_OUTSOURCE: Record<string, number[]> = {
+  BCA:       [3, 5, 2, 1, 11],
+  BNI:       [7, 3, 4, 0, 14],
+  BRI:       [2, 6, 1, 2, 11],
+  Mandiri:   [5, 4, 3, 1, 13],
+  "Non Himbara": [1, 2, 0, 0, 3],
+  Payroll:   [4, 1, 2, 0, 7],
+  "Non Bank":[0, 1, 0, 0, 1],
+};
+const CFITS_NON_OUTSOURCE: Record<string, number[]> = {
+  BCA:       [2, 3, 1, 0, 6],
+  BNI:       [4, 2, 2, 1, 9],
+  BRI:       [1, 4, 0, 1, 6],
+  Mandiri:   [3, 2, 2, 0, 7],
+  "Non Himbara": [0, 1, 0, 0, 1],
+  Payroll:   [2, 0, 1, 0, 3],
+  "Non Bank":[1, 0, 0, 0, 1],
+};
+
+function sumCol(data: Record<string, number[]>, col: number) {
+  return Object.values(data).reduce((s, row) => s + (row[col] ?? 0), 0);
+}
+
+function RecapTable({ title, data }: { title: string; data: Record<string, number[]> }) {
+  const totals = STATUS_COLS.map((_, i) => sumCol(data, i));
+  return (
+    <div className="mb-4">
+      <p className="text-[11px] font-bold text-gray-600 mb-1.5 uppercase tracking-wide">{title}</p>
+      <div className="overflow-x-auto rounded-xl border border-gray-100">
+        <table className="w-full text-[11px] border-collapse">
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="text-left px-3 py-2 font-semibold text-gray-500 border-b border-gray-100 w-32">Bank / Package</th>
+              {STATUS_COLS.map(s => (
+                <th key={s} className="text-center px-2 py-2 font-semibold text-gray-500 border-b border-gray-100 whitespace-nowrap">{s}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(data).map(([bank, vals], idx) => (
+              <tr key={bank} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
+                <td className="px-3 py-2 font-medium text-gray-700">{bank}</td>
+                {vals.map((v, i) => (
+                  <td key={i} className={`text-center px-2 py-2 font-mono ${i === vals.length - 1 ? "font-bold text-[#252271]" : "text-gray-600"}`}>{v}</td>
+                ))}
+              </tr>
+            ))}
+            <tr className="bg-[#252271]/5 border-t border-gray-200">
+              <td className="px-3 py-2 font-bold text-[#252271] text-[11px]">TOTAL</td>
+              {totals.map((t, i) => (
+                <td key={i} className={`text-center px-2 py-2 font-bold font-mono ${i === totals.length - 1 ? "text-[#e6251c]" : "text-[#252271]"}`}>{t}</td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function PaymentSummarySection() {
+  const [unit, setUnit] = useState("");
+  const [vendor, setVendor] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [showOutsource, setShowOutsource] = useState(true);
+  const [showNonOutsource, setShowNonOutsource] = useState(true);
+
+  const totalOut = STATUS_COLS.map((_, i) => sumCol(CFITS_OUTSOURCE, i));
+  const totalNon = STATUS_COLS.map((_, i) => sumCol(CFITS_NON_OUTSOURCE, i));
+  const totalLunas = [22, 15, 37]; // outsource, non-outsource, total
+  const keseluruhan = STATUS_COLS.map((_, i) => (totalOut[i] ?? 0) + (totalNon[i] ?? 0));
+
+  return (
+    <div className="bg-white rounded-3xl shadow-[0px_0px_10.9px_0px_rgba(0,0,0,0.09)] p-5 space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-bold text-[14px] text-[#252271]">Payment Plan Recapitulation</p>
+          <p className="text-gray-400 text-[10.5px]">C-FITS — Rekapitulasi Status Pembayaran</p>
+        </div>
+      </div>
+
+      {/* Filter bar */}
+      <div className="flex flex-wrap gap-2 items-end">
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-semibold text-gray-500 uppercase">Select Unit</label>
+          <select value={unit} onChange={e => setUnit(e.target.value)}
+            className="border border-gray-200 rounded-lg px-2 py-1.5 text-[11.5px] text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-[#252271]/30">
+            <option value="">Semua Unit</option>
+            {["CUG", "CTR", "CTI", "COS", "CTS", "CUS", "CAF"].map(u => <option key={u}>{u}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-semibold text-gray-500 uppercase">Select Vendor</label>
+          <select value={vendor} onChange={e => setVendor(e.target.value)}
+            className="border border-gray-200 rounded-lg px-2 py-1.5 text-[11.5px] text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-[#252271]/30">
+            <option value="">Semua Vendor</option>
+            {["PT Mitra Tenaga Kerja", "PT Hawa Dingin Nusantara", "PT Guard Nusantara"].map(v => <option key={v}>{v}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-semibold text-gray-500 uppercase">Start Date</label>
+          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+            className="border border-gray-200 rounded-lg px-2 py-1.5 text-[11.5px] text-gray-700 bg-white focus:outline-none" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-semibold text-gray-500 uppercase">End Date</label>
+          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+            className="border border-gray-200 rounded-lg px-2 py-1.5 text-[11.5px] text-gray-700 bg-white focus:outline-none" />
+        </div>
+        <button className="bg-[#252271] text-white text-[11.5px] font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 hover:bg-[#1a1753] transition-colors">
+          <Search size={12} /> Search
+        </button>
+      </div>
+
+      {/* Summary tables */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Outsourcing summary */}
+        <div className="border border-gray-100 rounded-xl p-3">
+          <p className="text-[11px] font-bold text-gray-700 mb-2">Outsourcing (Package)</p>
+          <table className="w-full text-[10.5px]">
+            <thead><tr className="bg-gray-50">
+              <th className="text-left px-2 py-1.5 text-gray-500 border-b border-gray-100">Package</th>
+              {STATUS_COLS.map(s => <th key={s} className="text-center px-1 py-1.5 text-gray-500 border-b border-gray-100 whitespace-nowrap">{s}</th>)}
+            </tr></thead>
+            <tbody>
+              <tr><td className="px-2 py-1.5 text-gray-600 font-medium">Total</td>
+                {totalOut.map((v, i) => <td key={i} className={`text-center px-1 py-1.5 font-bold font-mono ${i === 4 ? "text-[#252271]" : "text-gray-700"}`}>{v}</td>)}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {/* Non-Outsourcing summary */}
+        <div className="border border-gray-100 rounded-xl p-3">
+          <p className="text-[11px] font-bold text-gray-700 mb-2">Non Outsourcing (Package)</p>
+          <table className="w-full text-[10.5px]">
+            <thead><tr className="bg-gray-50">
+              <th className="text-left px-2 py-1.5 text-gray-500 border-b border-gray-100">Package</th>
+              {STATUS_COLS.map(s => <th key={s} className="text-center px-1 py-1.5 text-gray-500 border-b border-gray-100 whitespace-nowrap">{s}</th>)}
+            </tr></thead>
+            <tbody>
+              <tr><td className="px-2 py-1.5 text-gray-600 font-medium">Total</td>
+                {totalNon.map((v, i) => <td key={i} className={`text-center px-1 py-1.5 font-bold font-mono ${i === 4 ? "text-[#252271]" : "text-gray-700"}`}>{v}</td>)}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {/* Lunas */}
+        <div className="border border-gray-100 rounded-xl p-3">
+          <p className="text-[11px] font-bold text-gray-700 mb-2">Lunas</p>
+          <table className="w-full text-[10.5px]">
+            <thead><tr className="bg-gray-50">
+              <th className="text-left px-2 py-1.5 text-gray-500 border-b border-gray-100">Package</th>
+              {["Outsource","Non Outsource","Total"].map(s => <th key={s} className="text-center px-2 py-1.5 text-gray-500 border-b border-gray-100">{s}</th>)}
+            </tr></thead>
+            <tbody><tr>
+              <td className="px-2 py-1.5 text-gray-600 font-medium">Total</td>
+              {totalLunas.map((v, i) => <td key={i} className={`text-center px-2 py-1.5 font-bold font-mono ${i === 2 ? "text-green-600" : "text-gray-700"}`}>{v}</td>)}
+            </tr></tbody>
+          </table>
+        </div>
+        {/* Keseluruhan */}
+        <div className="border border-gray-100 rounded-xl p-3">
+          <p className="text-[11px] font-bold text-gray-700 mb-2">Keseluruhan</p>
+          <table className="w-full text-[10.5px]">
+            <thead><tr className="bg-gray-50">
+              <th className="text-left px-2 py-1.5 text-gray-500 border-b border-gray-100">Package</th>
+              {STATUS_COLS.map(s => <th key={s} className="text-center px-1 py-1.5 text-gray-500 border-b border-gray-100 whitespace-nowrap">{s}</th>)}
+            </tr></thead>
+            <tbody><tr>
+              <td className="px-2 py-1.5 text-gray-600 font-medium">Total</td>
+              {keseluruhan.map((v, i) => <td key={i} className={`text-center px-1 py-1.5 font-bold font-mono ${i === 4 ? "text-[#e6251c]" : "text-gray-700"}`}>{v}</td>)}
+            </tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Per-bank breakdown */}
+      <div>
+        <button onClick={() => setShowOutsource(v => !v)}
+          className="flex items-center gap-2 text-[12px] font-bold text-[#252271] mb-3 hover:text-[#1a1753]">
+          <ChevronDown size={14} className={`transition-transform ${showOutsource ? "" : "-rotate-90"}`} />
+          Outsourcing — Rincian per Bank
+        </button>
+        {showOutsource && <RecapTable title="Outsourcing" data={CFITS_OUTSOURCE} />}
+      </div>
+      <div>
+        <button onClick={() => setShowNonOutsource(v => !v)}
+          className="flex items-center gap-2 text-[12px] font-bold text-[#252271] mb-3 hover:text-[#1a1753]">
+          <ChevronDown size={14} className={`transition-transform ${showNonOutsource ? "" : "-rotate-90"}`} />
+          Non Outsourcing — Rincian per Bank
+        </button>
+        {showNonOutsource && <RecapTable title="Non Outsourcing" data={CFITS_NON_OUTSOURCE} />}
+      </div>
+    </div>
+  );
+}
 
 const STEP_LABELS: Record<string, string> = {
   npp: "NPP", "pengajuan-dana": "Pengajuan Dana", sp3: "SP3",
@@ -198,6 +400,9 @@ export function AdminDashboardScreen() {
             </div>
           </div>
         </div>
+
+        {/* C-FITS Payment Plan Recapitulation */}
+        <PaymentSummarySection />
       </div>
     </div>
   );

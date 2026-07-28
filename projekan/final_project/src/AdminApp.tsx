@@ -20,6 +20,9 @@ export function AdminApp() {
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("sipro_admin_sidebar_collapsed") === "true";
   });
+  const [activeSubItem, setActiveSubItem] = useState<string>(() => {
+    return localStorage.getItem("sipro_active_sub_item") || "";
+  });
 
   const navigate = (s: AdminScreen) => {
     setScreen(s);
@@ -43,13 +46,13 @@ export function AdminApp() {
       case "role-management":
         return hasPermission("userManagement", "viewer") ? <RoleManagementScreen /> : <NoAccess />;
       case "verif-pengajuan-dana":
-        return hasPermission("pengajuanDana", "viewer") ? <PengajuanDanaVerifScreen /> : <NoAccess />;
+        return hasPermission("pengajuanDana", "viewer") ? <PengajuanDanaVerifScreen activeSubItem={activeSubItem} /> : <NoAccess />;
       case "verif-pengadaan":
-        return hasPermission("pengadaan", "viewer") ? <PengadaanVerifScreen /> : <NoAccess />;
+        return hasPermission("pengadaan", "viewer") ? <PengadaanVerifScreen activeSubItem={activeSubItem} /> : <NoAccess />;
       case "verif-pengujian":
-        return hasPermission("pengujian", "viewer") ? <PengujianVerifScreen /> : <NoAccess />;
+        return hasPermission("pengujian", "viewer") ? <PengujianVerifScreen activeSubItem={activeSubItem} /> : <NoAccess />;
       case "verif-pembayaran":
-        return hasPermission("pembayaran", "viewer") ? <PembayaranVerifScreen /> : <NoAccess />;
+        return hasPermission("pembayaran", "viewer") ? <PembayaranVerifScreen activeSubItem={activeSubItem} /> : <NoAccess />;
       case "template-dokumen-admin":
         return hasPermission("templateDokumen", "viewer") ? <TemplateDokumenAdminScreen /> : <NoAccess />;
       case "master-data":
@@ -67,6 +70,15 @@ export function AdminApp() {
           onNavigate={navigate}
           collapsed={collapsed}
           onToggleCollapse={handleToggleCollapse}
+          setCollapsed={(val) => {
+            setCollapsed(val);
+            localStorage.setItem("sipro_admin_sidebar_collapsed", String(val));
+          }}
+          activeSubItem={activeSubItem}
+          setActiveSubItem={(val) => {
+            setActiveSubItem(val);
+            localStorage.setItem("sipro_active_sub_item", val);
+          }}
         />
       </div>
       <div className="flex-1 overflow-y-auto">

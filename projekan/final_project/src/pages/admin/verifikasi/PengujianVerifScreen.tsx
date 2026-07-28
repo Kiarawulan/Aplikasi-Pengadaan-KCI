@@ -1,249 +1,369 @@
-import { useState, useEffect } from "react";
-import { api } from "../../../services/api";
+import { useState } from "react";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
-import { VerifTable } from "../../../components/admin/VerifTable";
-import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/AdminModal";
-import { getPengujianList, savePengujianList, generateId } from "../../../store/dataStore";
+import { VerifTable, FilterConfig } from "../../../components/admin/VerifTable";
+import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/AdminModal";
+import { Plus, CheckCircle2, XCircle, FileWarning, Eye, BarChart3, TrendingUp, ShieldCheck } from "lucide-react";
 
-type PengujianItem = {
-  id: string;
-  nama: string;
-  pemohon: string;
-  departemen: string;
-  tanggal: string;
-  status: string;
-  catatan: string;
+type ScreenProps = {
+  activeSubItem: string;
 };
 
-const STATUS_OPTIONS = [
-  { value: "pending", label: "Pending" },
-  { value: "proses", label: "Proses" },
-  { value: "selesai", label: "Selesai" },
-  { value: "ditolak", label: "Ditolak" },
+// Rich MOCK DATA for C-CUT List Kontrak < 500jt
+const INITIAL_KONTRAK = [
+  { id: "KTR-001", sp3: "SP3-9921", nama: "Pengadaan Suku Cadang KRL Series 200", nominal: "Rp 320.000.000", departemen: "Logistik", vendor: "PT Kencana Sparepart", tanggal: "2024-03-12", status: "Contract Release" },
+  { id: "KTR-002", sp3: "SP3-8832", nama: "Perbaikan Modul AC KRL Juanda", nominal: "Rp 120.000.000", departemen: "Sarpas", vendor: "PT Hawa Dingin Nusantara", tanggal: "2024-03-18", status: "Contract Release" },
+  { id: "KTR-003", sp3: "SP3-7741", nama: "Pengadaan Kabel Sinyal Lintas Manggarai", nominal: "Rp 450.000.000", departemen: "Sinyal & Telekomunikasi", vendor: "PT Tunas Kabel Indonesia", tanggal: "2024-03-22", status: "Contract Release" },
+  { id: "KTR-004", sp3: "SP3-6612", nama: "Pengadaan Ban Karet KRL Klender", nominal: "Rp 210.000.000", departemen: "Logistik", vendor: "PT Karet Utama", tanggal: "2024-03-25", status: "Contract Release" },
 ];
 
-const DEPT_OPTIONS = [
-  { value: "CTIT", label: "CTIT" }, { value: "Logistik", label: "Logistik" },
-  { value: "Finance", label: "Finance" }, { value: "HRD", label: "HRD" },
-  { value: "PBJ", label: "PBJ" }, { value: "Warehouse", label: "Warehouse" },
+const INITIAL_KONTRAK_OVER = [
+  { id: "KTR-501", sp3: "SP3-5521", nama: "Pengadaan Genset Depo KRL Depok", nominal: "Rp 1.250.000.000", departemen: "Prasarana", vendor: "PT Daya Powerindo", tanggal: "2024-03-05", status: "Contract Release" },
+  { id: "KTR-502", sp3: "SP3-6612", nama: "Sistem Pemantauan CCTV Stasiun Bogor", nominal: "Rp 780.000.000", departemen: "IT & Security", vendor: "PT Telemedia Solusindo", tanggal: "2024-03-15", status: "Contract Release" },
+  { id: "KTR-503", sp3: "SP3-7711", nama: "Pengadaan Traksi Motor KRL Manggarai", nominal: "Rp 3.400.000.000", departemen: "Sarpas", vendor: "Global Electric Rail Ltd", tanggal: "2024-03-20", status: "Contract Release" },
 ];
 
-function StatusPengujianBadge({ status }: { status: string }) {
-  const cfg: Record<string, { bg: string; text: string }> = {
-    pending: { bg: "bg-amber-50", text: "text-amber-600" },
-    proses: { bg: "bg-blue-50", text: "text-blue-600" },
-    selesai: { bg: "bg-green-50", text: "text-green-600" },
-    ditolak: { bg: "bg-red-50", text: "text-red-600" },
-  };
-  const c = cfg[status] ?? { bg: "bg-gray-50", text: "text-gray-600" };
-  const label = status.charAt(0).toUpperCase() + status.slice(1);
-  return <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-medium ${c.bg} ${c.text}`}>{label}</span>;
-}
+// Rich MOCK DATA for C-CUT Request Pengujian
+const INITIAL_REQUEST_PENGUJIAN = [
+  { kontrakNo: "KTR-001", nama: "Pengadaan Suku Cadang KRL Series 200", nominal: "Rp 320.000.000", departemen: "Logistik", jadwal: "2024-04-02", timeline: "On Schedule" },
+  { kontrakNo: "KTR-502", nama: "Sistem Pemantauan CCTV Stasiun Bogor", nominal: "Rp 780.000.000", departemen: "IT & Security", jadwal: "2024-04-05", timeline: "On Schedule" },
+  { kontrakNo: "KTR-002", nama: "Perbaikan Modul AC KRL Juanda", nominal: "Rp 120.000.000", departemen: "Sarpas", jadwal: "2024-04-10", timeline: "On Schedule" },
+];
 
-export function PengujianVerifScreen() {
-  const [items, setItems] = useState<PengujianItem[]>(() => getPengujianList());
-  const [showAdd, setShowAdd] = useState(false);
-  const [showEdit, setShowEdit] = useState<PengujianItem | null>(null);
-  const [showDetail, setShowDetail] = useState<PengujianItem | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+// Rich MOCK DATA for C-CUT Review Pengujian
+const INITIAL_REVIEW_PENGUJIAN = [
+  { kontrakNo: "KTR-001", nama: "Pengadaan Suku Cadang KRL Series 200", nominal: "Rp 320.000.000", departemen: "Logistik", jadwal: "2024-04-02", status: "Request Pengujian" },
+  { kontrakNo: "KTR-002", nama: "Perbaikan Modul AC KRL Juanda", nominal: "Rp 120.000.000", departemen: "Sarpas", jadwal: "2024-04-10", status: "Review Hasil Pengujian" },
+  { kontrakNo: "KTR-501", nama: "Pengadaan Genset Depo KRL Depok", nominal: "Rp 1.250.000.000", departemen: "Prasarana", jadwal: "2024-04-05", status: "Pengujian On Process" },
+  { kontrakNo: "KTR-502", nama: "Sistem Pemantauan CCTV Stasiun Bogor", nominal: "Rp 780.000.000", departemen: "IT & Security", jadwal: "2024-04-12", status: "Pengujian Rejected" },
+];
 
-  const empty = (): PengujianItem => ({
-    id: generateId("PUJ"), nama: "", pemohon: "", departemen: "", tanggal: new Date().toISOString().split("T")[0], status: "pending", catatan: "",
+export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
+  const [kontrakList, setKontrakList] = useState(INITIAL_KONTRAK);
+  const [kontrakListOver, setKontrakListOver] = useState(INITIAL_KONTRAK_OVER);
+  const [requestList, setRequestList] = useState(INITIAL_REQUEST_PENGUJIAN);
+  const [reviewList, setReviewList] = useState(INITIAL_REVIEW_PENGUJIAN);
+
+  const [showAddKontrak, setShowAddKontrak] = useState(false);
+  const [showAddRequest, setShowAddRequest] = useState(false);
+  const [showReviewDetail, setShowReviewDetail] = useState<any | null>(null);
+
+  const [formKontrak, setFormKontrak] = useState({
+    judul: "", nominal: "", vendor: "", jenisBarang: "Sparepart", kurs: "IDR", tglKontrak: "", noPerjanjian: "", tglPerjanjian: ""
   });
-  const [form, setForm] = useState<PengujianItem>(empty());
-  const [editForm, setEditForm] = useState<PengujianItem>(empty());
 
-  const refresh = () => {
-    api.get("/pengujian").then(res => setItems(res.data)).catch(() => setItems(getPengujianList()));
+  const [formRequest, setFormRequest] = useState({ tipeKontrak: "<500jt", judul: "", assignTo: "Penguji 1 C-CUT", tglPengujian: "", doNo: "", tglDO: "", catatan: "" });
+
+  const [confirmDialog, setConfirmDialog] = useState<{ type: "verifikasi" | "reject" | "kelengkapan"; text: string; show: boolean }>({ type: "verifikasi", text: "", show: false });
+  const [actionReason, setActionReason] = useState("");
+
+  const handleAddKontrakSubmit = () => {
+    const isOver = activeSubItem === "kontrak-over-500";
+    const newK = {
+      id: `KTR-${isOver ? "5" : "0"}${Math.floor(Math.random() * 90) + 10}`,
+      sp3: `SP3-${Math.floor(Math.random() * 9000) + 1000}`,
+      nama: formKontrak.judul || "Pengadaan Barang KCI",
+      nominal: formKontrak.nominal ? `Rp ${formKontrak.nominal}` : "Rp 250.000.000",
+      departemen: "Logistik",
+      vendor: formKontrak.vendor || "PT Vendor Utama",
+      tanggal: formKontrak.tglKontrak || new Date().toISOString().split("T")[0],
+      status: "Contract Release"
+    };
+
+    if (isOver) {
+      setKontrakListOver([newK, ...kontrakListOver]);
+    } else {
+      setKontrakList([newK, ...kontrakList]);
+    }
+    setShowAddKontrak(false);
   };
 
-  useEffect(() => {
-    refresh();
-  }, []);
-
-  const handleAdd = () => {
-    if (!form.nama) return;
-    api.post("/pengujian", form).then(() => refresh()).catch(() => {
-      const updated = [...getPengujianList(), form];
-      savePengujianList(updated);
-      refresh();
-    });
-    setShowAdd(false);
-    setForm(empty());
+  const handleAddRequestSubmit = () => {
+    const newR = {
+      kontrakNo: formRequest.judul || "KTR-099",
+      nama: "Paket Pengadaan Barang Uji Baru",
+      nominal: "Rp 320.000.000",
+      departemen: "Sarpas",
+      jadwal: formRequest.tglPengujian || new Date().toISOString().split("T")[0],
+      timeline: "On Schedule"
+    };
+    setRequestList([newR, ...requestList]);
+    setShowAddRequest(false);
   };
 
-  const handleEdit = () => {
-    api.put(`/pengujian/${editForm.id}`, editForm).then(() => refresh()).catch(() => {
-      const updated = getPengujianList().map(i => i.id === editForm.id ? editForm : i);
-      savePengujianList(updated);
-      refresh();
-    });
-    setShowEdit(null);
-  };
-
-  const handleDelete = () => {
-    if (!deleteId) return;
-    api.delete(`/pengujian/${deleteId}`).then(() => refresh()).catch(() => {
-      const updated = getPengujianList().filter(i => i.id !== deleteId);
-      savePengujianList(updated);
-      refresh();
-    });
-    setDeleteId(null);
-  };
-
-  const handleStatusChange = (item: PengujianItem, newStatus: string) => {
-    api.post(`/pengujian/${item.id}/advance-status`, { status: newStatus }).then(() => refresh()).catch(() => {
-      const updated = getPengujianList().map(i => i.id === item.id ? { ...i, status: newStatus } : i);
-      savePengujianList(updated);
-      refresh();
-    });
-  };
-
-  const columns = [
-    { key: "nama", label: "Nama Barang/Jasa", render: (r: PengujianItem) => (
-      <div><p className="font-semibold text-gray-800 text-[12px]">{r.nama}</p><p className="text-gray-400 text-[10px]">{r.id}</p></div>
-    )},
-    { key: "pemohon", label: "Pemohon", render: (r: PengujianItem) => <span className="text-[11.5px] text-gray-700">{r.pemohon}</span> },
-    { key: "dept", label: "Departemen", render: (r: PengujianItem) => <span className="text-[11.5px] text-gray-600">{r.departemen}</span> },
-    { key: "tanggal", label: "Tanggal", render: (r: PengujianItem) => (
-      <span className="text-[11.5px] text-gray-500">{new Date(r.tanggal).toLocaleDateString("id-ID")}</span>
-    )},
-    { key: "status", label: "Status", render: (r: PengujianItem) => (
-      <div className="flex items-center gap-2">
-        <StatusPengujianBadge status={r.status} />
-        {r.status === "pending" && (
-          <button onClick={() => handleStatusChange(r, "proses")}
-            className="text-[10px] text-blue-600 hover:underline font-medium">→ Proses</button>
-        )}
-        {r.status === "proses" && (
-          <button onClick={() => handleStatusChange(r, "selesai")}
-            className="text-[10px] text-green-600 hover:underline font-medium">→ Selesai</button>
-        )}
-      </div>
-    )},
-    { key: "catatan", label: "Catatan", render: (r: PengujianItem) => (
-      <span className="text-[11px] text-gray-500 truncate max-w-32 block">{r.catatan || "—"}</span>
-    )},
+  const topFiltersConfig: FilterConfig[] = [
+    { key: "departemen", label: "Departemen", type: "text" },
+    {
+      key: "status",
+      label: "Status",
+      type: "select",
+      options: [
+        { value: "Request Pengujian", label: "Request Pengujian" },
+        { value: "Review Hasil Pengujian", label: "Review Hasil Pengujian" },
+        { value: "Pengujian On Process", label: "Pengujian On Process" },
+        { value: "Pengujian Rejected", label: "Pengujian Rejected" },
+      ],
+    },
   ];
 
-  // Stats
-  const stats = {
-    total: items.length,
-    pending: items.filter(i => i.status === "pending").length,
-    proses: items.filter(i => i.status === "proses").length,
-    selesai: items.filter(i => i.status === "selesai").length,
+  const renderContent = () => {
+    if (activeSubItem === "pengujian-dashboard" || activeSubItem === "kontrak-dashboard" || activeSubItem === "tc-dashboard") {
+      return (
+        <div className="space-y-6">
+          <AdminTopBar title="Dashboard Pengujian & Kontrak C-CUT" subtitle="Pengujian → Dashboard Overview" />
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[
+              { label: "Jumlah Kontrak", val: "148", color: "from-blue-600 to-indigo-700", icon: <BarChart3 size={20} /> },
+              { label: "Jumlah Submitted", val: "124", color: "from-emerald-600 to-teal-700", icon: <TrendingUp size={20} /> },
+              { label: "Pengujian On Going", val: "18", color: "from-amber-500 to-orange-600", icon: <ShieldCheck size={20} /> },
+              { label: "Pengujian Done", val: "106", color: "from-purple-600 to-pink-600", icon: <CheckCircle2 size={20} /> },
+            ].map(box => (
+              <div key={box.label} className={`p-4 rounded-2xl bg-gradient-to-r ${box.color} text-white shadow-sm flex items-center justify-between`}>
+                <div>
+                  <p className="text-[11px] opacity-80 uppercase tracking-wider font-mono">{box.label}</p>
+                  <p className="text-2xl font-black mt-1">{box.val}</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm">{box.icon}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+            <h3 className="text-[13px] font-bold text-gray-800 mb-3">Tren Realisasi Pengujian Pengadaan</h3>
+            <div className="h-44 bg-gray-50 rounded-xl flex items-center justify-center border border-dashed border-gray-200">
+              <span className="text-[12px] text-gray-400 font-mono">Visual Chart Tren Pengujian (Monthly Data Active)</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (activeSubItem.startsWith("kontrak-under-500") || activeSubItem.startsWith("kontrak-over-500")) {
+      const isOver = activeSubItem.startsWith("kontrak-over-500");
+      const currentList = isOver ? kontrakListOver : kontrakList;
+
+      const columns = [
+        { key: "id", label: "Nomor Kontrak", render: (r: any) => <span className="font-mono font-bold text-gray-700">{r.id}</span> },
+        { key: "sp3", label: "No. SP3", render: (r: any) => <span className="font-mono text-[11px] text-gray-500">{r.sp3}</span> },
+        { key: "nama", label: "Judul Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[12.5px]">{r.nama}</span> },
+        { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-[#252271]">{r.nominal}</span> },
+        { key: "departemen", label: "Departemen", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen}</span> },
+        { key: "tanggal", label: "Tanggal Kontrak", render: (r: any) => <span className="text-gray-500 text-[11.5px]">{r.tanggal}</span> },
+        { key: "status", label: "Status", render: (r: any) => <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-blue-50 text-blue-600 border border-blue-200">{r.status}</span> }
+      ];
+
+      return (
+        <div className="space-y-4">
+          <AdminTopBar title={isOver ? "List Kontrak > 500 Juta" : "List Kontrak < 500 Juta"} subtitle={`C-CUT → Kontrak → ${isOver ? "> 500jt" : "< 500jt"}`} />
+
+          <div className="relative">
+            <div className="absolute right-5 top-4 z-10">
+              <button onClick={() => setShowAddKontrak(true)} className="bg-[#252271] text-white px-3 py-1.5 rounded-lg text-[11.5px] font-semibold flex items-center gap-1 shadow-sm">
+                <Plus size={14} /> Tambah Kontrak
+              </button>
+            </div>
+
+            <VerifTable
+              columns={columns}
+              data={currentList}
+              searchKeys={["nama", "id", "departemen", "vendor"]}
+              dateKey="tanggal"
+              topFilters={[{ key: "departemen", label: "Departemen", type: "text" }]}
+              showCrudActions={false}
+              emptyMessage="Tidak ada data kontrak."
+            />
+          </div>
+
+          {showAddKontrak && (
+            <AdminModal title="Tambah Kontrak" onClose={() => setShowAddKontrak(false)} onSubmit={handleAddKontrakSubmit} submitLabel="Submit" width="max-w-xl">
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                <ModalField label="Judul Pengadaan" required>
+                  <ModalInput value={formKontrak.judul} onChange={v => setFormKontrak(p => ({ ...p, judul: v }))} placeholder="Judul..." />
+                </ModalField>
+                <div className="grid grid-cols-2 gap-3">
+                  <ModalField label="Nominal (Rp)" required>
+                    <ModalInput type="number" value={formKontrak.nominal} onChange={v => setFormKontrak(p => ({ ...p, nominal: v }))} placeholder="Nominal..." />
+                  </ModalField>
+                  <ModalField label="Vendor Name" required>
+                    <ModalInput value={formKontrak.vendor} onChange={v => setFormKontrak(p => ({ ...p, vendor: v }))} placeholder="Nama vendor..." />
+                  </ModalField>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <ModalField label="Tanggal Kontrak" required>
+                    <ModalInput type="date" value={formKontrak.tglKontrak} onChange={v => setFormKontrak(p => ({ ...p, tglKontrak: v }))} />
+                  </ModalField>
+                  <ModalField label="Jenis Barang" required>
+                    <ModalSelect value={formKontrak.jenisBarang} onChange={v => setFormKontrak(p => ({ ...p, jenisBarang: v }))} options={[{value:"Sparepart",label:"Sparepart"}, {value:"Jasa",label:"Jasa"}]} />
+                  </ModalField>
+                </div>
+              </div>
+            </AdminModal>
+          )}
+        </div>
+      );
+    }
+
+    if (activeSubItem.startsWith("pengujian-request")) {
+      const columns = [
+        { key: "kontrakNo", label: "Nomor Kontrak", render: (r: any) => <span className="font-mono font-bold text-gray-700">{r.kontrakNo}</span> },
+        { key: "nama", label: "Judul Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[12.5px]">{r.nama}</span> },
+        { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-[#252271]">{r.nominal}</span> },
+        { key: "departemen", label: "Departemen", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen}</span> },
+        { key: "jadwal", label: "Jadwal Pengujian", render: (r: any) => <span className="text-gray-500 text-[11.5px]">{r.jadwal}</span> },
+        { key: "timeline", label: "Timeline", render: (r: any) => <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-green-50 text-green-600 border border-green-200">{r.timeline}</span> }
+      ];
+
+      return (
+        <div className="space-y-4">
+          <AdminTopBar title="Request Pengujian" subtitle="C-CUT → Pengujian → Request Pengujian" />
+
+          <div className="relative">
+            <div className="absolute right-5 top-4 z-10">
+              <button onClick={() => setShowAddRequest(true)} className="bg-[#252271] text-white px-3 py-1.5 rounded-lg text-[11.5px] font-semibold flex items-center gap-1 shadow-sm">
+                <Plus size={14} /> Tambah Pengujian
+              </button>
+            </div>
+
+            <VerifTable
+              columns={columns}
+              data={requestList}
+              searchKeys={["nama", "kontrakNo", "departemen"]}
+              dateKey="jadwal"
+              topFilters={[{ key: "departemen", label: "Departemen", type: "text" }]}
+              showCrudActions={false}
+              emptyMessage="Tidak ada data request pengujian."
+            />
+          </div>
+
+          {showAddRequest && (
+            <AdminModal title="Tambah Request Pengujian" onClose={() => setShowAddRequest(false)} onSubmit={handleAddRequestSubmit} submitLabel="Submit" width="max-w-xl">
+              <div className="space-y-3">
+                <ModalField label="Judul Pengadaan / Nomor Kontrak" required>
+                  <ModalInput value={formRequest.judul} onChange={v => setFormRequest(p => ({ ...p, judul: v }))} placeholder="No Kontrak..." />
+                </ModalField>
+                <div className="grid grid-cols-2 gap-3">
+                  <ModalField label="Pilih Penguji (Assign To)" required>
+                    <ModalSelect value={formRequest.assignTo} onChange={v => setFormRequest(p => ({ ...p, assignTo: v }))} options={[{value:"Penguji 1 C-CUT",label:"Penguji 1 C-CUT"}, {value:"Penguji 2 C-CUT",label:"Penguji 2 C-CUT"}]} />
+                  </ModalField>
+                  <ModalField label="Tanggal Pengujian" required>
+                    <ModalInput type="date" value={formRequest.tglPengujian} onChange={v => setFormRequest(p => ({ ...p, tglPengujian: v }))} />
+                  </ModalField>
+                </div>
+              </div>
+            </AdminModal>
+          )}
+        </div>
+      );
+    }
+
+    if (activeSubItem.startsWith("pengujian-review")) {
+      const columns = [
+        { key: "kontrakNo", label: "Nomor Kontrak", render: (r: any) => <span className="font-mono font-bold text-gray-700">{r.kontrakNo}</span> },
+        { key: "nama", label: "Judul Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[12.5px]">{r.nama}</span> },
+        { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-[#252271]">{r.nominal}</span> },
+        { key: "departemen", label: "Departemen", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen}</span> },
+        { key: "status", label: "Status Pengujian", render: (r: any) => {
+          const colors: Record<string, string> = {
+            "Request Pengujian": "bg-blue-50 text-blue-600 border border-blue-200",
+            "Review Hasil Pengujian": "bg-purple-50 text-purple-600 border border-purple-200",
+            "Pengujian On Process": "bg-amber-50 text-amber-600 border border-amber-200",
+            "Pengujian Rejected": "bg-red-50 text-red-600 border border-red-200"
+          };
+          return <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${colors[r.status] || "bg-gray-50 text-gray-600"}`}>{r.status}</span>;
+        }}
+      ];
+
+      return (
+        <div className="space-y-4">
+          <AdminTopBar title="Review Pengajuan Pengujian" subtitle="C-CUT → Review Pengujian" />
+
+          <VerifTable
+            columns={columns}
+            data={reviewList}
+            searchKeys={["nama", "kontrakNo", "departemen"]}
+            dateKey="jadwal"
+            topFilters={topFiltersConfig}
+            onView={(r) => setShowReviewDetail(r)}
+            showVerifActions={false}
+            showCrudActions={true}
+            emptyMessage="Tidak ada pengajuan pengujian untuk direview."
+          />
+
+          {showReviewDetail && (
+            <AdminModal title="Review Detail Pengujian" onClose={() => setShowReviewDetail(null)} hideFooter width="max-w-xl">
+              <div className="space-y-3">
+                {[
+                  { k: "Nomor Kontrak", v: showReviewDetail.kontrakNo },
+                  { k: "Judul Pengadaan", v: showReviewDetail.nama },
+                  { k: "Nilai Kontrak", v: showReviewDetail.nominal },
+                  { k: "Departemen", v: showReviewDetail.departemen },
+                  { k: "Status", v: showReviewDetail.status }
+                ].map(r => (
+                  <div key={r.k} className="flex justify-between border-b border-gray-50 pb-1.5 text-[12px]">
+                    <span className="text-gray-400 font-mono">{r.k}</span>
+                    <span className="font-semibold text-gray-700">{r.v}</span>
+                  </div>
+                ))}
+
+                <div className="pt-3 border-t border-gray-100 flex gap-2 justify-end">
+                  <button onClick={() => setConfirmDialog({ type: "verifikasi", text: "Verifikasi Pengujian Disetujui?", show: true })} className="bg-green-600 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1">
+                    <CheckCircle2 size={12} /> Verifikasi
+                  </button>
+                  <button onClick={() => setConfirmDialog({ type: "kelengkapan", text: "Tambah Catatan Kelengkapan?", show: true })} className="bg-purple-600 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1">
+                    <FileWarning size={12} /> Request Catatan
+                  </button>
+                  <button onClick={() => setConfirmDialog({ type: "reject", text: "Tolak Pengujian?", show: true })} className="bg-red-600 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1">
+                    <XCircle size={12} /> Reject
+                  </button>
+                </div>
+              </div>
+            </AdminModal>
+          )}
+
+          {confirmDialog.show && (
+            <AdminModal title={confirmDialog.type.toUpperCase()} onClose={() => setConfirmDialog({ type: "verifikasi", text: "", show: false })} onSubmit={() => { setConfirmDialog({ type: "verifikasi", text: "", show: false }); setShowReviewDetail(null); }} submitLabel="Proses" width="max-w-sm">
+              <div className="space-y-3">
+                <p className="text-[12px] text-gray-600">{confirmDialog.text}</p>
+                <ModalField label="Catatan / Alasan">
+                  <ModalInput value={actionReason} onChange={v => setActionReason(v)} placeholder="Catatan..." />
+                </ModalField>
+              </div>
+            </AdminModal>
+          )}
+        </div>
+      );
+    }
+
+    // DEFAULT FALLBACK TABLE FOR OTHER PENGUJIAN SUBVIEWS
+    const fallbackColumns = [
+      { key: "no", label: "No", render: (_: any, idx: number) => <span>{idx + 1}</span> },
+      { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[12px]">{r.nama}</span> },
+      { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-medium text-[#252271]">{r.nominal}</span> },
+      { key: "status", label: "Status", render: () => <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-600 border border-green-200">ON PROCESS</span> }
+    ];
+
+    const fallbackData = [
+      { nama: "Pengadaan Suku Cadang KRL Series 200", nominal: "Rp 320.000.000" },
+      { nama: "Perbaikan Modul AC KRL Juanda", nominal: "Rp 120.000.000" }
+    ];
+
+    return (
+      <div className="space-y-4">
+        <AdminTopBar title={activeSubItem.toUpperCase().replace("-", " ")} subtitle="C-CUT → Pengujian" />
+        <VerifTable
+          columns={fallbackColumns}
+          data={fallbackData}
+          searchKeys={["nama"]}
+          showCrudActions={false}
+          emptyMessage="Tidak ada data pengujian."
+        />
+      </div>
+    );
   };
 
   return (
-    <div>
-      <AdminTopBar title="Verifikasi Pengujian" subtitle="Verifikasi" />
-
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
-        {[
-          { label: "Total", value: stats.total, color: "#252271" },
-          { label: "Pending", value: stats.pending, color: "#d97706" },
-          { label: "Proses", value: stats.proses, color: "#2563eb" },
-          { label: "Selesai", value: stats.selesai, color: "#16a34a" },
-        ].map(s => (
-          <div key={s.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-[16px]" style={{ background: s.color }}>
-              {s.value}
-            </div>
-            <p className="text-gray-500 text-[11px]">{s.label}</p>
-          </div>
-        ))}
-      </div>
-
-      <VerifTable
-        columns={columns}
-        data={items}
-        searchKeys={["nama", "pemohon", "departemen"]}
-        onView={(r) => setShowDetail(r)}
-        onEdit={(r) => { setEditForm({ ...r }); setShowEdit(r); }}
-        onDelete={(r) => setDeleteId(r.id)}
-        onAdd={() => { setForm(empty()); setShowAdd(true); }}
-        addLabel="Tambah Pengujian"
-        showCrudActions={true}
-        filterOptions={[
-          { key: "status", label: "Status", options: STATUS_OPTIONS },
-          { key: "departemen", label: "Dept", options: DEPT_OPTIONS },
-        ]}
-        emptyMessage="Tidak ada data pengujian"
-      />
-
-      {/* Add Modal */}
-      {showAdd && (
-        <AdminModal title="Tambah Pengujian" onClose={() => setShowAdd(false)} onSubmit={handleAdd} submitLabel="Tambah" width="max-w-md">
-          <div className="space-y-3">
-            <ModalField label="Nama Barang/Jasa" required>
-              <ModalInput value={form.nama} onChange={v => setForm(p => ({ ...p, nama: v }))} placeholder="Nama barang/jasa yang diuji..." />
-            </ModalField>
-            <div className="grid grid-cols-2 gap-3">
-              <ModalField label="Pemohon">
-                <ModalInput value={form.pemohon} onChange={v => setForm(p => ({ ...p, pemohon: v }))} placeholder="Nama pemohon..." />
-              </ModalField>
-              <ModalField label="Departemen">
-                <ModalSelect value={form.departemen} onChange={v => setForm(p => ({ ...p, departemen: v }))} options={DEPT_OPTIONS} placeholder="Pilih..." />
-              </ModalField>
-            </div>
-            <ModalField label="Tanggal Pengujian">
-              <ModalInput type="date" value={form.tanggal} onChange={v => setForm(p => ({ ...p, tanggal: v }))} />
-            </ModalField>
-            <ModalField label="Catatan">
-              <ModalTextarea value={form.catatan} onChange={v => setForm(p => ({ ...p, catatan: v }))} placeholder="Catatan tambahan..." rows={3} />
-            </ModalField>
-          </div>
-        </AdminModal>
-      )}
-
-      {/* Edit Modal */}
-      {showEdit && (
-        <AdminModal title="Edit Pengujian" onClose={() => setShowEdit(null)} onSubmit={handleEdit} submitLabel="Simpan" width="max-w-md">
-          <div className="space-y-3">
-            <ModalField label="Nama Barang/Jasa">
-              <ModalInput value={editForm.nama} onChange={v => setEditForm(p => ({ ...p, nama: v }))} />
-            </ModalField>
-            <div className="grid grid-cols-2 gap-3">
-              <ModalField label="Pemohon">
-                <ModalInput value={editForm.pemohon} onChange={v => setEditForm(p => ({ ...p, pemohon: v }))} />
-              </ModalField>
-              <ModalField label="Departemen">
-                <ModalSelect value={editForm.departemen} onChange={v => setEditForm(p => ({ ...p, departemen: v }))} options={DEPT_OPTIONS} />
-              </ModalField>
-            </div>
-            <ModalField label="Status">
-              <ModalSelect value={editForm.status} onChange={v => setEditForm(p => ({ ...p, status: v }))} options={STATUS_OPTIONS} />
-            </ModalField>
-            <ModalField label="Catatan">
-              <ModalTextarea value={editForm.catatan} onChange={v => setEditForm(p => ({ ...p, catatan: v }))} rows={3} />
-            </ModalField>
-          </div>
-        </AdminModal>
-      )}
-
-      {/* Detail Modal */}
-      {showDetail && (
-        <AdminModal title="Detail Pengujian" onClose={() => setShowDetail(null)} width="max-w-sm" hideFooter>
-          <div className="space-y-3">
-            {[
-              { l: "Nama", v: showDetail.nama }, { l: "Pemohon", v: showDetail.pemohon },
-              { l: "Departemen", v: showDetail.departemen }, { l: "Tanggal", v: new Date(showDetail.tanggal).toLocaleDateString("id-ID") },
-            ].map(f => (
-              <div key={f.l}><p className="text-[10px] text-gray-400">{f.l}</p><p className="text-[12.5px] font-semibold text-gray-700">{f.v}</p></div>
-            ))}
-            <div><p className="text-[10px] text-gray-400">Status</p><StatusPengujianBadge status={showDetail.status} /></div>
-            {showDetail.catatan && <div><p className="text-[10px] text-gray-400">Catatan</p><p className="text-[12px] text-gray-700">{showDetail.catatan}</p></div>}
-          </div>
-        </AdminModal>
-      )}
-
-      {/* Confirm delete */}
-      {deleteId && (
-        <AdminModal title="Hapus Pengujian" onClose={() => setDeleteId(null)} onSubmit={handleDelete} submitLabel="Ya, Hapus" submitDestructive width="max-w-sm">
-          <p className="text-[13px] text-gray-600">Yakin ingin menghapus data pengujian ini?</p>
-        </AdminModal>
-      )}
+    <div className="flex-1 min-h-screen pb-12">
+      {renderContent()}
     </div>
   );
 }

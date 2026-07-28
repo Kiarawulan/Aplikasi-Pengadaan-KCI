@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { AdminTopBar } from "../../components/admin/AdminTopBar";
 import { VerifTable } from "../../components/admin/VerifTable";
-import { AdminModal, ConfirmModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../components/admin/AdminModal";
+import { AdminModal, ConfirmModal, ModalField, ModalInput, ModalSelect } from "../../components/admin/AdminModal";
 import { getVendors, addVendor, updateVendor, deleteVendor, getHargaSatuan, addHargaSatuan, updateHargaSatuan, deleteHargaSatuan, generateId, formatCurrency } from "../../store/dataStore";
 import type { Vendor, HargaSatuan } from "../../types";
 
-type Tab = "vendor" | "harga-satuan" | "warehouse" | "inklaring" | "jamlak";
+type Tab = "vendor" | "harga-satuan" | "bank" | "biz" | "payment-type" | "warehouse" | "inklaring" | "jamlak";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "vendor", label: "Vendor" },
   { id: "harga-satuan", label: "Harga Satuan" },
+  { id: "bank", label: "Banks" },
+  { id: "biz", label: "Business Areas" },
+  { id: "payment-type", label: "Detail Pembayaran" },
   { id: "warehouse", label: "Warehouse" },
   { id: "inklaring", label: "Import Inklaring" },
   { id: "jamlak", label: "Jaminan Pelaksanaan" },
@@ -31,7 +34,31 @@ const KATEGORI_HARGA = [
   { value: "Furnitur", label: "Furnitur" }, { value: "Jasa", label: "Jasa" },
 ];
 
-// ─── Mock warehouse data ───────────────────────────────────────────────────────
+// Mock C-FITS & Pengadaan Master Data
+const MOCK_BANKS = [
+  { id: "BNK-001", name: "Bank BNI", code: "009", address: "Jl. Jend. Sudirman Kav. 1, Jakarta", phone: "021-2511946", fax: "021-2511947", website: "www.bni.co.id" },
+  { id: "BNK-002", name: "Bank BRI", code: "002", address: "Jl. Jend. Sudirman No. 44-46, Jakarta", phone: "021-5751966", fax: "021-5700916", website: "www.bri.co.id" },
+  { id: "BNK-003", name: "Bank Mandiri", code: "008", address: "Jl. Jend. Gatot Subroto Kav. 36-38, Jakarta", phone: "021-5265000", fax: "021-5265008", website: "www.bankmandiri.co.id" },
+  { id: "BNK-004", name: "Bank BCA", code: "014", address: "Menara BCA, Jl. M.H. Thamrin No. 1, Jakarta", phone: "021-23588000", fax: "021-23588300", website: "www.bca.co.id" },
+];
+
+const MOCK_BIZ_AREAS = [
+  { id: "BIZ-001", name: "Area DAOP 1 Jakarta", code: "BIZ-JKT-01" },
+  { id: "BIZ-002", name: "Area Depo KRL Bogor", code: "BIZ-BGR-02" },
+  { id: "BIZ-003", name: "Area Depo KRL Depok", code: "BIZ-[#DPK]-03" },
+  { id: "BIZ-004", name: "Area Stasiun Juanda", code: "BIZ-JDA-04" },
+  { id: "BIZ-005", name: "Area Balai Yasa Manggarai", code: "BIZ-MRI-05" },
+];
+
+const MOCK_PAYMENT_TYPES = [
+  { id: "PAYT-001", typeName: "Outsource", detailName: "Gaji & Tunjangan Outsource" },
+  { id: "PAYT-002", typeName: "Outsource", detailName: "Penyedia Jasa Keamanan Stasiun" },
+  { id: "PAYT-003", typeName: "Non Outsource", detailName: "Maintenance & Pemeliharaan Sarana" },
+  { id: "PAYT-004", typeName: "Non Outsource", detailName: "Pengadaan IT Hardware & Server" },
+  { id: "PAYT-005", typeName: "UMD", detailName: "Uang Muka Dinas Perjalanan & Operasional" },
+];
+
+// Mock warehouse data
 const WAREHOUSE_TABS = [
   { id: "card", label: "Kartu Stok" },
   { id: "spare-part", label: "Spare Part" },
@@ -41,7 +68,7 @@ const WAREHOUSE_TABS = [
 const MOCK_WAREHOUSE = {
   card: [
     { id: "WH-001", nama: "Laptop Dell Latitude 5540", stok: 5, satuan: "Unit", lokasi: "Rak A-1", kondisi: "Baik" },
-    { id: "WH-002", nama: "Monitor LG 27\"", stok: 3, satuan: "Unit", lokasi: "Rak A-2", kondisi: "Baik" },
+    { id: "WH-002", nama: 'Monitor LG 27 Inch', stok: 3, satuan: "Unit", lokasi: "Rak A-2", kondisi: "Baik" },
     { id: "WH-003", nama: "Kertas A4 80gr", stok: 50, satuan: "Rim", lokasi: "Rak B-1", kondisi: "Baik" },
   ],
   "spare-part": [
@@ -76,7 +103,6 @@ function VendorTab() {
   });
   const [form, setForm] = useState<Vendor>(emptyVendor());
   const [editForm, setEditForm] = useState<Vendor | null>(null);
-
   const refresh = () => setVendors(getVendors());
 
   const columns = [
@@ -141,14 +167,12 @@ function HargaSatuanTab() {
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState<HargaSatuan | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
 
   const emptyItem = (): HargaSatuan => ({
     id: generateId("HS"), namaBarang: "", satuan: "Unit", harga: 0, kategori: "IT Hardware", tahun: "2024", updatedAt: new Date().toISOString().split("T")[0],
   });
   const [form, setForm] = useState<HargaSatuan>(emptyItem());
   const [editForm, setEditForm] = useState<HargaSatuan | null>(null);
-
   const refresh = () => setItems(getHargaSatuan());
 
   const SATUAN_OPTS = [{ value: "Unit", label: "Unit" }, { value: "Rim", label: "Rim" }, { value: "Pcs", label: "Pcs" }, { value: "Set", label: "Set" }, { value: "Meter", label: "Meter" }];
@@ -195,6 +219,141 @@ function HargaSatuanTab() {
         </AdminModal>
       )}
       {deleteId && <ConfirmModal title="Hapus Harga Satuan" message="Yakin ingin menghapus data ini?" onConfirm={() => { deleteHargaSatuan(deleteId); setDeleteId(null); refresh(); }} onClose={() => setDeleteId(null)} confirmLabel="Ya, Hapus" destructive />}
+    </>
+  );
+}
+
+// ─── Bank Tab ──────────────────────────────────────────────────────────────────
+function BankTab() {
+  const [banks, setBanks] = useState(MOCK_BANKS);
+  const [showAdd, setShowAdd] = useState(false);
+  const [showEdit, setShowEdit] = useState<any>(null);
+  const [form, setForm] = useState({ name: "", code: "", address: "", phone: "", fax: "", website: "" });
+
+  const columns = [
+    { key: "code", label: "Kode Bank", render: (r: any) => <span className="font-mono font-bold text-gray-700 text-[11.5px]">{r.code}</span> },
+    { key: "name", label: "Nama Bank", render: (r: any) => (
+      <div><p className="font-semibold text-gray-800 text-[12px]">{r.name}</p><p className="text-gray-400 text-[10px]">{r.website}</p></div>
+    )},
+    { key: "address", label: "Alamat Bank", render: (r: any) => <span className="text-[11.5px] text-gray-600">{r.address}</span> },
+    { key: "contact", label: "Kontak", render: (r: any) => <span className="text-[11.5px] text-gray-500">{r.phone} / Fax: {r.fax}</span> },
+  ];
+
+  const handleSubmitAdd = () => {
+    setBanks([{ id: `BNK-${Math.floor(Math.random()*900)+100}`, name: form.name, code: form.code, address: form.address, phone: form.phone, fax: form.fax, website: form.website }, ...banks]);
+    setShowAdd(false);
+    setForm({ name: "", code: "", address: "", phone: "", fax: "", website: "" });
+  };
+
+  return (
+    <>
+      <VerifTable
+        columns={columns} data={banks} searchKeys={["name", "code", "address"]}
+        onAdd={() => setShowAdd(true)} addLabel="Add Bank" showCrudActions={true}
+        onEdit={(r) => setShowEdit(r)}
+        onDelete={(r) => setBanks(banks.filter(b => b.id !== r.id))}
+      />
+      {showAdd && (
+        <AdminModal title="Add Bank" onClose={() => setShowAdd(false)} onSubmit={handleSubmitAdd} submitLabel="Submit" width="max-w-md">
+          <div className="space-y-3">
+            <ModalField label="Bank Name" required><ModalInput value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Bank BNI" /></ModalField>
+            <ModalField label="Bank Code" required><ModalInput value={form.code} onChange={v => setForm(p => ({ ...p, code: v }))} placeholder="009" /></ModalField>
+            <ModalField label="Bank Address"><ModalInput value={form.address} onChange={v => setForm(p => ({ ...p, address: v }))} placeholder="Jl. Jend. Sudirman..." /></ModalField>
+            <div className="grid grid-cols-2 gap-3">
+              <ModalField label="Telepon"><ModalInput value={form.phone} onChange={v => setForm(p => ({ ...p, phone: v }))} /></ModalField>
+              <ModalField label="Fax"><ModalInput value={form.fax} onChange={v => setForm(p => ({ ...p, fax: v }))} /></ModalField>
+            </div>
+            <ModalField label="Website"><ModalInput value={form.website} onChange={v => setForm(p => ({ ...p, website: v }))} placeholder="www.bank.co.id" /></ModalField>
+          </div>
+        </AdminModal>
+      )}
+      {showEdit && (
+        <AdminModal title="Edit Master Bank" onClose={() => setShowEdit(null)} onSubmit={() => { setBanks(banks.map(b => b.id === showEdit.id ? showEdit : b)); setShowEdit(null); }} submitLabel="Update" width="max-w-md">
+          <div className="space-y-3">
+            <ModalField label="Bank Name" required><ModalInput value={showEdit.name} onChange={v => setShowEdit({ ...showEdit, name: v })} /></ModalField>
+            <ModalField label="Bank Code" required><ModalInput value={showEdit.code} onChange={v => setShowEdit({ ...showEdit, code: v })} /></ModalField>
+            <ModalField label="Bank Address"><ModalInput value={showEdit.address} onChange={v => setShowEdit({ ...showEdit, address: v })} /></ModalField>
+            <div className="grid grid-cols-2 gap-3">
+              <ModalField label="Telepon"><ModalInput value={showEdit.phone} onChange={v => setShowEdit({ ...showEdit, phone: v })} /></ModalField>
+              <ModalField label="Fax"><ModalInput value={showEdit.fax} onChange={v => setShowEdit({ ...showEdit, fax: v })} /></ModalField>
+            </div>
+            <ModalField label="Website"><ModalInput value={showEdit.website} onChange={v => setShowEdit({ ...showEdit, website: v })} /></ModalField>
+          </div>
+        </AdminModal>
+      )}
+    </>
+  );
+}
+
+// ─── Business Area Tab ─────────────────────────────────────────────────────────
+function BusinessAreaTab() {
+  const [areas, setAreas] = useState(MOCK_BIZ_AREAS);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name: "", code: "" });
+
+  const columns = [
+    { key: "code", label: "Kode Area", render: (r: any) => <span className="font-mono font-bold text-gray-700 text-[11.5px]">{r.code}</span> },
+    { key: "name", label: "Nama Business Area", render: (r: any) => <span className="font-semibold text-gray-800 text-[12px]">{r.name}</span> },
+  ];
+
+  return (
+    <>
+      <VerifTable
+        columns={columns} data={areas} searchKeys={["name", "code"]}
+        onAdd={() => setShowAdd(true)} addLabel="Add Business Area" showCrudActions={true}
+        onDelete={(r) => setAreas(areas.filter(a => a.id !== r.id))}
+      />
+      {showAdd && (
+        <AdminModal title="Add Business Area" onClose={() => setShowAdd(false)} onSubmit={() => {
+          setAreas([{ id: `BIZ-${Math.floor(Math.random()*900)+100}`, name: form.name, code: form.code }, ...areas]);
+          setShowAdd(false); setForm({ name: "", code: "" });
+        }} submitLabel="Submit" width="max-w-md">
+          <div className="space-y-3">
+            <ModalField label="Business Area Name" required><ModalInput value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Area DAOP 1 Jakarta" /></ModalField>
+            <ModalField label="Business Area Code" required><ModalInput value={form.code} onChange={v => setForm(p => ({ ...p, code: v }))} placeholder="BIZ-JKT-01" /></ModalField>
+          </div>
+        </AdminModal>
+      )}
+    </>
+  );
+}
+
+// ─── Payment Type Tab ──────────────────────────────────────────────────────────
+function PaymentTypeTab() {
+  const [types, setTypes] = useState(MOCK_PAYMENT_TYPES);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ typeName: "Outsource", detailName: "" });
+
+  const columns = [
+    { key: "typeName", label: "Nama Type Pembayaran", render: (r: any) => (
+      <span className="font-bold text-[#252271] text-[11.5px] bg-[#252271]/5 px-2.5 py-1 rounded-lg">{r.typeName}</span>
+    )},
+    { key: "detailName", label: "Nama Detail Type Pembayaran", render: (r: any) => <span className="font-medium text-gray-800 text-[12px]">{r.detailName}</span> },
+  ];
+
+  return (
+    <>
+      <VerifTable
+        columns={columns} data={types} searchKeys={["typeName", "detailName"]}
+        onAdd={() => setShowAdd(true)} addLabel="Add Payment Type" showCrudActions={true}
+        onDelete={(r) => setTypes(types.filter(t => t.id !== r.id))}
+      />
+      {showAdd && (
+        <AdminModal title="Add Payment Type" onClose={() => setShowAdd(false)} onSubmit={() => {
+          setTypes([{ id: `PAYT-${Math.floor(Math.random()*900)+100}`, typeName: form.typeName, detailName: form.detailName }, ...types]);
+          setShowAdd(false); setForm({ typeName: "Outsource", detailName: "" });
+        }} submitLabel="Submit" width="max-w-md">
+          <div className="space-y-3">
+            <ModalField label="Payment Type" required>
+              <ModalSelect value={form.typeName} onChange={v => setForm(p => ({ ...p, typeName: v }))}
+                options={[{ value: "Outsource", label: "Outsource" }, { value: "Non Outsource", label: "Non Outsource" }, { value: "UMD", label: "UMD" }]} />
+            </ModalField>
+            <ModalField label="Detail Payment Type" required>
+              <ModalInput value={form.detailName} onChange={v => setForm(p => ({ ...p, detailName: v }))} placeholder="Gaji & Tunjangan..." />
+            </ModalField>
+          </div>
+        </AdminModal>
+      )}
     </>
   );
 }
@@ -280,6 +439,9 @@ export function MasterDataScreen() {
   const TAB_CONTENT: Record<Tab, React.ReactNode> = {
     vendor: <VendorTab />,
     "harga-satuan": <HargaSatuanTab />,
+    bank: <BankTab />,
+    biz: <BusinessAreaTab />,
+    "payment-type": <PaymentTypeTab />,
     warehouse: <WarehouseTab />,
     inklaring: <InklaringTab />,
     jamlak: <JamlakTab />,
