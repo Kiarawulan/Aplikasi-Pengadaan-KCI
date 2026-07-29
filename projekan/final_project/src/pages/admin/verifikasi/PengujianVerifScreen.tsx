@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/AdminModal";
@@ -8,40 +9,59 @@ type ScreenProps = {
   activeSubItem: string;
 };
 
-// Rich MOCK DATA for C-CUT List Kontrak < 500jt
-const INITIAL_KONTRAK = [
-  { id: "KTR-001", sp3: "SP3-9921", nama: "Pengadaan Suku Cadang KRL Series 200", nominal: "Rp 320.000.000", departemen: "Logistik", vendor: "PT Kencana Sparepart", tanggal: "2024-03-12", status: "Contract Release" },
-  { id: "KTR-002", sp3: "SP3-8832", nama: "Perbaikan Modul AC KRL Juanda", nominal: "Rp 120.000.000", departemen: "Sarpas", vendor: "PT Hawa Dingin Nusantara", tanggal: "2024-03-18", status: "Contract Release" },
-  { id: "KTR-003", sp3: "SP3-7741", nama: "Pengadaan Kabel Sinyal Lintas Manggarai", nominal: "Rp 450.000.000", departemen: "Sinyal & Telekomunikasi", vendor: "PT Tunas Kabel Indonesia", tanggal: "2024-03-22", status: "Contract Release" },
-  { id: "KTR-004", sp3: "SP3-6612", nama: "Pengadaan Ban Karet KRL Klender", nominal: "Rp 210.000.000", departemen: "Logistik", vendor: "PT Karet Utama", tanggal: "2024-03-25", status: "Contract Release" },
-];
-
-const INITIAL_KONTRAK_OVER = [
-  { id: "KTR-501", sp3: "SP3-5521", nama: "Pengadaan Genset Depo KRL Depok", nominal: "Rp 1.250.000.000", departemen: "Prasarana", vendor: "PT Daya Powerindo", tanggal: "2024-03-05", status: "Contract Release" },
-  { id: "KTR-502", sp3: "SP3-6612", nama: "Sistem Pemantauan CCTV Stasiun Bogor", nominal: "Rp 780.000.000", departemen: "IT & Security", vendor: "PT Telemedia Solusindo", tanggal: "2024-03-15", status: "Contract Release" },
-  { id: "KTR-503", sp3: "SP3-7711", nama: "Pengadaan Traksi Motor KRL Manggarai", nominal: "Rp 3.400.000.000", departemen: "Sarpas", vendor: "Global Electric Rail Ltd", tanggal: "2024-03-20", status: "Contract Release" },
-];
-
-// Rich MOCK DATA for C-CUT Request Pengujian
-const INITIAL_REQUEST_PENGUJIAN = [
-  { kontrakNo: "KTR-001", nama: "Pengadaan Suku Cadang KRL Series 200", nominal: "Rp 320.000.000", departemen: "Logistik", jadwal: "2024-04-02", timeline: "On Schedule" },
-  { kontrakNo: "KTR-502", nama: "Sistem Pemantauan CCTV Stasiun Bogor", nominal: "Rp 780.000.000", departemen: "IT & Security", jadwal: "2024-04-05", timeline: "On Schedule" },
-  { kontrakNo: "KTR-002", nama: "Perbaikan Modul AC KRL Juanda", nominal: "Rp 120.000.000", departemen: "Sarpas", jadwal: "2024-04-10", timeline: "On Schedule" },
-];
-
-// Rich MOCK DATA for C-CUT Review Pengujian
-const INITIAL_REVIEW_PENGUJIAN = [
-  { kontrakNo: "KTR-001", nama: "Pengadaan Suku Cadang KRL Series 200", nominal: "Rp 320.000.000", departemen: "Logistik", jadwal: "2024-04-02", status: "Request Pengujian" },
-  { kontrakNo: "KTR-002", nama: "Perbaikan Modul AC KRL Juanda", nominal: "Rp 120.000.000", departemen: "Sarpas", jadwal: "2024-04-10", status: "Review Hasil Pengujian" },
-  { kontrakNo: "KTR-501", nama: "Pengadaan Genset Depo KRL Depok", nominal: "Rp 1.250.000.000", departemen: "Prasarana", jadwal: "2024-04-05", status: "Pengujian On Process" },
-  { kontrakNo: "KTR-502", nama: "Sistem Pemantauan CCTV Stasiun Bogor", nominal: "Rp 780.000.000", departemen: "IT & Security", jadwal: "2024-04-12", status: "Pengujian Rejected" },
-];
+// We fetch real data from API now.
+const INITIAL_KONTRAK: any[] = [];
+const INITIAL_KONTRAK_OVER: any[] = [];
+const INITIAL_REQUEST_PENGUJIAN: any[] = [];
+const INITIAL_REVIEW_PENGUJIAN: any[] = [];
 
 export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
-  const [kontrakList, setKontrakList] = useState(INITIAL_KONTRAK);
-  const [kontrakListOver, setKontrakListOver] = useState(INITIAL_KONTRAK_OVER);
-  const [requestList, setRequestList] = useState(INITIAL_REQUEST_PENGUJIAN);
-  const [reviewList, setReviewList] = useState(INITIAL_REVIEW_PENGUJIAN);
+  const [loading, setLoading] = useState(false);
+  const [kontrakList, setKontrakList] = useState<any[]>([]);
+  const [kontrakListOver, setKontrakListOver] = useState<any[]>([]);
+  const [requestList, setRequestList] = useState<any[]>([]);
+  const [reviewList, setReviewList] = useState<any[]>([]);
+
+  const fetchPengadaanData = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/pengadaan');
+      const allData = res.data.map((item: any) => {
+        const fd = typeof item.formData === 'string' ? JSON.parse(item.formData) : (item.formData || {});
+        const nominalStr = item.nominal || "Rp 0";
+        const cleanNominal = parseInt(nominalStr.replace(/\D/g, '')) || 0;
+        const isOver = cleanNominal >= 500000000;
+        return {
+          id: item.id,
+          kontrakNo: item.id,
+          sp3: fd.sp3No || "-",
+          nama: item.nama,
+          nominal: item.nominal,
+          departemen: item.departemen,
+          vendor: fd.vendor || "N/A",
+          tanggal: item.tanggal,
+          jadwal: fd.jadwalPengujian || item.tanggal,
+          status: item.status,
+          currentStep: item.currentStep,
+          timeline: "On Schedule",
+          isOver
+        };
+      });
+
+      setKontrakList(allData.filter((d: any) => !d.isOver && (d.currentStep === 'contract' || d.currentStep === 'pengujian')));
+      setKontrakListOver(allData.filter((d: any) => d.isOver && (d.currentStep === 'contract' || d.currentStep === 'pengujian')));
+      setRequestList(allData.filter((d: any) => d.currentStep === 'pengujian' && d.status === 'pending'));
+      setReviewList(allData.filter((d: any) => d.currentStep === 'pengujian' && d.status !== 'pending'));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPengadaanData();
+  }, [activeSubItem]);
 
   const [showAddKontrak, setShowAddKontrak] = useState(false);
   const [showAddRequest, setShowAddRequest] = useState(false);
@@ -336,16 +356,13 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
 
     // DEFAULT FALLBACK TABLE FOR OTHER PENGUJIAN SUBVIEWS
     const fallbackColumns = [
-      { key: "no", label: "No", render: (_: any, idx: number) => <span>{idx + 1}</span> },
+      { key: "id", label: "ID Referensi", render: (r: any) => <span className="font-mono text-[11.5px] font-bold text-[#252271]">{r.id}</span> },
       { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[12px]">{r.nama}</span> },
       { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-medium text-[#252271]">{r.nominal}</span> },
-      { key: "status", label: "Status", render: () => <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-600 border border-green-200">ON PROCESS</span> }
+      { key: "status", label: "Status", render: (r: any) => <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-600 border border-green-200">{r.status}</span> }
     ];
 
-    const fallbackData = [
-      { nama: "Pengadaan Suku Cadang KRL Series 200", nominal: "Rp 320.000.000" },
-      { nama: "Perbaikan Modul AC KRL Juanda", nominal: "Rp 120.000.000" }
-    ];
+    const fallbackData = kontrakList.concat(kontrakListOver);
 
     return (
       <div className="space-y-4">

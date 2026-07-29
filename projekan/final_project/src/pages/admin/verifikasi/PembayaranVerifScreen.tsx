@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/AdminModal";
@@ -8,15 +9,8 @@ import { useAuth } from "../../../store/authStore";
 type ScreenProps = { activeSubItem: string; };
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
-const INITIAL_PAYMENTS = [
-  { id: "PAY-001", noSp3: "SP3-9921", noKontrak: "KTR-001", nama: "Gaji Teknisi Outsource Bulan Maret 2024", nominal: "Rp 180.000.000", namaVendor: "PT Mitra Tenaga Kerja", noRekening: "1234-5678-9012", bank: "Bank BNI", departemen: "CUG - LOGISTIC", tgl: "2024-03-11", tipe: "outsource", status: "pending" },
-  { id: "PAY-002", noSp3: "SP3-7721", noKontrak: "KTR-002", nama: "Perbaikan Modul AC KRL Juanda", nominal: "Rp 50.000.000", namaVendor: "PT Hawa Dingin Nusantara", noRekening: "9876-5432-1098", bank: "Bank BRI", departemen: "CTR - ROLLING STOCK", tgl: "2024-03-12", tipe: "non-outsource", status: "approved" },
-  { id: "PAY-003", noSp3: "SP3-5511", noKontrak: "KTR-003", nama: "UMD Perbaikan Peralatan Kantor Depo", nominal: "Rp 15.000.000", namaVendor: "Internal", noRekening: "-", bank: "-", departemen: "CUG - LOGISTIC", tgl: "2024-03-13", tipe: "umd", status: "pending" },
-  { id: "PAY-004", noSp3: "SP3-4412", noKontrak: "KTR-004", nama: "Penyediaan Tenaga Outsourcing Security Stasiun", nominal: "Rp 240.000.000", namaVendor: "PT Guard Nusantara", noRekening: "4567-8901-2345", bank: "Bank Mandiri", departemen: "COS - HSE AND SECURITY", tgl: "2024-03-14", tipe: "outsource", status: "pending" },
-  { id: "PAY-005", noSp3: "SP3-6623", noKontrak: "KTR-005", nama: "Vendor Maintenance Server Data Center KCI", nominal: "Rp 95.000.000", namaVendor: "PT Techno Infrastruktur", noRekening: "6789-0123-4567", bank: "Bank BCA", departemen: "CTI - INFORMATION TECHNOLOGY", tgl: "2024-03-18", tipe: "non-outsource", status: "revisi" },
-  { id: "PAY-006", noSp3: "SP3-8819", noKontrak: "KTR-006", nama: "UMD Konsumsi Rapat Direksi Q1 2024", nominal: "Rp 8.500.000", namaVendor: "Internal", noRekening: "-", bank: "-", departemen: "CUS - CORPORATE SECRETARY", tgl: "2024-03-20", tipe: "umd", status: "approved" },
-  { id: "PAY-007", noSp3: "SP3-9902", noKontrak: "KTR-007", nama: "Pengadaan Suku Cadang Pantograf KRL Series 205", nominal: "Rp 410.000.000", namaVendor: "PT Railindo Jaya", noRekening: "1122-3344-5566", bank: "Bank BNI", departemen: "CTR - ROLLING STOCK", tgl: "2024-03-22", tipe: "non-outsource", status: "pending" },
-];
+// Data will be fetched from API
+const INITIAL_PAYMENTS: any[] = [];
 
 const INITIAL_REPORTS = [
   { id: "REP-001", nama: "Laporan Harian Pembayaran Outsource Maret W4", tgl: "2024-03-24", file: "laporan_harian_outsource_24_03.xlsx", tipe: "daily", ket: "Realisasi pembayaran outsource aman, 3 SP3 terbayar" },
@@ -558,7 +552,47 @@ function UmdSubmissionModal({ item, onClose }: { item: any; onClose: () => void 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
   const { currentUser } = useAuth();
-  const [payments, setPayments] = useState(INITIAL_PAYMENTS);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchPengadaanData = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/pengadaan');
+      const allData = res.data
+        .filter((item: any) => item.currentStep === 'pembayaran')
+        .map((item: any) => {
+          const fd = typeof item.formData === 'string' ? JSON.parse(item.formData) : (item.formData || {});
+          const tipe = fd.jenisPembayaran === 'umd' ? 'umd' : 'non-outsource'; // simplistic logic for mock
+          return {
+            id: item.id,
+            noSp3: fd.sp3No || "-",
+            noKontrak: item.id,
+            nama: item.nama,
+            nominal: item.nominal,
+            namaVendor: fd.vendor || "N/A",
+            noRekening: fd.rekening || "-",
+            bank: fd.bank || "-",
+            departemen: item.departemen,
+            tgl: item.tanggal,
+            tipe: tipe,
+            status: item.status,
+            currentStep: item.currentStep,
+            verif_id: item.id
+          };
+        });
+      setPayments(allData);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPengadaanData();
+  }, [activeSubItem]);
+
   const [reports, setReports] = useState(INITIAL_REPORTS);
   const [showAdd, setShowAdd] = useState(false);
   const [showVerif, setShowVerif] = useState<any | null>(null);
@@ -596,13 +630,25 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
   };
 
   const handleAction = (type: "approve" | "reject" | "revisi", item: any) => { setConfirmAction({ type, item }); setCatatanText(""); };
-  const executeAction = () => {
+  const executeAction = async () => {
     if (!confirmAction) return;
-    setPayments(prev => prev.map(p => p.id === confirmAction.item.id ? { ...p, status: confirmAction.type === "approve" ? "approved" : confirmAction.type === "reject" ? "rejected" : "revisi" } : p));
-    setConfirmAction(null);
-    setShowDetail(null);
-  };
+    const { type, item } = confirmAction;
 
+    try {
+      if (type === "approve") {
+        await api.post(`/verifikasi/${item.verif_id}/approve`);
+      } else {
+        await api.post(`/verifikasi/${item.verif_id}/reject`);
+      }
+      fetchPengadaanData();
+    } catch (err) {
+      console.error(err);
+    }
+    
+    setConfirmAction(null);
+    setShowVerif(null);
+    setShowUmd(null);
+  };
   const topFiltersPayment: FilterConfig[] = [
     { key: "departemen", label: "Departemen", type: "text" },
     { key: "status", label: "Status", type: "select", options: [{ value: "pending", label: "Pending" }, { value: "approved", label: "Disetujui" }, { value: "revisi", label: "Revisi" }, { value: "rejected", label: "Ditolak" }] },

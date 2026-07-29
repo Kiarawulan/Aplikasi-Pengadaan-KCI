@@ -5,6 +5,8 @@ import { PARK_STEPS } from "../constants/steps";
 import { TopBar } from "../components/layout/TopBar";
 import { StatusBadge } from "../components/common/StatusBadge";
 import { api } from "../services/api";
+import { Plus } from "lucide-react";
+import { BuatPengujianPopup } from "../components/pengadaan/BuatPengujianPopup";
 
 export function DaftarPengujianScreen({ onSelectItem }: {
   onSelectItem: (item: PengadaanItem) => void;
@@ -12,6 +14,7 @@ export function DaftarPengujianScreen({ onSelectItem }: {
   const [items, setItems] = useState<PengadaanItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showPopup, setShowPopup] = useState(false);
 
   const fetchItems = async () => {
     setLoading(true);
@@ -62,8 +65,21 @@ export function DaftarPengujianScreen({ onSelectItem }: {
                 placeholder="Pencarian..."
               />
             </div>
+            <button onClick={() => setShowPopup(true)} className="flex items-center gap-1.5 bg-[#e6251c] hover:bg-[#c91e16] text-white px-4 py-1.5 rounded-xl text-[11px] font-semibold shadow-sm transition-colors">
+              <Plus size={14} /> Buat Pengujian
+            </button>
           </div>
         </div>
+
+        {showPopup && (
+          <BuatPengujianPopup 
+            onClose={() => setShowPopup(false)} 
+            onSuccess={() => {
+              setShowPopup(false);
+              fetchItems();
+            }}
+          />
+        )}
 
         {loading ? (
           <div className="p-8 text-center text-gray-500 text-[12px] flex flex-col items-center gap-2">

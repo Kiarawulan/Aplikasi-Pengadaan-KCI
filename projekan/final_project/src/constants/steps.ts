@@ -19,16 +19,6 @@ export const PD_MAIN_STEPS: MainStep[] = [
       { id: "detail-pd", label: "Detail Park Document" },
     ],
   },
-  {
-    id: "pembayaran",
-    label: "Pembayaran",
-    subSteps: [
-      { id: "payment-request", label: "Payment Request" },
-      { id: "nota-dokumen", label: "Nota Dokumen" },
-      { id: "dokumen-tutupan", label: "Dokumen Tutupan" },
-      { id: "pengembalian-dana", label: "Pengembalian Dana" },
-    ],
-  },
 ];
 
 export const PR_MAIN_STEPS: MainStep[] = [
@@ -37,6 +27,4 @@ export const PR_MAIN_STEPS: MainStep[] = [
   { id: "sp3", label: "SP3", subSteps: [] },
   { id: "pbj", label: "PBJ", subSteps: [] },
   { id: "contract", label: "Contract", subSteps: [] },
-  { id: "pengujian", label: "Pengujian", subSteps: [{ id: "request-pengujian", label: "Request Pengujian" }, { id: "proses-pengujian", label: "Proses Pengujian" }, { id: "bahp", label: "Berita Acara Hasil Pengujian" }] },
-  { id: "pembayaran", label: "Pembayaran", subSteps: [{ id: "pelunasan", label: "Pelunasan" }, { id: "payment-request", label: "Payment Request" }, { id: "proses-selesai", label: "Proses Selesai" }] },
 ];

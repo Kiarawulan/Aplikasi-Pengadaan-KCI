@@ -329,6 +329,12 @@ export function PrDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
                   <button onClick={goNext} disabled={(verifStatus === "pending" && isSubmitPoint) || (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian" && verifStatus !== "not_submitted" && verifStatus !== "approved")} className="px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-[#252271] hover:bg-[#1a1860] disabled:bg-gray-400 disabled:cursor-not-allowed">
                     {getNextLabel()}
                   </button>
+                ) : item.status === "Selesai" || completedStepIds.has("contract") ? (
+                  <button onClick={() => { 
+                    onNavigate("daftar-pengujian");
+                  }} className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-blue-600 hover:bg-blue-700">
+                    <Check size={12} /> Pengadaan Selesai, Lanjut ke Pengujian!
+                  </button>
                 ) : (
                   <button onClick={() => { 
                     setCompletedStepIds(p => {
@@ -337,7 +343,6 @@ export function PrDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
                       return next;
                     }); 
                     flashSave(); 
-                    onNavigate("dashboard");
                   }} className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-green-600 hover:bg-green-700">
                     <Check size={12} /> Selesai
                   </button>

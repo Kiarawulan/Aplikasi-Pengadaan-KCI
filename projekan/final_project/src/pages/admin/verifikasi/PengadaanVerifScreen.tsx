@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/AdminModal";
@@ -51,13 +52,107 @@ const INITIAL_VENDORS = [
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
-  const [rupList, setRupList] = useState(INITIAL_RUP);
-  const [nppList, setNppList] = useState(INITIAL_NPP);
-  const [sp3List, setSp3List] = useState(INITIAL_SP3);
-  const [pbjList, setPbjList] = useState(INITIAL_PBJ);
-  const [contractList, setContractList] = useState(INITIAL_CONTRACTS);
+  const [pengadaanList, setPengadaanList] = useState<any[]>([]);
+  const [verifTasks, setVerifTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
   const [jamlakList, setJamlakList] = useState(INITIAL_JAMLAK);
   const [vendorList, setVendorList] = useState(INITIAL_VENDORS);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [resPeng, resVerif] = await Promise.all([
+        api.get('/pengadaan'),
+        api.get('/verifikasi?status=pending')
+      ]);
+      if (resPeng.data) {
+        const mappedPeng = resPeng.data.map((item: any) => {
+          const fd = typeof item.form_data === 'string' ? JSON.parse(item.form_data) : (item.form_data || {});
+          return {
+            id: item.id,
+            nama: item.nama,
+            departemen: item.departemen,
+            nominal: item.nominal,
+            tanggal: item.tanggal,
+            status: item.status,
+            currentStep: item.current_step,
+            completedSteps: item.completed_steps ? item.completed_steps.map((c: any) => c.step_id) : [],
+            tax: fd.nilaiTax || "Rp 0",
+            vendor: fd.vendor || "N/A",
+            sp3: fd.sp3No || "-",
+            realisasi: fd.realisasi || "N/A",
+            bebanBiaya: fd.capexOpex || item.departemen,
+            vpDept: fd.vpDept || item.departemen,
+            capexOpex: "-",
+            prVal: item.nominal,
+            pdVal: item.nominal,
+            pbj: "-",
+            performanceBond: "Unverified"
+          };
+        });
+        setPengadaanList(mappedPeng);
+      }
+      if (resVerif.data) {
+        const mappedVerif = resVerif.data.map((item: any) => ({
+          id: item.pengadaan_id,
+          verif_id: item.id,
+          judul: item.pengadaan_nama,
+          title: item.pengadaan_nama,
+          nama: item.pengadaan_nama,
+          tipe: item.tipe,
+          dept: item.departemen,
+          vpDept: item.departemen,
+          bebanBiaya: item.departemen,
+          rkap: "N/A",
+          prVal: "N/A",
+          pdVal: "N/A",
+          vendor: "N/A",
+          pengadaanNama: item.pengadaan_nama,
+          status: "pending"
+        }));
+        setVerifTasks(mappedVerif);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [activeSubItem]);
+
+  const rupList = activeSubItem === 'rup-task-approval' 
+    ? verifTasks.filter(t => t.tipe === 'rup') 
+    : activeSubItem.includes('signed') || activeSubItem.includes('final')
+    ? pengadaanList.filter(p => p.status === 'approved' && p.currentStep === 'rup')
+    : pengadaanList;
+
+  const nppList = activeSubItem === 'npp-task-approval'
+    ? verifTasks.filter(t => t.tipe === 'npp')
+    : activeSubItem.includes('memo')
+    ? pengadaanList.filter(p => p.status === 'approved' && p.completedSteps.includes('rup'))
+    : pengadaanList.filter(p => p.completedSteps.includes('rup') || p.currentStep === 'npp' || p.currentStep === 'sp3' || p.currentStep === 'pbj' || p.currentStep === 'contract');
+
+  const sp3List = activeSubItem === 'sp3-task-approval'
+    ? verifTasks.filter(t => t.tipe === 'sp3')
+    : activeSubItem.includes('signed') || activeSubItem.includes('final')
+    ? pengadaanList.filter(p => p.status === 'approved' && p.completedSteps.includes('npp'))
+    : pengadaanList.filter(p => p.completedSteps.includes('npp') || p.currentStep === 'sp3' || p.currentStep === 'pbj' || p.currentStep === 'contract');
+
+  const pbjList = activeSubItem === 'pbj-task-approval-pbj'
+    ? verifTasks.filter(t => t.tipe === 'pbj')
+    : activeSubItem.includes('memo')
+    ? pengadaanList.filter(p => p.status === 'approved' && p.completedSteps.includes('sp3'))
+    : pengadaanList.filter(p => p.completedSteps.includes('sp3') || p.currentStep === 'pbj' || p.currentStep === 'contract');
+
+  const contractList = activeSubItem === 'contract-task-approval-contract'
+    ? verifTasks.filter(t => t.tipe === 'contract')
+    : pengadaanList.filter(p => p.completedSteps.includes('pbj') || p.currentStep === 'contract');
+
+  const genericList = pengadaanList; // used for warehouse, harga, dll
 
   const [showAdd, setShowAdd] = useState(false);
   const [showDetail, setShowDetail] = useState<any | null>(null);
@@ -83,22 +178,29 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
 
   const getSubmenuInfo = () => {
     switch (activeSubItem) {
-      case "rup-task": return { title: "Task Approval RUP", subtitle: "RUP - Task Approval", mode: "rup-task" };
-      case "rup-timeline": return { title: "List Timeline RUP", subtitle: "RUP - List Timeline", mode: "rup-timeline" };
-      case "rup-signed": return { title: "Upload Timeline Signed", subtitle: "RUP - Timeline Signed", mode: "rup-signed" };
-      case "rup-penyesuaian": return { title: "Penyesuaian RUP", subtitle: "RUP - Penyesuaian RUP", mode: "rup-penyesuaian" };
-      case "npp-list": return { title: "List NPP", subtitle: "NPP - List NPP", mode: "npp-list" };
-      case "npp-memo": return { title: "Memo Permohonan Pengadaan", subtitle: "NPP - Memo Permohonan", mode: "npp-memo" };
-      case "sp3-task": return { title: "Task Approval SP3", subtitle: "SP3 - Task Approval", mode: "sp3-task" };
-      case "sp3-list": return { title: "List SP3", subtitle: "SP3 - List SP3", mode: "sp3-list" };
-      case "sp3-signed": return { title: "Upload Signed SP3", subtitle: "SP3 - Upload Signed", mode: "sp3-signed" };
-      case "pbj-task": return { title: "Task Approval PBJ", subtitle: "PBJ - Task Approval", mode: "pbj-task" };
-      case "pbj-memo": return { title: "Memo Internal PBJ", subtitle: "PBJ - Memo Internal", mode: "pbj-memo" };
-      case "contract-task": return { title: "Task Approval Contract", subtitle: "Contract - Task Approval", mode: "contract-task" };
-      case "contract-list": return { title: "List Contract", subtitle: "Contract - List Contract", mode: "contract-list" };
-      case "jamlak-list": return { title: "List Jaminan Pelaksanaan", subtitle: "Jamlak - List Jamlak", mode: "jamlak-list" };
-      case "vendor-list": return { title: "List Vendor Management", subtitle: "Vendor - List Vendor", mode: "vendor-list" };
-      default: return { title: "Rencana Umum Pengadaan (RUP)", subtitle: "Pengadaan", mode: "rup-task" };
+      case "rup-task-approval": return { title: "Task Approval RUP", subtitle: "RUP - Task Approval", mode: "rup-task" };
+      case "rup-list-timeline": return { title: "List Timeline RUP", subtitle: "RUP - List Timeline", mode: "rup-timeline" };
+      case "rup-upload-timeline-final": return { title: "Upload Timeline Final", subtitle: "RUP - Timeline Final", mode: "rup-signed" };
+      case "npp-task-approval": return { title: "Task Approval NPP", subtitle: "NPP - Task Approval", mode: "npp-task" };
+      case "npp-list-npp": return { title: "List NPP", subtitle: "NPP - List NPP", mode: "npp-list" };
+      case "sp3-task-approval": return { title: "Task Approval SP3", subtitle: "SP3 - Task Approval", mode: "sp3-task" };
+      case "sp3-list-sp3": return { title: "List SP3", subtitle: "SP3 - List SP3", mode: "sp3-list" };
+      case "sp3-upload-sp3-final": return { title: "Upload SP3 Final", subtitle: "SP3 - Upload SP3 Final", mode: "sp3-signed" };
+      case "pbj-task-approval-pbj": return { title: "Task Approval PBJ", subtitle: "PBJ - Task Approval", mode: "pbj-task" };
+      case "pbj-list-pbj": return { title: "List PBJ", subtitle: "PBJ - List", mode: "pbj-list" };
+      case "pbj-memo-internal": return { title: "Memo Internal PBJ", subtitle: "PBJ - Memo Internal", mode: "pbj-memo" };
+      case "contract-task-approval-contract": return { title: "Task Approval Contract", subtitle: "Contract - Task Approval", mode: "contract-task" };
+      case "contract-list-contract": return { title: "List Contract", subtitle: "Contract - List Contract", mode: "contract-list" };
+      case "jamlak-list-jamlak": return { title: "List Jaminan Pelaksanaan", subtitle: "Jamlak - List Jamlak", mode: "jamlak-list" };
+      case "vendor-list-vendor": return { title: "List Vendor Management", subtitle: "Vendor - List Vendor", mode: "vendor-list" };
+      case "warehouse-card": return { title: "Warehouse Card", subtitle: "Warehouse - Card", mode: "warehouse" };
+      case "harga-list-harga-satuan": return { title: "Harga Satuan", subtitle: "Harga Satuan - List", mode: "harga" };
+      case "adendum-list-adendum": return { title: "Adendum Kontrak", subtitle: "Adendum Kontrak - List", mode: "adendum" };
+      case "evaluasi-list-evaluasi-vendor": return { title: "Evaluasi Vendor", subtitle: "Evaluasi Vendor - List", mode: "evaluasi" };
+      case "tkdn": return { title: "TKDN", subtitle: "Pengadaan - TKDN", mode: "tkdn" };
+      case "monitoring-kpi": return { title: "Monitoring KPI", subtitle: "Pengadaan - Monitoring KPI", mode: "monitoring-kpi" };
+      case "monitoring-mppl": return { title: "Monitoring MPPL", subtitle: "Pengadaan - Monitoring MPPL", mode: "monitoring-mppl" };
+      default: return { title: "Task Approval RUP", subtitle: "RUP - Task Approval", mode: "rup-task" };
     }
   };
 
@@ -139,32 +241,24 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
   ];
 
   const sp3Columns = [
-    { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id}</span> },
-    { key: "title", label: "Procurement Title", render: (r: any) => <div><p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.title}</p><p className="text-gray-400 text-[10px]">{r.vendor}</p></div> },
-    { key: "rkap", label: "RKAP Value", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.rkap}</span> },
-    { key: "dept", label: "Department", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.dept}</span> },
-    { key: "tax", label: "Tax Value", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.tax}</span> },
-    { key: "status", label: "Status", render: (r: any) => <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-purple-50 text-purple-600 border border-purple-200">{r.status.toUpperCase()}</span> },
+    { key: "id", label: "No. Pengadaan", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id}</span> },
+    { key: "nama", label: "Procurement Title", render: (r: any) => <div><p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama || r.title}</p><p className="text-gray-400 text-[10px]">{r.vendor}</p></div> },
+    { key: "nominal", label: "Nilai Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.rkap}</span> },
+    { key: "dept", label: "Department", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.departemen || r.dept}</span> },
   ];
 
   const pbjColumns = [
-    { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id}</span> },
+    { key: "id", label: "No. Pengadaan", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id}</span> },
     { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama}</p> },
-    { key: "prVal", label: "Nilai PR (NPD)", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.prVal}</span> },
-    { key: "pdVal", label: "Nilai PD", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.pdVal}</span> },
-    { key: "efisiensi", label: "Nilai Efisiensi", render: (r: any) => <span className="text-green-600 font-semibold text-[11.5px]">{r.efisiensi}</span> },
-    { key: "assignTo", label: "Assign To", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.assignTo}</span> },
-    { key: "status", label: "Status", render: (r: any) => <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-indigo-50 text-indigo-600 border border-indigo-200">{r.status}</span> },
+    { key: "nominal", label: "Nilai Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.prVal}</span> },
+    { key: "dept", label: "Department", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen || r.dept}</span> },
   ];
 
   const contractColumns = [
-    { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id}</span> },
-    { key: "paket", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.paket}</p> },
-    { key: "nilai", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nilai}</span> },
-    { key: "dept", label: "Departemen", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.dept}</span> },
-    { key: "pbj", label: "PBJ", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.pbj}</span> },
-    { key: "performanceBond", label: "Performance Bond", render: (r: any) => <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-600 border border-green-200">{r.performanceBond}</span> },
-    { key: "status", label: "Status", render: (r: any) => <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-blue-50 text-blue-600 border border-blue-200">{r.status}</span> },
+    { key: "id", label: "No. Pengadaan", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id}</span> },
+    { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama || r.paket}</p> },
+    { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.nilai}</span> },
+    { key: "dept", label: "Departemen", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.departemen || r.dept}</span> },
   ];
 
   const jamlakColumns = [
@@ -186,7 +280,6 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
     <div className="space-y-4">
       <AdminTopBar title={title} subtitle={subtitle} />
 
-      {/* Render main content based on mode */}
       <div className="relative">
         {(mode.startsWith("rup") || mode.startsWith("npp") || mode.startsWith("vendor")) && (
           <div className="absolute right-5 top-4 z-10">
@@ -201,8 +294,8 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
           <VerifTable
             columns={rupColumns} data={rupList} searchKeys={["judul", "bebanBiaya", "vpDept"]}
             onView={(r) => setShowDetail({ type: "rup", item: r })}
-            onApprove={(r) => setRupList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Approved" } : item))}
-            onReject={(r) => setRupList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item))}
+            onApprove={(r) => setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Approved" } : item))}
+            onReject={(r) => setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item))}
             showVerifActions={true} showCrudActions={true} emptyMessage="Tidak ada data RUP."
           />
         )}
@@ -217,7 +310,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
 
         {mode.startsWith("sp3") && (
           <VerifTable
-            columns={sp3Columns} data={sp3List} searchKeys={["title", "id", "vendor"]}
+            columns={sp3Columns} data={sp3List} searchKeys={["nama", "id", "vendor"]}
             onView={(r) => setShowDetail({ type: "sp3", item: r })}
             showCrudActions={true} emptyMessage="Tidak ada data SP3."
           />
@@ -234,7 +327,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
 
         {mode.startsWith("contract") && (
           <VerifTable
-            columns={contractColumns} data={contractList} searchKeys={["paket", "id", "dept"]}
+            columns={contractColumns} data={contractList} searchKeys={["nama", "id", "dept"]}
             onView={(r) => setShowContractProcess(r)}
             showCrudActions={true} emptyMessage="Tidak ada data Kontrak."
             approveLabel="Proses Kontrak"
@@ -258,7 +351,6 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
         )}
       </div>
 
-      {/* Add Modals */}
       {showAdd && mode.startsWith("rup") && (
         <AdminModal title="Tambah RUP (Create Timeline)" onClose={() => setShowAdd(false)} onSubmit={handleAddSubmit} submitLabel="Submit" width="max-w-2xl">
           <div className="space-y-3">
@@ -341,13 +433,12 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
             <div className="grid grid-cols-3 gap-2">
               <ModalField label="Dokumen PR (No / Tanggal / File)"><ModalInput value={formNpp.prNo} onChange={v => setFormNpp(p => ({ ...p, prNo: v }))} placeholder="PR-001" /></ModalField>
               <ModalField label="Dokumen RAB (No / Tanggal / File)"><ModalInput value={formNpp.rabNo} onChange={v => setFormNpp(p => ({ ...p, rabNo: v }))} placeholder="RAB-001" /></ModalField>
-              <ModalField label="Dokumen KAK / MI"><ModalInput value={formNpp.kakNo} onChange={v => setFormNpp(p => ({ ...p, kakNo: v }))} placeholder="KAK-001" /></ModalField>
+              <ModalField label="Dokumen KAK / MI"><ModalInput value={formNpp.miNo} onChange={v => setFormNpp(p => ({ ...p, miNo: v }))} placeholder="KAK-001" /></ModalField>
             </div>
           </div>
         </AdminModal>
       )}
 
-      {/* Detail View Modal */}
       {showDetail && (
         <AdminModal title={`Detail ${showDetail.type.toUpperCase()}`} onClose={() => setShowDetail(null)} hideFooter width="max-w-lg">
           <div className="space-y-2">
@@ -358,10 +449,34 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
               </div>
             ))}
           </div>
+          {(showDetail.type === 'sp3' || showDetail.type === 'pbj') && (
+            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={async () => {
+                  const step = showDetail.type; 
+                  const nextStep = step === 'sp3' ? 'pbj' : 'contract';
+                  try {
+                    await api.put(`/pengadaan/${showDetail.item.id}`, {
+                      completedStepId: step,
+                      currentStep: nextStep,
+                      status: `Selesai (${step.toUpperCase()})`
+                    });
+                    setShowDetail(null);
+                    fetchData();
+                    alert(`${step.toUpperCase()} berhasil diselesaikan (Bypass)`);
+                  } catch (e) {
+                    alert(`Gagal mensimulasikan ${step.toUpperCase()}.`);
+                  }
+                }}
+                className="bg-[#252271] text-white px-4 py-2 rounded-lg text-[11px] font-semibold hover:bg-[#1a1853]"
+              >
+                Selesaikan {showDetail.type.toUpperCase()} (Bypass Tim Pengadaan)
+              </button>
+            </div>
+          )}
         </AdminModal>
       )}
 
-      {/* PBJ Process Modal */}
       {showPbjProcess && (
         <AdminModal title={`Proses PBJ — ${showPbjProcess.nama}`} onClose={() => setShowPbjProcess(null)} hideFooter width="max-w-2xl">
           <div className="space-y-4">

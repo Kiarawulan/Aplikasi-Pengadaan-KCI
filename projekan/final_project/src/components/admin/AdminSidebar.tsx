@@ -374,7 +374,7 @@ export function AdminSidebar({
                     <div className="ml-3.5 mt-2 border-l border-white/20 pl-3.5 py-1.5 flex flex-col gap-2.5">
                       {[
                         { id: "rup", label: "RUP", items: ["Task Approval", "List Timeline", "Upload Timeline Final"] },
-                        { id: "npp", label: "NPP", items: ["List NPP"] },
+                        { id: "npp", label: "NPP", items: ["Task Approval", "List NPP"] },
                         { id: "sp3", label: "SP3", items: ["Task Approval", "List Sp3", "Upload SP3 Final"] },
                         { id: "pbj", label: "PBJ", items: ["Task Approval PBJ", "List PBJ", "Memo Internal"] },
                         { id: "contract", label: "Contract", items: ["Task Approval Contract", "List Contract"] },

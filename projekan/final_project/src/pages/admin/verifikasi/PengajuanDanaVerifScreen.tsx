@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/AdminModal";
@@ -9,131 +10,7 @@ type ScreenProps = {
   activeSubItem: string;
 };
 
-// Park Document - field sesuai form PembelianBaruPopup
-const INITIAL_PARK_DOCUMENTS = [
-  {
-    id: "PRK-001",
-    emailPic: "andi.wijaya@kci.co.id",
-    tahun: "2024",
-    divisi: "CTR - ROLLING STOCK",
-    jenisPermohonan: "Barang",
-    judulPermohonan: "Pengadaan Suku Cadang Bogie KRL Series 200",
-    nominalPermohonan: "Rp 320.000.000",
-    nominalKonversi: "$ 17.778",
-    rupId: "RUP-003",
-    tglPr: "2024-03-10",
-    status: "pending"
-  },
-  {
-    id: "PRK-002",
-    emailPic: "budi.santoso@kci.co.id",
-    tahun: "2024",
-    divisi: "CUG - LOGISTIC",
-    jenisPermohonan: "Jasa",
-    judulPermohonan: "Jasa Pemeliharaan AC Depo Bukit Duri",
-    nominalPermohonan: "Rp 120.000.000",
-    nominalKonversi: "$ 6.667",
-    rupId: "RUP-002",
-    tglPr: "2024-03-14",
-    status: "approved"
-  },
-  {
-    id: "PRK-003",
-    emailPic: "rian.hidayat@kci.co.id",
-    tahun: "2024",
-    divisi: "CTI - INFORMATION TECHNOLOGY",
-    jenisPermohonan: "Barang",
-    judulPermohonan: "Pengadaan Server Data Center KCI",
-    nominalPermohonan: "Rp 800.000.000",
-    nominalKonversi: "$ 44.444",
-    rupId: "RUP-001",
-    tglPr: "2024-03-18",
-    status: "revisi"
-  },
-  {
-    id: "PRK-004",
-    emailPic: "siti.rahma@kci.co.id",
-    tahun: "2024",
-    divisi: "COS - HSE AND SECURITY",
-    jenisPermohonan: "Jasa",
-    judulPermohonan: "Pengadaan Alat Pelindung Diri (APD) Teknisi",
-    nominalPermohonan: "Rp 88.000.000",
-    nominalKonversi: "$ 4.889",
-    rupId: "RUP-004",
-    tglPr: "2024-03-20",
-    status: "pending"
-  },
-  {
-    id: "PRK-005",
-    emailPic: "dewi.lestari@kci.co.id",
-    tahun: "2024",
-    divisi: "CTS - INFRASTRUCTURE",
-    jenisPermohonan: "Konstruksi",
-    judulPermohonan: "Perbaikan Kabel Fiber Optic Lintas Manggarai-Bogor",
-    nominalPermohonan: "Rp 510.000.000",
-    nominalKonversi: "$ 28.333",
-    rupId: "RUP-005",
-    tglPr: "2024-03-22",
-    status: "rejected"
-  },
-];
-
-// Purchase Requisition - field sesuai form PR (PrStepContent)
-const INITIAL_PURCHASE_REQUISITIONS = [
-  {
-    id: "PRQ-001",
-    emailPic: "sari.dewi@kci.co.id",
-    tahun: "2024",
-    divisi: "CTI - INFORMATION TECHNOLOGY",
-    jenisPermohonan: "Barang",
-    judulPermohonan: "Pengadaan Lisensi Software ERP Akuntansi",
-    nominalPermohonan: "Rp 240.000.000",
-    nominalKonversi: "$ 13.333",
-    rupId: "RUP-001",
-    tglPr: "2024-03-08",
-    status: "pending"
-  },
-  {
-    id: "PRQ-002",
-    emailPic: "eko.prasetyo@kci.co.id",
-    tahun: "2024",
-    divisi: "CUG - LOGISTIC",
-    jenisPermohonan: "Barang",
-    judulPermohonan: "Pengadaan Suku Cadang Pantograf KRL",
-    nominalPermohonan: "Rp 98.000.000",
-    nominalKonversi: "$ 5.444",
-    rupId: "RUP-002",
-    tglPr: "2024-03-12",
-    status: "approved"
-  },
-  {
-    id: "PRQ-003",
-    emailPic: "fikri.ramadhan@kci.co.id",
-    tahun: "2024",
-    divisi: "CTR - ROLLING STOCK",
-    jenisPermohonan: "Jasa",
-    judulPermohonan: "Jasa Overhaul Bogie KRL Manggarai",
-    nominalPermohonan: "Rp 175.000.000",
-    nominalKonversi: "$ 9.722",
-    rupId: "RUP-003",
-    tglPr: "2024-03-15",
-    status: "pending"
-  },
-  {
-    id: "PRQ-004",
-    emailPic: "agus.pratama@kci.co.id",
-    tahun: "2024",
-    divisi: "CTS - INFRASTRUCTURE",
-    jenisPermohonan: "Konstruksi",
-    judulPermohonan: "Perbaikan Bantalan Rel Lintas Bogor",
-    nominalPermohonan: "Rp 420.000.000",
-    nominalKonversi: "$ 23.333",
-    rupId: "RUP-004",
-    tglPr: "2024-03-19",
-    status: "revisi"
-  },
-];
-
+// We'll fetch real data, these are just options
 const DIVISI_OPTIONS = [
   { value: "CUS - CORPORATE SECRETARY", label: "CUS - CORPORATE SECRETARY" },
   { value: "CUL - GRC AND LEGAL", label: "CUL - GRC AND LEGAL" },
@@ -156,8 +33,73 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
   const { currentUser } = useAuth();
   const adminName = currentUser?.name ?? "Admin";
 
-  const [parkDocs, setParkDocs] = useState(INITIAL_PARK_DOCUMENTS);
-  const [purchaseReqs, setPurchaseReqs] = useState(INITIAL_PURCHASE_REQUISITIONS);
+  const [parkDocs, setParkDocs] = useState<any[]>([]);
+  const [purchaseReqs, setPurchaseReqs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchVerifData = async () => {
+    setLoading(true);
+    try {
+      const [resPeng, resVerif] = await Promise.all([
+        api.get('/pengadaan'),
+        api.get('/verifikasi?status=pending')
+      ]);
+
+      const verifMap = new Map();
+      resVerif.data.forEach((v: any) => {
+        verifMap.set(v.pengadaan_id, v);
+      });
+
+      const pdList: any[] = [];
+      const prList: any[] = [];
+      
+      resPeng.data.forEach((item: any) => {
+        const fd = typeof item.formData === 'string' ? JSON.parse(item.formData) : (item.formData || {});
+        const isPr = item.id.startsWith('PR-') || item.id.startsWith('PRQ');
+        const isPd = item.id.startsWith('PD-') || item.id.startsWith('PRK');
+        
+        // Also check completed steps or current step if PR/PD are not explicitly prefixed
+        const isPrStep = item.currentStep === 'pr' || item.completedSteps?.includes('pr');
+        const isPdStep = item.currentStep === 'pd' || item.completedSteps?.includes('pd') || item.currentStep === 'pengajuan-dana';
+
+        if (!isPr && !isPd && !isPrStep && !isPdStep) return;
+
+        const v = verifMap.get(item.id);
+        
+        const mapped = {
+          id: item.id,
+          verif_id: v ? v.id : null,
+          emailPic: fd.emailPic || "admin@kci.co.id",
+          tahun: fd.tahun || new Date().getFullYear().toString(),
+          divisi: item.departemen,
+          jenisPermohonan: fd.jenisPermohonan || "Barang",
+          judulPermohonan: item.nama,
+          nominalPermohonan: item.nominal,
+          nominalKonversi: fd.nominalKonversi || "-",
+          rupId: fd.rupId || "-",
+          tglPr: item.tanggal || (v ? v.submit_at.split('T')[0] : new Date().toISOString().split('T')[0]),
+          status: v ? v.status : item.status
+        };
+
+        if (isPd || isPdStep) {
+          pdList.push(mapped);
+        } else {
+          prList.push(mapped);
+        }
+      });
+
+      setParkDocs(pdList);
+      setPurchaseReqs(prList);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVerifData();
+  }, [activeSubItem]);
 
   const [showAdd, setShowAdd] = useState(false);
   const [showDetail, setShowDetail] = useState<any | null>(null);
@@ -208,21 +150,24 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
     setCatatanText("");
   };
 
-  const executeAction = () => {
+  const executeAction = async () => {
     if (!confirmAction) return;
     const { type, item } = confirmAction;
 
-    const updated = currentData.map(r => {
-      if (r.id === item.id) {
-        return { ...r, status: type === "approve" ? "approved" : type === "reject" ? "rejected" : "revisi" };
+    try {
+      if (item.verif_id) {
+        if (type === "approve") {
+          await api.post(`/verifikasi/${item.verif_id}/approve`);
+        } else {
+          await api.post(`/verifikasi/${item.verif_id}/reject`, { catatan: catatanText }); // backend treats reject/revisi as same for now
+        }
+      } else {
+        await api.put(`/pengadaan/${item.id}`, { status: type === 'approve' ? 'approved' : 'rejected' });
       }
-      return r;
-    });
-
-    if (isParkDoc) {
-      setParkDocs(updated as any);
-    } else {
-      setPurchaseReqs(updated as any);
+      fetchVerifData();
+    } catch (err) {
+      console.error("Gagal melakukan verifikasi", err);
+      alert("Terjadi kesalahan saat memproses data.");
     }
 
     setConfirmAction(null);

@@ -47,7 +47,7 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
     jenisPermohonan: initialData?.jenisPermohonan || "",
     nominalPermohonan: initialData?.nominalPermohonan || "",
     nominalKonversi: initialData?.nominalKonversi || "",
-    kurs: initialData?.kurs || "USD",
+    kurs: initialData?.kurs || "IDR",
     detailPermohonan: initialData?.detailPermohonan || ""
   });
 
@@ -74,47 +74,48 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
   };
 
   const handleNominalPermohonanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawIDR = e.target.value.replace(/[^0-9]/g, '');
-    const formattedIDR = formatCurrency(e.target.value, 'IDR');
+    const rawVal = e.target.value.replace(/[^0-9]/g, '');
+    const formattedVal = formatCurrency(e.target.value, form.kurs);
     
     let newNominalKonversi = form.nominalKonversi;
-    if (rawIDR) {
-       const idrValue = parseInt(rawIDR, 10);
-       const rate = EXCHANGE_RATES[form.kurs] || 1;
-       const converted = Math.round(idrValue / rate);
-       newNominalKonversi = formatCurrency(converted.toString(), form.kurs);
+    if (rawVal) {
+       const val = parseInt(rawVal, 10);
+       const rate = form.kurs === 'IDR' ? 1 : (EXCHANGE_RATES[form.kurs] || 1);
+       const converted = Math.round(val * rate);
+       newNominalKonversi = formatCurrency(converted.toString(), 'IDR');
     } else {
        newNominalKonversi = "";
     }
 
     setForm(f => ({ 
       ...f, 
-      nominalPermohonan: formattedIDR,
+      nominalPermohonan: formattedVal,
       nominalKonversi: newNominalKonversi
     }));
   };
 
   const handleNominalKonversiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm(f => ({ ...f, nominalKonversi: formatCurrency(e.target.value, f.kurs) }));
+    setForm(f => ({ ...f, nominalKonversi: formatCurrency(e.target.value, 'IDR') }));
   };
 
   const handleKursChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newKurs = e.target.value;
-    const rawIDR = form.nominalPermohonan.replace(/[^0-9]/g, '');
+    const rawVal = form.nominalPermohonan.replace(/[^0-9]/g, '');
+    
+    const formattedVal = formatCurrency(form.nominalPermohonan, newKurs);
     
     let newNominalKonversi = form.nominalKonversi;
-    if (rawIDR) {
-       const idrValue = parseInt(rawIDR, 10);
-       const rate = EXCHANGE_RATES[newKurs] || 1;
-       const converted = Math.round(idrValue / rate);
-       newNominalKonversi = formatCurrency(converted.toString(), newKurs);
-    } else {
-       newNominalKonversi = formatCurrency(form.nominalKonversi, newKurs);
+    if (rawVal) {
+       const val = parseInt(rawVal, 10);
+       const rate = newKurs === 'IDR' ? 1 : (EXCHANGE_RATES[newKurs] || 1);
+       const converted = Math.round(val * rate);
+       newNominalKonversi = formatCurrency(converted.toString(), 'IDR');
     }
 
     setForm(f => ({
       ...f,
       kurs: newKurs,
+      nominalPermohonan: formattedVal,
       nominalKonversi: newNominalKonversi
     }));
   };
@@ -267,19 +268,20 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[11.5px] font-medium text-[#0a0a0a] mb-1.5">Nominal Permohonan <span className="text-[#e6251c]">*</span></label>
-              <input type="text" value={form.nominalPermohonan} onChange={handleNominalPermohonanChange} className={`w-full border rounded-xl px-3 py-2 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] ${errors.nominalPermohonan ? "border-red-400" : "border-gray-200"}`} placeholder="Rp 0" />
-            </div>
-            <div>
-              <label className="block text-[11.5px] font-medium text-[#0a0a0a] mb-1.5">Nominal Konversi</label>
               <div className="flex gap-2">
                 <select value={form.kurs} onChange={handleKursChange} className="w-16 shrink-0 border rounded-xl px-2 py-2 text-[11.5px] font-bold focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] border-gray-200 bg-white text-center">
+                  <option value="IDR">Rp</option>
                   <option value="USD">$</option>
                   <option value="JPY">¥</option>
                   <option value="KRW">₩</option>
                   <option value="EUR">€</option>
                 </select>
-                <input type="text" value={form.nominalKonversi} onChange={handleNominalKonversiChange} className="flex-1 border rounded-xl px-3 py-2 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] border-gray-200" placeholder="0" />
+                <input type="text" value={form.nominalPermohonan} onChange={handleNominalPermohonanChange} className={`flex-1 border rounded-xl px-3 py-2 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] ${errors.nominalPermohonan ? "border-red-400" : "border-gray-200"}`} placeholder="0" />
               </div>
+            </div>
+            <div>
+              <label className="block text-[11.5px] font-medium text-[#0a0a0a] mb-1.5">Nominal Konversi (IDR)</label>
+              <input type="text" value={form.nominalKonversi} onChange={handleNominalKonversiChange} className="w-full border rounded-xl px-3 py-2 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] border-gray-200 bg-gray-50" readOnly placeholder="Rp 0" />
             </div>
           </div>
 

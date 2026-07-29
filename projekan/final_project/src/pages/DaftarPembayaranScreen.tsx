@@ -5,6 +5,8 @@ import { PARK_STEPS } from "../constants/steps";
 import { TopBar } from "../components/layout/TopBar";
 import { StatusBadge } from "../components/common/StatusBadge";
 import { api } from "../services/api";
+import { Plus } from "lucide-react";
+import { BuatPembayaranPopup } from "../components/pengadaan/BuatPembayaranPopup";
 
 export function DaftarPembayaranScreen({ onSelectItem, type }: {
   onSelectItem: (item: PengadaanItem) => void;
@@ -13,6 +15,7 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
   const [items, setItems] = useState<PengadaanItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showPopup, setShowPopup] = useState(false);
 
   const fetchItems = async () => {
     setLoading(true);
@@ -117,8 +120,21 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
                 placeholder="Pencarian..."
               />
             </div>
+            <button onClick={() => setShowPopup(true)} className="flex items-center gap-1.5 bg-[#252271] hover:bg-[#1a1860] text-white px-4 py-1.5 rounded-xl text-[11px] font-semibold shadow-sm transition-colors">
+              <Plus size={14} /> Buat Pembayaran
+            </button>
           </div>
         </div>
+
+        {showPopup && (
+          <BuatPembayaranPopup 
+            onClose={() => setShowPopup(false)} 
+            onSuccess={() => {
+              setShowPopup(false);
+              fetchItems();
+            }}
+          />
+        )}
 
         {loading ? (
           <div className="p-8 text-center text-gray-500 text-[12px] flex flex-col items-center gap-2">
