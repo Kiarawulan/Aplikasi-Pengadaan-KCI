@@ -95,8 +95,13 @@ class PengadaanController extends Controller
         }
     }
 
-    public function show(Pengadaan $pengadaan)
+    public function show(Request $request, Pengadaan $pengadaan)
     {
+        $user = $request->user();
+        if (!$user->is_admin && $user->departemen !== $pengadaan->departemen && $pengadaan->created_by !== $user->id) {
+            return response()->json(['message' => 'Unauthorized access to this division data.'], 403);
+        }
+
         $pengadaan->load(['completedSteps', 'verifikasiRecords']);
 
         return response()->json([
@@ -116,6 +121,11 @@ class PengadaanController extends Controller
 
     public function updateFormData(Request $request, Pengadaan $pengadaan)
     {
+        $user = $request->user();
+        if (!$user->is_admin && $user->departemen !== $pengadaan->departemen && $pengadaan->created_by !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $pengadaan->form_data = $request->all();
         $pengadaan->save();
 
@@ -124,6 +134,11 @@ class PengadaanController extends Controller
 
     public function submitStep(Request $request, Pengadaan $pengadaan)
     {
+        $user = $request->user();
+        if (!$user->is_admin && $user->departemen !== $pengadaan->departemen && $pengadaan->created_by !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $request->validate([
             'stepId' => 'required|string',
             'tipe'   => 'nullable|string',
@@ -176,6 +191,11 @@ class PengadaanController extends Controller
 
     public function stepStatus(Request $request, Pengadaan $pengadaan)
     {
+        $user = $request->user();
+        if (!$user->is_admin && $user->departemen !== $pengadaan->departemen && $pengadaan->created_by !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $stepId = $request->query('stepId', $pengadaan->current_step);
 
         $latestVerif = Verifikasi::where('pengadaan_id', $pengadaan->id)
@@ -207,6 +227,11 @@ class PengadaanController extends Controller
 
     public function update(Request $request, Pengadaan $pengadaan)
     {
+        $user = $request->user();
+        if (!$user->is_admin && $user->departemen !== $pengadaan->departemen && $pengadaan->created_by !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $request->validate([
             'nama'        => 'sometimes|string',
             'departemen'  => 'sometimes|string',
@@ -237,8 +262,13 @@ class PengadaanController extends Controller
         return response()->json($pengadaan);
     }
 
-    public function destroy(Pengadaan $pengadaan)
+    public function destroy(Request $request, Pengadaan $pengadaan)
     {
+        $user = $request->user();
+        if (!$user->is_admin && $user->departemen !== $pengadaan->departemen && $pengadaan->created_by !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $pengadaan->delete();
         return response()->json(['message' => 'Pengadaan berhasil dihapus']);
     }
