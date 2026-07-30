@@ -14,8 +14,15 @@ import { PdSubStatus } from "../components/pengadaan/PdSubStatus";
 import { api } from "../services/api";
 import { useAuth } from "../store/authStore";
 
-export function PdDetailScreen({ item, onBack, onNavigate }: { item: PengadaanItem; onBack: () => void; onNavigate: (s: Screen) => void }) {
-  const steps = PD_MAIN_STEPS;
+export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item: PengadaanItem; fromScreen?: string; onBack: () => void; onNavigate: (s: Screen) => void }) {
+  let steps: any[] = [];
+  if (fromScreen && fromScreen.includes("pembayaran")) {
+    steps = [{ id: "pembayaran", label: "Pembayaran", subSteps: [{ id: "pelunasan", label: "Pelunasan" }, { id: "payment-request", label: "Payment Request" }] }];
+  } else if (fromScreen && fromScreen.includes("pengujian")) {
+    steps = [{ id: "pengujian", label: "Pengujian", subSteps: [{ id: "request-pengujian", label: "Request Pengujian" }, { id: "hasil-pengujian", label: "Hasil Pengujian" }] }];
+  } else {
+    steps = [...PD_MAIN_STEPS];
+  }
   const { currentUser } = useAuth();
   
   // Find first uncompleted step
@@ -105,6 +112,8 @@ export function PdDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
   const isSubSubmitted = (stepId: string, subId: string) => submittedSubs.has(subKey(stepId, subId));
   const isStepDone = (idx: number) => completedStepIds.has(steps[idx].id);
 
+  const [verifId, setVerifId] = useState<number | null>(null);
+
   // Fetch verifikasi status for active step from backend API
   const fetchStepVerifStatus = async (stepId: string) => {
     setVerifState(p => ({ ...p, loading: true }));
@@ -116,6 +125,11 @@ export function PdDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
         catatanAdmin: res.data.catatanAdmin,
         loading: false,
       });
+      if (res.data.verifikasi?.id) {
+        setVerifId(res.data.verifikasi.id);
+      } else {
+        setVerifId(null);
+      }
 
       if (res.data.status === "approved") {
         setCompletedStepIds(prev => new Set([...prev, stepId]));
@@ -432,11 +446,16 @@ export function PdDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
               <div className="px-4 pb-3.5 pt-3.5 border-t border-[#e2e2e2] flex items-center justify-between">
                 <button onClick={goPrev} disabled={isFirstSub} className="flex items-center gap-1.5 px-4 h-[30px] rounded border border-gray-200 text-[11.5px] text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"><ChevronLeft size={12} /> Kembali</button>
                 <div className="flex gap-2">
+                  <button onClick={flashSave} className="px-4 h-[30px] rounded border border-[#252271] text-[11.5px] text-[#252271] font-medium hover:bg-[#252271]/5">
+                    Simpan
+                  </button>
+
                   {showSubmitBtn && (
                     <button onClick={handleSubmit} className="px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-[#252271] hover:bg-[#1a1860]">
                       Submit Berkas
                     </button>
                   )}
+
                   {showLanjutBtn && (
                     <button
                       onClick={handleSubmit}

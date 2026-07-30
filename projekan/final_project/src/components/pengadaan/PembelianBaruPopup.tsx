@@ -141,7 +141,9 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
     if (form.rupIds.length === 0) errs.rupIds = true;
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
-    const formattedNominal = form.nominalPermohonan.startsWith("Rp") ? form.nominalPermohonan : `Rp ${form.nominalPermohonan}`;
+    const formattedNominal = form.kurs === 'IDR' 
+      ? (form.nominalPermohonan.startsWith("Rp") ? form.nominalPermohonan : `Rp ${form.nominalPermohonan}`)
+      : form.nominalKonversi;
 
     onSubmit({
       id: `PKD-${String(Math.floor(Math.random() * 900) + 100)}`,

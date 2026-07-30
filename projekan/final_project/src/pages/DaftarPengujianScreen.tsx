@@ -24,7 +24,8 @@ export function DaftarPengujianScreen({ onSelectItem }: {
       // must have currentStep === 'pengujian' and 'pengujian' is not completed
       const pengujianItems = res.data.filter((item: PengadaanItem) => {
         const completed = item.completedSteps || [];
-        return item.currentStep === "pengujian" && !completed.includes("pengujian");
+        const isReadyForPengujian = completed.includes("contract");
+        return isReadyForPengujian && !completed.includes("pengujian");
       });
       setItems(pengujianItems);
     } catch (err) {

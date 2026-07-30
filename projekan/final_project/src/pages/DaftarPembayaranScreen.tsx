@@ -25,7 +25,10 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
       // must have currentStep === 'pembayaran' and 'pembayaran' is not completed
       const pembayaranItems = res.data.filter((item: PengadaanItem) => {
         const completed = item.completedSteps || [];
-        const isPembayaran = item.currentStep === "pembayaran" && !completed.includes("pembayaran");
+        const isReadyForPembayaran = 
+          (item.id.startsWith("PR-") && completed.includes("contract") && (completed.includes("pengujian") || item.currentStep === "pembayaran")) || 
+          (item.id.startsWith("PD-") && completed.includes("pengajuan-dana"));
+        const isPembayaran = isReadyForPembayaran && !completed.includes("pembayaran");
         if (!isPembayaran) return false;
 
         const isPrFlow = item.id.startsWith("PR-");

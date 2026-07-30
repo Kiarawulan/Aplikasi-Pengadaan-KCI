@@ -18,7 +18,7 @@ export function BuatPengujianPopup({ onClose, onSuccess }: {
       .then((res) => {
         const eligible = res.data.filter((item: PengadaanItem) => {
           const completed = item.completedSteps || [];
-          const isPengadaanDone = completed.includes("contract") || item.status === "Selesai";
+          const isPengadaanDone = item.status === "Selesai" || completed.includes("contract") || completed.includes("pbj") || completed.includes("sp3") || (item.status && item.status.includes("Disetujui Admin"));
           const isAlreadyInNextFlow = item.currentStep === "pengujian" || item.currentStep === "pembayaran";
           return isPengadaanDone && !isAlreadyInNextFlow;
         });

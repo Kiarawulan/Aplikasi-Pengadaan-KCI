@@ -21,9 +21,9 @@ export function BuatPembayaranPopup({ onClose, onSuccess }: {
         // For simplicity, we just allow any Pengadaan that has 'contract' completed and isn't already in pembayaran.
         const eligible = res.data.filter((item: PengadaanItem) => {
           const completed = item.completedSteps || [];
-          const isPengadaanDone = completed.includes("contract") || item.status === "Selesai";
+          const isReady = item.status === "Selesai" || completed.includes("pengujian") || (item.id.startsWith("PD-") && completed.includes("pengajuan-dana")) || completed.includes("contract") || completed.includes("pbj") || completed.includes("sp3") || (item.status && item.status.includes("Disetujui Admin"));
           const isAlreadyInPembayaran = item.currentStep === "pembayaran";
-          return isPengadaanDone && !isAlreadyInPembayaran;
+          return isReady && !isAlreadyInPembayaran;
         });
         setItems(eligible);
       })

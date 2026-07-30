@@ -109,7 +109,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
           pdVal: "N/A",
           vendor: "N/A",
           pengadaanNama: item.pengadaan_nama,
-          status: "pending"
+          status: item.status || "pending"
         }));
         setVerifTasks(mappedVerif);
       }
@@ -134,23 +134,23 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
     ? verifTasks.filter(t => t.tipe === 'npp')
     : activeSubItem.includes('memo')
     ? pengadaanList.filter(p => p.status === 'approved' && p.completedSteps.includes('rup'))
-    : pengadaanList.filter(p => p.completedSteps.includes('rup') || p.currentStep === 'npp' || p.currentStep === 'sp3' || p.currentStep === 'pbj' || p.currentStep === 'contract');
+    : pengadaanList.filter(p => p.completedSteps.includes('rup') || p.completedSteps.includes('npp') || p.currentStep === 'npp' || p.currentStep === 'sp3' || p.currentStep === 'pbj' || p.currentStep === 'contract');
 
   const sp3List = activeSubItem === 'sp3-task-approval'
     ? verifTasks.filter(t => t.tipe === 'sp3')
     : activeSubItem.includes('signed') || activeSubItem.includes('final')
-    ? pengadaanList.filter(p => p.status === 'approved' && p.completedSteps.includes('npp'))
-    : pengadaanList.filter(p => p.completedSteps.includes('npp') || p.currentStep === 'sp3' || p.currentStep === 'pbj' || p.currentStep === 'contract');
+    ? pengadaanList.filter(p => p.status === 'approved' && (p.completedSteps.includes('npp') || p.completedSteps.includes('sp3')))
+    : pengadaanList.filter(p => p.completedSteps.includes('npp') || p.completedSteps.includes('sp3') || p.currentStep === 'sp3' || p.currentStep === 'pbj' || p.currentStep === 'contract');
 
   const pbjList = activeSubItem === 'pbj-task-approval-pbj'
     ? verifTasks.filter(t => t.tipe === 'pbj')
     : activeSubItem.includes('memo')
-    ? pengadaanList.filter(p => p.status === 'approved' && p.completedSteps.includes('sp3'))
-    : pengadaanList.filter(p => p.completedSteps.includes('sp3') || p.currentStep === 'pbj' || p.currentStep === 'contract');
+    ? pengadaanList.filter(p => p.status === 'approved' && (p.completedSteps.includes('sp3') || p.completedSteps.includes('pbj')))
+    : pengadaanList.filter(p => p.completedSteps.includes('sp3') || p.completedSteps.includes('pbj') || p.currentStep === 'pbj' || p.currentStep === 'contract');
 
   const contractList = activeSubItem === 'contract-task-approval-contract'
     ? verifTasks.filter(t => t.tipe === 'contract')
-    : pengadaanList.filter(p => p.completedSteps.includes('pbj') || p.currentStep === 'contract');
+    : pengadaanList.filter(p => p.completedSteps.includes('pbj') || p.completedSteps.includes('contract') || p.currentStep === 'contract');
 
   const genericList = pengadaanList; // used for warehouse, harga, dll
 
@@ -237,7 +237,6 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
     { key: "rkap", label: "RKAP Value", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.rkap}</span> },
     { key: "dept", label: "Dept", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.dept}</span> },
     { key: "tax", label: "Tax Value", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.tax}</span> },
-    { key: "realisasi", label: "Realisasi", render: (r: any) => <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-200">{r.realisasi}</span> },
   ];
 
   const sp3Columns = [
@@ -252,6 +251,17 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
     { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama}</p> },
     { key: "nominal", label: "Nilai Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.prVal}</span> },
     { key: "dept", label: "Department", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen || r.dept}</span> },
+    { key: "status", label: "Status", render: (r: any) => {
+        const s = (r.status || 'pending').toLowerCase();
+        let color = 'bg-gray-100 text-gray-600 border-gray-200';
+        if (s === 'approved' || s === 'selesai' || s === 'disetujui') color = 'bg-green-50 text-green-600 border-green-200';
+        else if (s === 'rejected' || s === 'ditolak') color = 'bg-red-50 text-red-600 border-red-200';
+        else if (s === 'revisi') color = 'bg-blue-50 text-blue-600 border-blue-200';
+        else if (s === 'pending') color = 'bg-amber-50 text-amber-600 border-amber-200';
+        else if (s.includes('pengujian') || s.includes('pembayaran')) color = 'bg-blue-50 text-blue-600 border-blue-200';
+        return <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono border ${color}`}>{r.status?.toUpperCase() || 'PENDING'}</span>;
+      }
+    },
   ];
 
   const contractColumns = [
@@ -294,8 +304,49 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
           <VerifTable
             columns={rupColumns} data={rupList} searchKeys={["judul", "bebanBiaya", "vpDept"]}
             onView={(r) => setShowDetail({ type: "rup", item: r })}
-            onApprove={(r) => setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Approved" } : item))}
-            onReject={(r) => setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item))}
+            onApprove={async (r) => {
+              if (r.verif_id) {
+                try {
+                  await api.post(`/verifikasi/${r.verif_id}/approve`);
+                  fetchData();
+                  alert("RUP berhasil disetujui.");
+                } catch (e: any) {
+                  alert(e.response?.data?.message || "Gagal menyetujui.");
+                }
+              } else {
+                setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Approved" } : item));
+              }
+            }}
+            onRevisi={async (r) => {
+              if (r.verif_id) {
+                const notes = prompt("Masukkan catatan revisi:");
+                if (notes === null) return;
+                try {
+                  await api.post(`/verifikasi/${r.verif_id}/revisi`, { catatan: notes || "Revisi dari Admin" });
+                  fetchData();
+                  alert("RUP berhasil direvisi.");
+                } catch (e: any) {
+                  alert(e.response?.data?.message || "Gagal merevisi.");
+                }
+              } else {
+                setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Revisi" } : item));
+              }
+            }}
+            onReject={async (r) => {
+              if (r.verif_id) {
+                const notes = prompt("Masukkan alasan penolakan:");
+                if (notes === null) return;
+                try {
+                  await api.post(`/verifikasi/${r.verif_id}/reject`, { catatan: notes || "Ditolak oleh Admin" });
+                  fetchData();
+                  alert("RUP berhasil ditolak.");
+                } catch (e: any) {
+                  alert(e.response?.data?.message || "Gagal menolak.");
+                }
+              } else {
+                setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item));
+              }
+            }}
             showVerifActions={true} showCrudActions={true} emptyMessage="Tidak ada data RUP."
           />
         )}
@@ -304,6 +355,50 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
           <VerifTable
             columns={nppColumns} data={nppList} searchKeys={["judul", "sp3", "vendor"]}
             onView={(r) => setShowDetail({ type: "npp", item: r })}
+            onApprove={async (r) => {
+              if (r.verif_id) {
+                try {
+                  await api.post(`/verifikasi/${r.verif_id}/approve`);
+                  fetchData();
+                  alert("NPP berhasil disetujui.");
+                } catch (e: any) {
+                  alert(e.response?.data?.message || "Gagal menyetujui.");
+                }
+              } else {
+                setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Approved" } : item));
+              }
+            }}
+            onRevisi={async (r) => {
+              if (r.verif_id) {
+                const notes = prompt("Masukkan catatan revisi:");
+                if (notes === null) return;
+                try {
+                  await api.post(`/verifikasi/${r.verif_id}/revisi`, { catatan: notes || "Revisi dari Admin" });
+                  fetchData();
+                  alert("NPP berhasil direvisi.");
+                } catch (e: any) {
+                  alert(e.response?.data?.message || "Gagal merevisi.");
+                }
+              } else {
+                setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Revisi" } : item));
+              }
+            }}
+            onReject={async (r) => {
+              if (r.verif_id) {
+                const notes = prompt("Masukkan alasan penolakan:");
+                if (notes === null) return;
+                try {
+                  await api.post(`/verifikasi/${r.verif_id}/reject`, { catatan: notes || "Ditolak oleh Admin" });
+                  fetchData();
+                  alert("NPP berhasil ditolak.");
+                } catch (e: any) {
+                  alert(e.response?.data?.message || "Gagal menolak.");
+                }
+              } else {
+                setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item));
+              }
+            }}
+            showVerifActions={true}
             showCrudActions={true} emptyMessage="Tidak ada data NPP."
           />
         )}
@@ -312,6 +407,50 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
           <VerifTable
             columns={sp3Columns} data={sp3List} searchKeys={["nama", "id", "vendor"]}
             onView={(r) => setShowDetail({ type: "sp3", item: r })}
+            onApprove={async (r) => {
+              if (r.verif_id) {
+                try {
+                  await api.post(`/verifikasi/${r.verif_id}/approve`);
+                  fetchData();
+                  alert("SP3 berhasil disetujui.");
+                } catch (e: any) {
+                  alert(e.response?.data?.message || "Gagal menyetujui.");
+                }
+              } else {
+                setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Approved" } : item));
+              }
+            }}
+            onRevisi={async (r) => {
+              if (r.verif_id) {
+                const notes = prompt("Masukkan catatan revisi:");
+                if (notes === null) return;
+                try {
+                  await api.post(`/verifikasi/${r.verif_id}/revisi`, { catatan: notes || "Revisi dari Admin" });
+                  fetchData();
+                  alert("SP3 berhasil direvisi.");
+                } catch (e: any) {
+                  alert(e.response?.data?.message || "Gagal merevisi.");
+                }
+              } else {
+                setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Revisi" } : item));
+              }
+            }}
+            onReject={async (r) => {
+              if (r.verif_id) {
+                const notes = prompt("Masukkan alasan penolakan:");
+                if (notes === null) return;
+                try {
+                  await api.post(`/verifikasi/${r.verif_id}/reject`, { catatan: notes || "Ditolak oleh Admin" });
+                  fetchData();
+                  alert("SP3 berhasil ditolak.");
+                } catch (e: any) {
+                  alert(e.response?.data?.message || "Gagal menolak.");
+                }
+              } else {
+                setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item));
+              }
+            }}
+            showVerifActions={true}
             showCrudActions={true} emptyMessage="Tidak ada data SP3."
           />
         )}
@@ -320,15 +459,93 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
           <VerifTable
             columns={pbjColumns} data={pbjList} searchKeys={["nama", "id", "assignTo"]}
             onView={(r) => setShowPbjProcess(r)}
+            onApprove={async (r) => {
+              if (r.verif_id) {
+                try {
+                  await api.post(`/verifikasi/${r.verif_id}/approve`);
+                  fetchData();
+                  alert("PBJ berhasil disetujui.");
+                } catch (e: any) {
+                  alert(e.response?.data?.message || "Gagal menyetujui.");
+                }
+              } else {
+                setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Approved" } : item));
+              }
+            }}
+            onRevisi={async (r) => {
+              if (r.verif_id) {
+                const notes = prompt("Masukkan catatan revisi:");
+                if (notes === null) return;
+                try {
+                  await api.post(`/verifikasi/${r.verif_id}/revisi`, { catatan: notes || "Revisi dari Admin" });
+                  fetchData();
+                  alert("PBJ berhasil direvisi.");
+                } catch (e: any) {
+                  alert(e.response?.data?.message || "Gagal merevisi.");
+                }
+              } else {
+                setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Revisi" } : item));
+              }
+            }}
+            onReject={async (r) => {
+              if (r.verif_id) {
+                const notes = prompt("Masukkan alasan penolakan:");
+                if (notes === null) return;
+                try {
+                  await api.post(`/verifikasi/${r.verif_id}/reject`, { catatan: notes || "Ditolak oleh Admin" });
+                  fetchData();
+                  alert("PBJ berhasil ditolak.");
+                } catch (e: any) {
+                  alert(e.response?.data?.message || "Gagal menolak.");
+                }
+              } else {
+                setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item));
+              }
+            }}
+            showVerifActions={true}
             showCrudActions={true} emptyMessage="Tidak ada data PBJ."
-            approveLabel="Proses PBJ"
           />
         )}
 
         {mode.startsWith("contract") && (
           <VerifTable
-            columns={contractColumns} data={contractList} searchKeys={["nama", "id", "dept"]}
-            onView={(r) => setShowContractProcess(r)}
+            columns={contractColumns} data={contractList} searchKeys={["nama", "paket", "id"]}
+            onView={(r) => setShowDetail({ type: "contract", item: r })}
+            showVerifActions={true}
+            onApprove={async (r) => {
+              const s = (r.status || "").toLowerCase();
+              if (s.includes("pengujian")) {
+                try {
+                  const res = await api.get("/pengujian");
+                  const puj = res.data.find((x: any) => x.nama === r.nama || x.nama === r.paket);
+                  if (puj) {
+                    await api.post(`/pengujian/${puj.id}/advance-status`, { status: "selesai" });
+                    await api.put(`/pengadaan/${r.id}`, { status: "Selesai" });
+                    alert("Pengujian berhasil di-bypass.");
+                    fetchData();
+                  } else {
+                    alert("Data pengujian tidak ditemukan di backend.");
+                  }
+                } catch (e) {
+                  alert("Gagal bypass pengujian");
+                }
+              } else if (s.includes("pembayaran")) {
+                try {
+                  const res = await api.get(`/pengadaan/${r.id}/step-status?stepId=pembayaran`);
+                  if (res.data.verifikasi?.id) {
+                    await api.post(`/verifikasi/${res.data.verifikasi.id}/approve`);
+                    alert("Pembayaran berhasil di-bypass.");
+                    fetchData();
+                  } else {
+                    alert("Verifikasi pembayaran belum tersedia.");
+                  }
+                } catch (e) {
+                  alert("Gagal bypass pembayaran");
+                }
+              } else {
+                alert("Hanya bisa bypass tahap Pengujian atau Pembayaran dari sini.");
+              }
+            }}
             showCrudActions={true} emptyMessage="Tidak ada data Kontrak."
             approveLabel="Proses Kontrak"
           />

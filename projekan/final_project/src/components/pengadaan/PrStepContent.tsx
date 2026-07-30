@@ -12,9 +12,17 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
   status?: string;
   item?: any;
 }) {
-  const f = (k: string) => allFd[subStepId]?.[k] ?? "";
+  const f = (k: string) => {
+    if (allFd[subStepId]?.[k]) return allFd[subStepId][k];
+    if (k === 'kurs') return allFd['kurs'] || item?.formData?.kurs || "";
+    return "";
+  };
   const u = (k: string) => (v: string) => upd(k, v);
-  const fdFrom = (subId: string) => allFd[subId] ?? {};
+  const fdFrom = (subId: string) => {
+    const fd = { ...(allFd[subId] ?? {}) };
+    if (!fd.kurs) fd.kurs = allFd['kurs'] || item?.formData?.kurs || "";
+    return fd;
+  };
 
   if (step === "npp" && subStepId === "buat-npp") return (
     <div>
@@ -233,7 +241,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
       );
     }
     
-    if (subStepId === "proses-pengujian") return (
+    if (subStepId === "hasil-pengujian") return (
       <div className="bg-[#f5f5f5] rounded-lg px-4 py-3 border border-[#e2e2e2]">
         <div className="flex items-center justify-between mb-3">
           <p className="text-[11.5px] font-semibold">Proses Pengujian</p>

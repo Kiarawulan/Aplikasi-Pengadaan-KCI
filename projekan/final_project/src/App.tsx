@@ -72,7 +72,7 @@ function UserApp() {
             />
           )}
           {screen === "pd-detail" && selectedItem && (
-            <PdDetailScreen item={selectedItem} onBack={() => handleNavigate(backScreen)} onNavigate={handleNavigate} />
+            <PdDetailScreen item={selectedItem} fromScreen={backScreen} onBack={() => handleNavigate(backScreen)} onNavigate={handleNavigate} />
           )}
           {screen === "purchase-requisition" && (
             <PurchaseRequestionScreen
@@ -80,7 +80,7 @@ function UserApp() {
             />
           )}
           {screen === "pr-detail" && selectedItem && (
-            <PrDetailScreen item={selectedItem} onBack={() => handleNavigate(backScreen)} onNavigate={handleNavigate} />
+            <PrDetailScreen item={selectedItem} fromScreen={backScreen} onBack={() => handleNavigate(backScreen)} onNavigate={handleNavigate} />
           )}
           {screen === "daftar-pengujian" && (
             <DaftarPengujianScreen

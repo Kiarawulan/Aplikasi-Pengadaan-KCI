@@ -190,6 +190,27 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
               dateKey="tanggal"
               topFilters={[{ key: "departemen", label: "Departemen", type: "text" }]}
               showCrudActions={false}
+              showVerifActions={true}
+              onApprove={async (r) => {
+                if (r.status?.toLowerCase().includes("pengujian")) {
+                  try {
+                    const res = await api.get("/pengujian");
+                    const puj = res.data.find((x: any) => x.nama === r.nama || x.kontrakNo === r.id);
+                    if (puj) {
+                      await api.post(`/pengujian/${puj.id}/advance-status`, { status: "selesai" });
+                      await api.put(`/pengadaan/${r.id}`, { status: "Selesai", currentStep: "pembayaran" });
+                      alert("Pengujian berhasil di-bypass.");
+                      fetchPengadaanData();
+                    } else {
+                      alert("Data pengujian tidak ditemukan di backend.");
+                    }
+                  } catch (e) {
+                    alert("Gagal bypass pengujian");
+                  }
+                } else {
+                  alert("Hanya bisa bypass tahap Pengujian dari sini.");
+                }
+              }}
               emptyMessage="Tidak ada data kontrak."
             />
           </div>

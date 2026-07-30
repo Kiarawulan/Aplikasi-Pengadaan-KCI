@@ -10,9 +10,18 @@ import { api } from "../services/api";
 import { getVerifRecords, addVerifRecord, generateId, getPengujianList, savePengujianList, updatePengadaanItem } from "../store/dataStore";
 import { useAuth } from "../store/authStore";
 
-export function PrDetailScreen({ item, onBack, onNavigate }: { item: PengadaanItem; onBack: () => void; onNavigate: (s: Screen) => void }) {
+export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item: PengadaanItem; fromScreen?: string; onBack: () => void; onNavigate: (s: Screen) => void }) {
   const { currentUser } = useAuth();
-  const steps = PR_MAIN_STEPS;
+  
+  let steps: any[] = [];
+  if (fromScreen && fromScreen.includes("pengujian")) {
+    steps = [{ id: "pengujian", label: "Pengujian", subSteps: [{ id: "request-pengujian", label: "Request Pengujian" }, { id: "hasil-pengujian", label: "Hasil Pengujian" }] }];
+  } else if (fromScreen && fromScreen.includes("pembayaran")) {
+    steps = [{ id: "pembayaran", label: "Pembayaran", subSteps: [{ id: "pelunasan", label: "Pelunasan" }, { id: "payment-request", label: "Payment Request" }] }];
+  } else {
+    steps = [...PR_MAIN_STEPS];
+  }
+
   
   // Find first uncompleted step
   const initialStepIdx = steps.findIndex(s => !(item.completedSteps || []).includes(s.id as any));
@@ -65,11 +74,12 @@ export function PrDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
   });
   const [completedStepIds, setCompletedStepIds] = useState<Set<string>>(new Set(item.completedSteps || []));
 
+  const [verifStatus, setVerifStatus] = useState<"not_submitted" | "pending" | "approved" | "revisi" | "rejected">("not_submitted");
+  const [verifId, setVerifId] = useState<number | null>(null);
+  const [pengujianId, setPengujianId] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
   const [allFd, setAllFd] = useState<Record<string, Record<string, string>>>(item.formData || {});
   
-  // Verification State
-  const [verifStatus, setVerifStatus] = useState<"not_submitted" | "pending" | "approved" | "revisi" | "rejected">("not_submitted");
 
   // Fetch latest item data on mount to avoid stale localStorage data
   useEffect(() => {
@@ -125,35 +135,42 @@ export function PrDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
         const record = res.data.find((r: any) => r.pengadaan_id === item.id && (r.tipe === activeStep.id || (activeStep.id === "pembayaran" && ["umd", "outsource", "non-outsource"].includes(r.tipe))));
         if (record) {
           setVerifStatus(record.status);
+          setVerifId(record.id);
         } else {
           setVerifStatus("not_submitted");
+          setVerifId(null);
         }
-      }).catch(() => setVerifStatus("not_submitted"));
+      }).catch(() => { setVerifStatus("not_submitted"); setVerifId(null); });
     } else if (activeStep.id === "pengujian") {
       const updatePengujian = (p: any) => {
         if (p) {
-          if (p.status === "selesai") setVerifStatus("approved"); // Using "approved" to match verifStatus type
-          else if (p.status === "diproses" || p.status === "approved") setVerifStatus("approved"); // Treating "diproses" as approved for the first sub-step so user can advance
-          else setVerifStatus("pending");
+          setPengujianId(p.id);
+          const statusLower = p.status?.toLowerCase();
+          
+          if (statusLower === "selesai" || statusLower === "approved") {
+            setVerifStatus("approved");
+          } else if (statusLower === "diproses" || statusLower === "proses") {
+            setVerifStatus("approved");
+          } else {
+            setVerifStatus("pending");
+          }
           
           setCompletedSubs(prev => {
             const next = new Set(prev);
-            // If admin has approved the request (diproses or selesai), mark request-pengujian as done
-            if (p.status === "diproses" || p.status === "approved" || p.status === "selesai") {
+            // If admin has approved the request, mark request-pengujian as done
+            if (statusLower === "diproses" || statusLower === "approved" || statusLower === "selesai") {
               next.add("pengujian.request-pengujian");
             }
-            // If admin has finished the process (selesai), mark proses-pengujian as done
-            if (p.status === "selesai") {
-              next.add("pengujian.proses-pengujian");
+            // If admin has finished the process (selesai), mark hasil-pengujian as done
+            if (statusLower === "selesai") {
+              next.add("pengujian.hasil-pengujian");
             }
             return next;
           });
-          
+
           // Auto advance activeSubIdx if possible
-          if ((p.status === "diproses" || p.status === "approved") && activeSubIdx < 1) {
+          if (statusLower === "diproses" || statusLower === "approved" || statusLower === "selesai") {
              setActiveSubIdx(1);
-          } else if (p.status === "selesai" && activeSubIdx < 2) {
-             setActiveSubIdx(2);
           }
         } else {
           setVerifStatus("not_submitted");
@@ -288,6 +305,9 @@ export function PrDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
        if (verifStatus === "pending" || verifStatus === "proses") return "Menunggu Pengujian";
        return "Lanjut";
     }
+    if (activeStep.id === "pengujian" && activeSubStep?.id === "hasil-pengujian") {
+       return "Selesai";
+    }
     if (!isSubmitPoint) return "Next";
     if (verifStatus === "not_submitted") return "Submit";
     if (verifStatus === "pending") return "Menunggu Verifikasi";
@@ -325,24 +345,49 @@ export function PrDetailScreen({ item, onBack, onNavigate }: { item: PengadaanIt
               <button onClick={goPrev} disabled={isFirst} className="flex items-center gap-1.5 px-4 h-[30px] rounded border border-gray-200 text-[11.5px] text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"><ChevronLeft size={12} /> Kembali</button>
               <div className="flex gap-2">
                 <button onClick={flashSave} className="px-4 h-[30px] rounded border border-[#252271] text-[11.5px] text-[#252271] font-medium hover:bg-[#252271]/5">Simpan</button>
+                
                 {!isLast ? (
                   <button onClick={goNext} disabled={(verifStatus === "pending" && isSubmitPoint) || (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian" && verifStatus !== "not_submitted" && verifStatus !== "approved")} className="px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-[#252271] hover:bg-[#1a1860] disabled:bg-gray-400 disabled:cursor-not-allowed">
                     {getNextLabel()}
                   </button>
                 ) : item.status === "Selesai" || completedStepIds.has("contract") ? (
-                  <button onClick={() => { 
-                    onNavigate("daftar-pengujian");
-                  }} className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-blue-600 hover:bg-blue-700">
-                    <Check size={12} /> Pengadaan Selesai, Lanjut ke Pengujian!
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => onNavigate("dashboard")} className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-gray-700 font-medium bg-gray-100 border border-gray-300 hover:bg-gray-200">
+                      Kembali ke Dashboard
+                    </button>
+                    <button onClick={() => { 
+                      if (activeStep.id === "pengujian") {
+                        onNavigate("pembayaran-non-outsource");
+                      } else if (activeStep.id === "pembayaran") {
+                        onNavigate("dashboard");
+                      } else {
+                        onNavigate("daftar-pengujian");
+                      }
+                    }} className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-blue-600 hover:bg-blue-700">
+                      <Check size={12} /> {activeStep.id === "pengujian" ? "Lanjut Pembayaran" : activeStep.id === "pembayaran" ? "Pembayaran Selesai!" : "Lanjut ke Pengujian"}
+                    </button>
+                  </div>
                 ) : (
                   <button onClick={() => { 
                     setCompletedStepIds(p => {
                       const next = new Set([...p, activeStep.id]);
-                      updatePengadaanItem({ ...item, completedSteps: Array.from(next), status: "Selesai" });
+                      let nextStep = activeStep.id;
+                      let nextStatus = "Selesai";
+                      if (activeStep.id === "contract") {
+                         nextStep = "pengujian";
+                         nextStatus = "Proses Pengujian";
+                      } else if (activeStep.id === "pengujian") {
+                         nextStep = "pembayaran";
+                         nextStatus = "Proses Pembayaran";
+                      }
+                      
+                      updatePengadaanItem({ ...item, completedSteps: Array.from(next), currentStep: nextStep, status: nextStatus });
                       return next;
                     }); 
                     flashSave(); 
+                    if (activeStep.id === "pengujian") {
+                      onNavigate("pembayaran-non-outsource");
+                    }
                   }} className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-green-600 hover:bg-green-700">
                     <Check size={12} /> Selesai
                   </button>
