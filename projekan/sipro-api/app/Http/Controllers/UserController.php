@@ -40,7 +40,7 @@ class UserController extends Controller
             'departemen' => 'required|string',
         ]);
 
-        $pw = Str::random(10);
+        $pw = $request->input('password') ?: 'Password123!';
 
         $user = User::create([
             'id'                  => 'USR-' . strtoupper(Str::random(6)),
@@ -51,11 +51,11 @@ class UserController extends Controller
             'departemen'          => $request->departemen,
             'is_active'           => true,
             'is_admin'            => $request->roleId === 'role-admin',
-            'must_reset_password' => true,
+            'must_reset_password' => false,
         ]);
 
         return response()->json([
-            'user'             => $user->load('role'),
+            'user'              => $user->load('role'),
             'generatedPassword' => $pw,
         ], 201);
     }
@@ -67,6 +67,7 @@ class UserController extends Controller
             'roleId'     => 'sometimes|exists:roles,id',
             'departemen' => 'sometimes|string',
             'isActive'   => 'sometimes|boolean',
+            'password'   => 'sometimes|string',
         ]);
 
         if ($request->has('name')) $user->name = $request->name;
@@ -76,6 +77,7 @@ class UserController extends Controller
         }
         if ($request->has('departemen')) $user->departemen = $request->departemen;
         if ($request->has('isActive')) $user->is_active = $request->isActive;
+        if ($request->filled('password')) $user->password = Hash::make($request->password);
 
         $user->save();
 

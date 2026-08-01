@@ -5,29 +5,13 @@ import { VerifTable, FilterConfig } from "../../../components/admin/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/AdminModal";
 import { Plus, CheckCircle2, XCircle, FileWarning } from "lucide-react";
 import { useAuth } from "../../../store/authStore";
+import { getVerifRecords } from "../../../store/dataStore";
 
 type ScreenProps = {
   activeSubItem: string;
 };
 
-// We'll fetch real data, these are just options
-const DIVISI_OPTIONS = [
-  { value: "CUS - CORPORATE SECRETARY", label: "CUS - CORPORATE SECRETARY" },
-  { value: "CUL - GRC AND LEGAL", label: "CUL - GRC AND LEGAL" },
-  { value: "CUG - LOGISTIC", label: "CUG - LOGISTIC" },
-  { value: "CUI - INTERNAL AUDIT", label: "CUI - INTERNAL AUDIT" },
-  { value: "CUP - STRATEGIC PLANNING", label: "CUP - STRATEGIC PLANNING" },
-  { value: "COS - HSE AND SECURITY", label: "COS - HSE AND SECURITY" },
-  { value: "COC - COMMERCIAL", label: "COC - COMMERCIAL" },
-  { value: "CTI - INFORMATION TECHNOLOGY", label: "CTI - INFORMATION TECHNOLOGY" },
-  { value: "CTP - MAINTENANCE PLANNING", label: "CTP - MAINTENANCE PLANNING" },
-  { value: "CTR - ROLLING STOCK", label: "CTR - ROLLING STOCK" },
-  { value: "CTS - INFRASTRUCTURE", label: "CTS - INFRASTRUCTURE" },
-  { value: "CAF - FINANCE", label: "CAF - FINANCE" },
-  { value: "CAA - BUDGETING AND ACCOUNTING", label: "CAA - BUDGETING AND ACCOUNTING" },
-  { value: "CAH - HUMAN CAPITAL", label: "CAH - HUMAN CAPITAL" },
-  { value: "CUT - TESTING COMMITTEE", label: "CUT - TESTING COMMITTEE" },
-];
+// ... options ...
 
 export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
   const { currentUser } = useAuth();
@@ -41,47 +25,45 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
     setLoading(true);
     try {
       const [resPeng, resVerif] = await Promise.all([
-        api.get('/pengadaan'),
-        api.get('/verifikasi?status=pending')
+        api.get('/pengadaan').catch(() => ({ data: [] })),
+        api.get('/verifikasi').catch(() => ({ data: [] }))
       ]);
 
-      const verifMap = new Map();
-      resVerif.data.forEach((v: any) => {
-        verifMap.set(v.pengadaan_id, v);
-      });
+      const dbVerif = resVerif.data || [];
+      const storeVerif = getVerifRecords();
+
+      const combinedVerif = [...dbVerif, ...storeVerif.map(s => ({
+        id: s.id,
+        pengadaan_id: s.pengadaanId,
+        pengadaan_nama: s.pengadaanNama,
+        departemen: s.departemen,
+        nominal: s.nominal,
+        tipe: s.tipe,
+        submit_by: s.submitBy,
+        status: s.status,
+        submit_at: s.submitAt,
+      }))];
 
       const pdList: any[] = [];
       const prList: any[] = [];
-      
-      resPeng.data.forEach((item: any) => {
-        const fd = typeof item.formData === 'string' ? JSON.parse(item.formData) : (item.formData || {});
-        const isPr = item.id.startsWith('PR-') || item.id.startsWith('PRQ');
-        const isPd = item.id.startsWith('PD-') || item.id.startsWith('PRK');
-        
-        // Also check completed steps or current step if PR/PD are not explicitly prefixed
-        const isPrStep = item.currentStep === 'pr' || item.completedSteps?.includes('pr');
-        const isPdStep = item.currentStep === 'pd' || item.completedSteps?.includes('pd') || item.currentStep === 'pengajuan-dana';
 
-        if (!isPr && !isPd && !isPrStep && !isPdStep) return;
-
-        const v = verifMap.get(item.id);
-        
+      combinedVerif.forEach((item: any) => {
         const mapped = {
-          id: item.id,
-          verif_id: v ? v.id : null,
-          emailPic: fd.emailPic || "admin@kci.co.id",
-          tahun: fd.tahun || new Date().getFullYear().toString(),
-          divisi: item.departemen,
-          jenisPermohonan: fd.jenisPermohonan || "Barang",
-          judulPermohonan: item.nama,
-          nominalPermohonan: item.nominal,
-          nominalKonversi: fd.nominalKonversi || "-",
-          rupId: fd.rupId || "-",
-          tglPr: item.tanggal || (v ? v.submit_at.split('T')[0] : new Date().toISOString().split('T')[0]),
-          status: v ? v.status : item.status
+          id: item.pengadaan_id || item.id,
+          verif_id: item.id,
+          emailPic: item.submit_by || "user@kci.co.id",
+          tahun: new Date().getFullYear().toString(),
+          divisi: item.departemen || "CTIT",
+          jenisPermohonan: item.tipe || "Barang",
+          judulPermohonan: item.pengadaan_nama || item.judul || "Permohonan Dana",
+          nominalPermohonan: item.nominal || "Rp 0",
+          nominalKonversi: item.nominal || "Rp 0",
+          rupId: item.pengadaan_id || "-",
+          tglPr: item.submit_at ? new Date(item.submit_at).toLocaleDateString("id-ID") : new Date().toLocaleDateString("id-ID"),
+          status: item.status || "Menunggu Verifikasi",
         };
 
-        if (isPd || isPdStep) {
+        if (item.tipe === "park-dokumen" || item.tipe === "pd" || item.tipe === "pengajuan-dana") {
           pdList.push(mapped);
         } else {
           prList.push(mapped);
@@ -90,8 +72,8 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
 
       setParkDocs(pdList);
       setPurchaseReqs(prList);
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -287,44 +269,38 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
         </AdminModal>
       )}
 
-      {/* Detail Modal - show all form fields */}
+      {/* Detail Modal - Fullscreen DetailDocumentView */}
       {showDetail && (
-        <AdminModal title="Detail Permohonan Dana" onClose={() => setShowDetail(null)} hideFooter width="max-w-lg">
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { k: "No. Dokumen", v: showDetail.id },
-                { k: "RUP Terkait", v: showDetail.rupId },
-                { k: "Email PIC", v: showDetail.emailPic },
-                { k: "Tahun", v: showDetail.tahun },
-                { k: "Divisi", v: showDetail.divisi },
-                { k: "Jenis Permohonan", v: showDetail.jenisPermohonan },
-                { k: "Judul Permohonan", v: showDetail.judulPermohonan },
-                { k: "Nominal Permohonan", v: showDetail.nominalPermohonan },
-                { k: "Nominal Konversi", v: showDetail.nominalKonversi },
-                { k: "Tanggal Permohonan", v: showDetail.tglPr },
-                { k: "Status", v: showDetail.status },
-              ].map(row => (
-                <div key={row.k} className="flex flex-col border-b border-gray-50 pb-1.5">
-                  <span className="text-gray-400 text-[10px] font-mono uppercase">{row.k}</span>
-                  <span className="font-semibold text-gray-700 text-[12px]">{row.v}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="pt-3 border-t border-gray-100 flex gap-2 justify-end">
-              <button onClick={() => handleAction("approve", showDetail)} className="bg-green-600 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1">
-                <CheckCircle2 size={12} /> Setujui
-              </button>
-              <button onClick={() => handleAction("revisi", showDetail)} className="bg-purple-600 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1">
-                <FileWarning size={12} /> Revisi
-              </button>
-              <button onClick={() => handleAction("reject", showDetail)} className="bg-red-600 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1">
-                <XCircle size={12} /> Tolak
-              </button>
-            </div>
-          </div>
-        </AdminModal>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 overflow-y-auto">
+          <DetailDocumentView
+            title={`Detail Berkas Permohonan (${isParkDoc ? "Park Document" : "Purchase Requisition"})`}
+            subtitle={`${isParkDoc ? "Park Document" : "Purchase Requisition"} - ${showDetail.id}`}
+            status={showDetail.status || "Menunggu Verifikasi"}
+            infoFields={[
+              { label: "Nomor Permohonan", value: showDetail.id },
+              { label: "RUP Terkait", value: showDetail.rupId },
+              { label: "Email PIC", value: showDetail.emailPic },
+              { label: "Tahun", value: showDetail.tahun },
+              { label: "Divisi", value: showDetail.divisi },
+              { label: "Jenis Permohonan", value: showDetail.jenisPermohonan },
+              { label: "Judul Permohonan", value: showDetail.judulPermohonan },
+              { label: "Nominal Permohonan", value: showDetail.nominalPermohonan },
+              { label: "Nominal Konversi", value: showDetail.nominalKonversi },
+              { label: "Tanggal Permohonan", value: showDetail.tglPr },
+            ]}
+            files={[
+              { label: isParkDoc ? "Checklist PD" : "Checklist PR", fileName: `${isParkDoc ? "Checklist_PD" : "Checklist_PR"}_Signed.pdf`, size: "1.2 MB", isMandatory: true, status: "Selesai" },
+              { label: "Nota Permohonan Dana", fileName: "Nota_Permohonan_Dana.pdf", size: "2.5 MB", isMandatory: true, status: "Selesai" },
+              { label: "RAB", fileName: "RAB_Pengadaan_2024.xlsx", size: "350 KB", isMandatory: true, status: "Selesai" },
+              { label: "Justifikasi", fileName: "Surat_Justifikasi_KCI.pdf", size: "1.9 MB", isMandatory: true, status: "Selesai" },
+              { label: "MI Permohonan Release", fileName: "Memo_Internal_Rilis.pdf", size: "1.1 MB", isMandatory: true, status: "Selesai" },
+            ]}
+            onBack={() => setShowDetail(null)}
+            onApprove={() => handleAction("approve", showDetail)}
+            onRevisi={() => handleAction("revisi", showDetail)}
+            onReject={() => handleAction("reject", showDetail)}
+          />
+        </div>
       )}
 
       {/* Action Confirmation */}

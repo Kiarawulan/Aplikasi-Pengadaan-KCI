@@ -101,11 +101,14 @@ export function addVerifRecord(item: VerifRecord) {
   api.post('/verifikasi', {
     pengadaanId: item.pengadaanId,
     pengadaanNama: item.pengadaanNama,
-    departemen: item.departemen,
-    nominal: item.nominal,
+    departemen: item.departemen || 'Umum',
+    nominal: item.nominal || 'Rp 0',
     tipe: item.tipe,
-    submitBy: item.submitBy
-  }).catch(() => {});
+    submitBy: item.submitBy || 'User'
+  })
+  .then(res => console.log('Successfully saved Verifikasi record to MySQL DB:', res.data))
+  .catch(err => console.error('Error saving Verifikasi record to MySQL DB:', err?.response?.data || err));
+
   saveVerifRecords([...getVerifRecords(), item]); 
 }
 export function updateVerifRecord(id: string, patch: Partial<VerifRecord>) {
@@ -196,10 +199,41 @@ export function savePengujianList(items: typeof DEFAULT_PENGUJIAN) { save(LS_PEN
 export function getRupList(): RupItem[] { return getOrInit(LS_RUP, DEFAULT_RUP); }
 export function saveRupList(items: RupItem[]) { save(LS_RUP, items); }
 export function addRup(item: RupItem) { 
-  api.post('/rup', item).catch(() => {});
+  const payload = {
+    id: item.id,
+    nama: item.nama,
+    jenis: item.jenis || 'Barang',
+    metode: item.metode || 'Tender',
+    nilai: item.nilai || 'Rp 0',
+    departemen: item.departemen || 'Umum',
+    createdBy: item.createdBy || 'user-admin',
+    status: item.status || 'pending',
+    progress: item.progress || '0/14',
+    createdAt: item.createdAt || new Date().toISOString().split('T')[0]
+  };
+  
+  api.post('/rup', payload)
+    .then(res => console.log('Successfully saved RUP to MySQL DB:', res.data))
+    .catch(err => console.error('Error saving RUP to MySQL DB:', err?.response?.data || err));
+
+  // Automatically create verification record for Admin panel
+  addVerifRecord({
+    id: generateId("VR"),
+    pengadaanId: item.id,
+    pengadaanNama: item.nama,
+    departemen: item.departemen || 'Umum',
+    nominal: item.nilai,
+    tipe: "rup",
+    submitBy: item.createdBy || "User",
+    submitAt: new Date().toISOString(),
+    status: "pending",
+  });
+
   saveRupList([...getRupList(), item]); 
 }
+
 export function updateRup(id: string, patch: Partial<RupItem>) {
+  api.put(`/rup/${id}`, patch).catch(err => console.error('Error updating RUP:', err));
   saveRupList(getRupList().map(r => r.id === id ? { ...r, ...patch } : r));
 }
 

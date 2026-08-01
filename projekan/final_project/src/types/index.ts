@@ -79,6 +79,7 @@ export interface AppRole {
   createdAt: string;
   isSystem: boolean; // system roles (Admin, User) can't be deleted
   color: string; // badge color
+  active?: boolean;
 }
 
 // ─── User ─────────────────────────────────────────────────────────────────────

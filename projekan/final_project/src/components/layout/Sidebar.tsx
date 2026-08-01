@@ -12,7 +12,7 @@ export function Sidebar({ screen, backScreen, onNavigate, collapsed, onToggleCol
 }) {
   return (
     <div
-      className="flex flex-col h-full rounded-r-3xl shadow-[0px_0px_6px_rgba(0,0,0,0.22)] transition-all duration-200 overflow-hidden"
+      className="flex flex-col h-full rounded-tr-3xl rounded-br-3xl rounded-tl-none rounded-bl-none shadow-[0px_0px_6px_rgba(0,0,0,0.22)] transition-all duration-200 overflow-hidden select-none"
       style={{ background: "linear-gradient(180deg, #e6251c 0%, #b50800 100%)", width: collapsed ? "60px" : "224px" }}
     >
       <Logo collapsed={collapsed} />

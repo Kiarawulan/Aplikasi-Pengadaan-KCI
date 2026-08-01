@@ -5,6 +5,7 @@ import { FileUploadInput } from "../common/FileUploadInput";
 import { SummaryRow } from "../common/SummaryRow";
 import { ApprovedBadge } from "../common/ApprovedBadge";
 import { getPengujianList } from "../../store/dataStore";
+import { Sp3DetailView } from "./Sp3DetailView";
 
 export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
   step: ParkStep; subStepId: string;
@@ -105,19 +106,8 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
     );
   }
   if (step === "sp3") return (
-    <div>
-      <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p><StatusDisplay /></div>
-      <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
-        <SummaryRow label="Judul Pengadaan" value={item?.nama || "Judul Pengadaan"} />
-        <SummaryRow label="Vendor" value={fdFrom("buat-npp").vendor || "Vendor NPP"} />
-        <SummaryRow label="Nominal" value={item?.nominal || fdFrom("buat-npp").nilaiPr || "Nominal PR"} />
-        <SummaryRow label="Kurs" value={fdFrom("buat-npp").kurs || "IDR"} />
-        <SummaryRow label="COA" value={fdFrom("buat-npp").coa || "-"} />
-        <SummaryRow label="Keterangan" value={fdFrom("buat-npp").keterangan || "-"} />
-      </div>
-      {status === "approved" && (
-        <div className="mt-4 pt-4 border-t border-[#e2e2e2]"><button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><FileText size={13} /> Dokumen SP3 dari Admin.pdf (Download)</button></div>
-      )}
+    <div className="pt-1">
+      <Sp3DetailView item={item} />
     </div>
   );
   if (step === "pbj") {
@@ -305,21 +295,88 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
             </div>
 
             {jenis === "UMD" && (
-              <>
-                <div className="pt-2 border-t border-[#e2e2e2]">
-                  <FileUploadInput label="Dokumen Tutupan" required value={f("dokumenTutupan")} onChange={u("dokumenTutupan")} />
+              <div className="space-y-5 pt-3 border-t border-[#e2e2e2] mt-2">
+                {/* SUBMISSION FORM */}
+                <div className="bg-gray-50/70 p-3.5 rounded-xl border border-gray-200/80 space-y-3">
+                  <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide">1. Submission Form UMD</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FieldInput label="No Dokumen" placeholder="DOK-2024-xxx" required value={f("noDokumen")} onChange={u("noDokumen")} />
+                    <FieldInput label="Bulan UMD" placeholder="Contoh: Maret 2024" required value={f("bulanUmd")} onChange={u("bulanUmd")} />
+                    <FieldInput label="Judul" placeholder="Judul UMD..." required value={f("judul") || item.nama} onChange={u("judul")} />
+                    <FieldInput label="Nominal" placeholder="15000000" type="number" required value={f("nominal") || item.nominal} onChange={u("nominal")} />
+                  </div>
+                  <p className="text-[10px] text-gray-400">*Pilih bulan dan masukkan nominal pengajuan UMD</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <p className="text-[11.5px] font-medium text-[#0a0a0a]">Status Verifikasi Dokumen Tutupan:</p>
+
+                {/* PE & G63 */}
+                <div className="bg-gray-50/70 p-3.5 rounded-xl border border-gray-200/80 space-y-3">
+                  <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide">2. Data PE & G63</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FieldInput label="Nomor PE" placeholder="PE-2024-xxx" required value={f("nomorPe")} onChange={u("nomorPe")} />
+                    <FieldInput label="Nomor G63" placeholder="0" type="number" required value={f("nomorG63")} onChange={u("nomorG63")} />
+                    <FieldInput label="Tanggal G63" type="date" required value={f("tanggalG63")} onChange={u("tanggalG63")} />
+                    <FieldInput label="Nominal G63 (Rp)" placeholder="Rp 15.000.000" required value={f("nominalG63")} onChange={u("nominalG63")} />
+                    <FieldInput label="Tanggal Cair" type="date" required value={f("tanggalCair")} onChange={u("tanggalCair")} />
+                    <FieldInput label="Nomor VA" placeholder="VA-2024-xxx" required value={f("nomorVa")} onChange={u("nomorVa")} />
+                  </div>
+                </div>
+
+                {/* SYARAT PEMBAYARAN UMD */}
+                <div className="bg-gray-50/70 p-3.5 rounded-xl border border-gray-200/80 space-y-3">
+                  <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide">3. Syarat Pembayaran UMD</p>
+                  <div className="space-y-2">
+                    <FileUploadInput label="Upload Dokumen G64" required value={f("fileG64")} onChange={u("fileG64")} />
+                    <FileUploadInput label="Upload Surat Pernyataan" required value={f("fileSuratPernyataanUmd")} onChange={u("fileSuratPernyataanUmd")} />
+                    <FileUploadInput label="Upload Surat Pernyataan Keabsahan Dokumen" required value={f("fileKeabsahan")} onChange={u("fileKeabsahan")} />
+                  </div>
+                </div>
+
+                {/* DOKUMEN TUTUPAN */}
+                <div className="bg-gray-50/70 p-3.5 rounded-xl border border-gray-200/80 space-y-3">
+                  <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide">4. Input Dokumen Tutupan</p>
+                  <div className="space-y-2">
+                    <FileUploadInput label="Dokumen G63 TTD Lengkap" required value={f("fileG63")} onChange={u("fileG63")} />
+                    <FileUploadInput label="Lembar G61" required value={f("fileLembarG61")} onChange={u("fileLembarG61")} />
+                    <FileUploadInput label="Ceklis Pertanggungjawaban" required value={f("fileCeklis")} onChange={u("fileCeklis")} />
+                    <FileUploadInput label="Surat Pernyataan Keaslian Dokumen" required value={f("fileSuratKeaslian")} onChange={u("fileSuratKeaslian")} />
+                    <FileUploadInput label="Surat Pernyataan Kebenaran Barang/Jasa" required value={f("fileSuratKebenaran")} onChange={u("fileSuratKebenaran")} />
+                    <FileUploadInput label="Nota atau Kwitansi Pertanggungjawaban" required value={f("fileNota")} onChange={u("fileNota")} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    <FieldInput label="Nominal G61" placeholder="0" type="number" required value={f("nominalG61")} onChange={u("nominalG61")} />
+                    <FieldInput label="Sisa UMDS" placeholder="0" type="number" required value={f("sisaUmds")} onChange={u("sisaUmds")} />
+                  </div>
+                </div>
+
+                {/* CLOSING UMD */}
+                <div className="bg-gray-50/70 p-3.5 rounded-xl border border-gray-200/80 space-y-3">
+                  <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide">5. Input Closing UMD</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FieldInput label="Nominal Pajak" placeholder="0" type="number" value={f("nominalPajak")} onChange={u("nominalPajak")} />
+                    <FieldInput label="Nominal Pengembalian" placeholder="0" type="number" value={f("nominalPengembalian")} onChange={u("nominalPengembalian")} />
+                  </div>
+                  <FileUploadInput label="Upload Dokumen A9 Lengkap" required value={f("fileA9")} onChange={u("fileA9")} />
+                </div>
+
+                {/* BUKTI PENGEMBALIAN */}
+                <div className="bg-[#252271] text-white p-3.5 rounded-xl space-y-3 shadow-md">
+                  <p className="text-[11px] font-bold uppercase tracking-wide">6. Input Bukti Pengembalian</p>
+                  <div className="bg-white text-gray-800 p-3 rounded-lg">
+                    <FileUploadInput label="Upload Bukti Transfer Pengembalian" required value={f("fileBuktiTransfer")} onChange={u("fileBuktiTransfer")} />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <p className="text-[11.5px] font-medium text-[#0a0a0a]">Status Verifikasi Dokumen Tutupan & Closing:</p>
                   <StatusDisplay />
                 </div>
-                <FileUploadInput label="Pengembalian Dana (Nota dan sebagainya)" required value={f("pengembalianDana")} onChange={u("pengembalianDana")} />
-                {f("dokumenTutupan") && (
-                  <button onClick={() => { u("dokumenTutupan")(""); u("pengembalianDana")(""); }} className="text-red-500 text-[11px] hover:underline w-fit">
-                    Remove Files (Jika Revisi)
+
+                {f("fileG63") && (
+                  <button onClick={() => { u("fileG63")(""); u("fileLembarG61")(""); u("fileA9")(""); u("fileBuktiTransfer")(""); }} className="text-red-500 text-[11px] hover:underline w-fit">
+                    Reset Files (Jika Revisi)
                   </button>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>

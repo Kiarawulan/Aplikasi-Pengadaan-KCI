@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { Shield, Plus } from "lucide-react";
-import { AdminTopBar } from "../../components/admin/AdminTopBar";
-import { VerifTable } from "../../components/admin/VerifTable";
+import { useState, useEffect } from "react";
+import { Plus, Search, Edit2, Trash2 } from "lucide-react";
 import { AdminModal, ConfirmModal, ModalField, ModalInput, ModalSelect } from "../../components/admin/AdminModal";
+import { PermissionMatrix } from "../../components/admin/PermissionMatrix";
 import { getRoles, saveRoles, getUsers } from "../../store/authStore";
 import { generateId } from "../../store/dataStore";
+import { api } from "../../services/api";
 import type { AppRole, RolePermissions } from "../../types";
 
 const DEFAULT_PERMS: RolePermissions = {
@@ -18,151 +18,270 @@ const DEFAULT_PERMS: RolePermissions = {
   dashboard: "viewer",
 };
 
-const CONTRACT_PERMS = [
-  "contract-list",
-  "contract-create",
-  "contract-edit",
-  "contract-delete",
-  "contract.approval-list",
-  "contract.approval-create",
-  "contract.approval-edit",
-  "contract.approval-delete",
-];
-
-const HARGA_PERMS = [
-  "harga-satuan-list",
-  "harga-satuan-create",
-];
-
 export function RoleManagementScreen() {
-  const [roles, setRoles] = useState<AppRole[]>(() => getRoles());
+  const [roles, setRoles] = useState<AppRole[]>([]);
+  const [loading, setLoading] = useState(true);
   const allUsers = getUsers();
+  const [search, setSearch] = useState("");
 
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState<AppRole | null>(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState<AppRole | null>(null);
 
   const [form, setForm] = useState({
-    name: "", code: "", selectedMenu: "Dashboard", status: "Active",
-    contractPerms: CONTRACT_PERMS.reduce((acc, p) => ({ ...acc, [p]: true }), {} as Record<string, boolean>),
-    hargaPerms: HARGA_PERMS.reduce((acc, p) => ({ ...acc, [p]: true }), {} as Record<string, boolean>),
+    name: "",
+    roleType: "admin" as "admin" | "user",
+    color: "#252271",
   });
 
-  const refresh = () => setRoles(getRoles());
+  const fetchRoles = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/roles');
+      setRoles(res.data);
+      saveRoles(res.data);
+    } catch (e) {
+      console.warn('API unavailable, falling back to local roles store:', e);
+      setRoles(getRoles());
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleAddSubmit = () => {
+  useEffect(() => {
+    fetchRoles();
+  }, []);
+
+  const handleAddSubmit = async () => {
     if (!form.name) return;
-    const newRole: AppRole = {
-      id: generateId("ROLE"),
-      name: form.name,
-      description: `Role Code: ${form.code || "RL-001"}`,
-      roleType: "user",
-      color: "#252271",
-      permissions: { ...DEFAULT_PERMS },
-      createdAt: new Date().toISOString().split("T")[0],
-      isSystem: false,
-    };
-
-    const next = [...roles, newRole];
-    saveRoles(next);
-    setRoles(next);
-    setShowAdd(false);
-    setForm({
-      name: "", code: "", selectedMenu: "Dashboard", status: "Active",
-      contractPerms: CONTRACT_PERMS.reduce((acc, p) => ({ ...acc, [p]: true }), {}),
-      hargaPerms: HARGA_PERMS.reduce((acc, p) => ({ ...acc, [p]: true }), {}),
-    });
+    try {
+      await api.post('/roles', {
+        name: form.name,
+        description: `Role Type: ${form.roleType.toUpperCase()}`,
+        roleType: form.roleType,
+        color: form.color,
+        permissions: DEFAULT_PERMS,
+      });
+      fetchRoles();
+      setShowAdd(false);
+      setForm({ name: "", roleType: "admin", color: "#252271" });
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Gagal menyimpan role ke database.');
+    }
   };
 
-  const handleDelete = () => {
+  const handleEditSubmit = async () => {
+    if (!showEdit) return;
+    try {
+      await api.put(`/roles/${showEdit.id}`, {
+        name: showEdit.name,
+        description: showEdit.description,
+        roleType: showEdit.roleType || 'admin',
+        color: showEdit.color,
+        permissions: showEdit.permissions || DEFAULT_PERMS,
+      });
+      fetchRoles();
+      setShowEdit(null);
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Gagal merubah role di database.');
+    }
+  };
+
+  const handleDelete = async () => {
     if (!showConfirmDelete) return;
-    const next = roles.filter(r => r.id !== showConfirmDelete.id);
-    saveRoles(next);
-    setRoles(next);
-    setShowConfirmDelete(null);
+    try {
+      await api.delete(`/roles/${showConfirmDelete.id}`);
+      fetchRoles();
+      setShowConfirmDelete(null);
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Gagal menghapus role dari database.');
+    }
   };
 
-  const columns = [
-    { key: "name", label: "Roles Name", render: (r: AppRole) => (
-      <div>
-        <p className="font-semibold text-gray-800 text-[12px]">{r.name}</p>
-        <p className="text-gray-400 text-[10px]">{r.description || r.id}</p>
-      </div>
-    )},
-    { key: "users", label: "Assigned Users", render: (r: AppRole) => {
-      const count = allUsers.filter(u => u.roleId === r.id).length;
-      return <span className="text-[11.5px] font-mono text-gray-600">{count} Users</span>;
-    }},
-    { key: "status", label: "Status", render: () => (
-      <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-green-50 text-green-600 border border-green-200">
-        ACTIVE
-      </span>
-    )},
+  const filteredRoles = roles.filter(r =>
+    (r.name || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const roleColors = [
+    { bg: "bg-[#fee2e2]", text: "text-[#dc2626]", badge: "bg-[#f0fdf4] text-[#15803d]" },
+    { bg: "bg-[#eef2ff]", text: "text-[#4338ca]", badge: "bg-[#eef2ff] text-[#4338ca]" },
+    { bg: "bg-[#fef9c3]", text: "text-[#ca8a04]", badge: "bg-[#fef9c3] text-[#ca8a04]" },
+    { bg: "bg-[#d1fae5]", text: "text-[#065f46]", badge: "bg-[#d1fae5] text-[#065f46]" },
   ];
 
   return (
-    <div className="space-y-4">
-      <AdminTopBar title="Management Roles" subtitle="Management Role -> List Roles" />
+    <div className="flex-1 min-h-0 overflow-auto bg-[#f8fafc] px-[32px] py-[40px] select-none">
+      <h1 className="text-[#252271] text-[28px] font-bold tracking-tight leading-tight mb-[24px]">Manajemen Role</h1>
 
-      <div className="relative">
-        <div className="absolute right-5 top-4 z-10">
-          <button onClick={() => setShowAdd(true)} className="bg-[#252271] hover:bg-[#1a1753] text-white px-3 py-1.5 rounded-lg text-[11.5px] font-semibold flex items-center gap-1 shadow-sm transition-colors">
-            <Plus size={14} /> Add Roles
-          </button>
+      <div className="bg-white rounded-[24px] shadow-[0px_0px_5.45px_rgba(0,0,0,0.09)] p-[20px]">
+          {/* Search & Add */}
+          <div className="flex flex-col sm:flex-row items-center justify-between mb-5 gap-3">
+            <div className="relative w-full sm:w-[320px]">
+              <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Cari nama role..."
+                className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-[12px] pl-[37px] pr-4 py-2 text-[12px] text-[#0f172a] placeholder-[#9ca3af] outline-none focus:border-[#252271] transition-colors"
+              />
+            </div>
+            <button
+              onClick={() => setShowAdd(true)}
+              className="w-full sm:w-auto bg-gradient-to-b from-[#e6251c] to-[#c20f06] rounded-[10px] px-4 py-2 flex items-center justify-center gap-1.5 text-white text-[12px] font-medium hover:brightness-110 active:scale-95 transition-all duration-150 shrink-0 shadow-md"
+            >
+              <Plus size={15} />
+              Tambah Role
+            </button>
+          </div>
+
+          {/* Role Table */}
+          <div className="rounded-[16px] border border-[#f1f5f9] overflow-x-auto">
+            <table className="w-full min-w-[600px] text-left border-collapse">
+              <thead>
+                <tr className="bg-[#252271] text-white text-[12px] font-bold h-[44px]">
+                  <th className="pl-5 pr-3 py-3 w-[320px]">Role</th>
+                  <th className="px-3 py-3 w-[180px]">Jumlah User</th>
+                  <th className="px-3 py-3">Akses Utama</th>
+                  <th className="px-3 py-3 w-[120px] text-right pr-5">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f1f5f9]">
+                {filteredRoles.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-10 text-center text-[#94a3b8] text-[13px]">
+                      Tidak ada role ditemukan.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRoles.map((role, idx) => {
+                    const colorScheme = roleColors[idx % roleColors.length];
+                    const userCount = allUsers.filter(u => u.roleId === role.id).length;
+                    const initial = role.name ? role.name.charAt(0).toUpperCase() : "R";
+
+                    return (
+                      <tr key={role.id} className="hover:bg-[#fafafa] transition-colors">
+                        <td className="pl-5 pr-3 py-3.5 flex items-center gap-3">
+                          <div className={`${colorScheme.bg} ${colorScheme.text} size-8 rounded-full flex items-center justify-center shrink-0 text-[12px] font-bold`}>
+                            {initial}
+                          </div>
+                          <div>
+                            <p className="text-[#0f172a] text-[12px] font-bold">{role.name}</p>
+                            <p className="text-[#94a3b8] text-[10px]">{role.description || "System Role"}</p>
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 text-[#0f172a] text-[12px] font-semibold">
+                          {userCount} User
+                        </td>
+                        <td className="px-3 py-4">
+                          <span className={`${colorScheme.badge} text-[11px] font-bold px-2.5 py-1 rounded-full inline-block`}>
+                            {role.name.toLowerCase().includes("admin") ? "Semua Menu (Full Access)" : "Menu Terbatas"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-4 pr-5 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => setShowEdit(role)}
+                              className="p-1.5 rounded-[6px] hover:bg-[#e0e7ff] text-[#252271] transition-colors"
+                              title="Edit Role"
+                            >
+                              <Edit2 size={15} />
+                            </button>
+                            <button
+                              onClick={() => setShowConfirmDelete(role)}
+                              className="p-1.5 rounded-[6px] hover:bg-[#fef2f2] text-[#cc0000] transition-colors"
+                              title="Hapus Role"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-
-        <VerifTable
-          columns={columns} data={roles} searchKeys={["name", "description"]}
-          onEdit={(r) => setShowEdit(r)}
-          onDelete={(r) => setShowConfirmDelete(r)}
-          showCrudActions={true} emptyMessage="Tidak ada data roles."
-        />
-      </div>
 
       {/* Add Role Modal */}
       {showAdd && (
-        <AdminModal title="Create Roles" onClose={() => setShowAdd(false)} onSubmit={handleAddSubmit} submitLabel="Save" width="max-w-xl">
-          <div className="space-y-4">
+        <AdminModal title="Tambah Role Baru" onClose={() => setShowAdd(false)} onSubmit={handleAddSubmit} submitLabel="Simpan Role" width="max-w-4xl">
+          <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
             <div className="grid grid-cols-2 gap-3">
-              <ModalField label="Role Name" required><ModalInput value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Role Manager..." /></ModalField>
-              <ModalField label="Role Code" required><ModalInput value={form.code} onChange={v => setForm(p => ({ ...p, code: v }))} placeholder="MGR-001" /></ModalField>
+              <ModalField label="Nama Role" required>
+                <ModalInput value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="contoh: Staff Pengadaan..." />
+              </ModalField>
+              <ModalField label="User / Admin" required>
+                <ModalSelect
+                  value={form.roleType}
+                  onChange={v => setForm(p => ({ ...p, roleType: v as "admin" | "user" }))}
+                  options={[
+                    { value: "admin", label: "Admin" },
+                    { value: "user", label: "User" },
+                  ]}
+                />
+              </ModalField>
             </div>
-            <ModalField label="Role Selected Menu" required>
-              <ModalSelect value={form.selectedMenu} onChange={v => setForm(p => ({ ...p, selectedMenu: v }))}
-                options={["Dashboard","Contract","Harga Satuan","RUP","NPP","SP3","PBJ","Jamlak","Master Data"].map(m => ({ value: m, label: m }))} />
-            </ModalField>
-            <div>
-              <p className="text-[11.5px] font-bold text-gray-700 uppercase mb-2">Permissions — Contract</p>
-              <div className="grid grid-cols-2 gap-2 border border-gray-100 rounded-xl p-3 bg-gray-50/50">
-                {CONTRACT_PERMS.map(p => (
-                  <label key={p} className="flex items-center gap-2 text-[11px] text-gray-600 font-mono cursor-pointer">
-                    <input type="checkbox" checked={form.contractPerms[p]} onChange={() => setForm(prev => ({ ...prev, contractPerms: { ...prev.contractPerms, [p]: !prev.contractPerms[p] } }))} className="accent-[#252271]" />
-                    {p}
-                  </label>
-                ))}
+
+            {form.roleType === "admin" && (
+              <div className="border-t border-gray-100 pt-3">
+                <PermissionMatrix />
               </div>
+            )}
+          </div>
+        </AdminModal>
+      )}
+
+      {/* Edit Role Modal */}
+      {showEdit && (
+        <AdminModal title={`Edit Role: ${showEdit.name}`} onClose={() => setShowEdit(null)} onSubmit={handleEditSubmit} submitLabel="Perbarui" width="max-w-4xl">
+          <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+            <div className="grid grid-cols-3 gap-3">
+              <ModalField label="Nama Role" required>
+                <ModalInput value={showEdit.name} onChange={v => setShowEdit(p => p ? { ...p, name: v } : null)} />
+              </ModalField>
+              <ModalField label="User / Admin" required>
+                <ModalSelect
+                  value={showEdit.roleType || "admin"}
+                  onChange={v => setShowEdit(p => p ? { ...p, roleType: v as "admin" | "user" } : null)}
+                  options={[
+                    { value: "admin", label: "Admin" },
+                    { value: "user", label: "User" },
+                  ]}
+                />
+              </ModalField>
+              <ModalField label="Status Role">
+                <div className="flex gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowEdit(p => p ? { ...p, active: true } : null)}
+                    className={`px-3 py-1.5 rounded-lg text-[11.5px] font-bold transition-all flex items-center gap-1.5 ${
+                      showEdit.active !== false ? "bg-[#16a34a] text-white shadow-sm" : "bg-gray-100 text-gray-600 border border-gray-200"
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-white" />
+                    Aktif
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowEdit(p => p ? { ...p, active: false } : null)}
+                    className={`px-3 py-1.5 rounded-lg text-[11.5px] font-bold transition-all flex items-center gap-1.5 ${
+                      showEdit.active === false ? "bg-[#dc2626] text-white shadow-sm" : "bg-gray-100 text-gray-600 border border-gray-200"
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-white" />
+                    Non-Aktif
+                  </button>
+                </div>
+              </ModalField>
             </div>
-            <div>
-              <p className="text-[11.5px] font-bold text-gray-700 uppercase mb-2">Permissions — Harga Satuan</p>
-              <div className="grid grid-cols-2 gap-2 border border-gray-100 rounded-xl p-3 bg-gray-50/50">
-                {HARGA_PERMS.map(p => (
-                  <label key={p} className="flex items-center gap-2 text-[11px] text-gray-600 font-mono cursor-pointer">
-                    <input type="checkbox" checked={form.hargaPerms[p]} onChange={() => setForm(prev => ({ ...prev, hargaPerms: { ...prev.hargaPerms, [p]: !prev.hargaPerms[p] } }))} className="accent-[#252271]" />
-                    {p}
-                  </label>
-                ))}
+
+            {showEdit.roleType === "admin" && (
+              <div className="border-t border-gray-100 pt-3">
+                <PermissionMatrix />
               </div>
-            </div>
-            <ModalField label="Status">
-              <div className="flex gap-4 pt-1">
-                {["Active", "Inactive"].map(s => (
-                  <label key={s} className="flex items-center gap-1.5 text-[11.5px] cursor-pointer">
-                    <input type="radio" name="statusRole" checked={form.status === s} onChange={() => setForm(p => ({ ...p, status: s }))} className="accent-[#252271]" />
-                    {s}
-                  </label>
-                ))}
-              </div>
-            </ModalField>
+            )}
           </div>
         </AdminModal>
       )}
@@ -170,7 +289,7 @@ export function RoleManagementScreen() {
       {showConfirmDelete && (
         <ConfirmModal
           title="Hapus Role"
-          message={`Yakin ingin menghapus role ${showConfirmDelete.name}?`}
+          message={`Apakah Anda yakin ingin menghapus role ${showConfirmDelete.name}?`}
           onConfirm={handleDelete}
           onClose={() => setShowConfirmDelete(null)}
           confirmLabel="Hapus"

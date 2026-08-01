@@ -4,10 +4,19 @@ import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/AdminModal";
 import { Plus, CheckCircle2, XCircle, FileWarning, Eye, Printer, Download, Trash2, Edit3, ChevronRight } from "lucide-react";
+import { Sp3DetailView } from "../../../components/pengadaan/Sp3DetailView";
+import { RupDetailView } from "../../../components/pengadaan/RupDetailView";
+import { TambahRupModal } from "../../../components/pengadaan/TambahRupModal";
+import { NppDetailView } from "../../../components/pengadaan/NppDetailView";
+import { PengujianDetailView } from "../../../components/pengadaan/PengujianDetailView";
+import { getVerifRecords, getRupList } from "../../../store/dataStore";
 
 type ScreenProps = {
   activeSubItem: string;
 };
+
+// ... initial data constants ...
+
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
 const INITIAL_RUP = [
@@ -62,57 +71,54 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [resPeng, resVerif] = await Promise.all([
-        api.get('/pengadaan'),
-        api.get('/verifikasi?status=pending')
+      const [resPeng, resVerif, resRup] = await Promise.all([
+        api.get('/pengadaan').catch(() => ({ data: [] })),
+        api.get('/verifikasi').catch(() => ({ data: [] })),
+        api.get('/rup').catch(() => ({ data: [] }))
       ]);
-      if (resPeng.data) {
-        const mappedPeng = resPeng.data.map((item: any) => {
-          const fd = typeof item.form_data === 'string' ? JSON.parse(item.form_data) : (item.form_data || {});
-          return {
-            id: item.id,
-            nama: item.nama,
-            departemen: item.departemen,
-            nominal: item.nominal,
-            tanggal: item.tanggal,
-            status: item.status,
-            currentStep: item.current_step,
-            completedSteps: item.completed_steps ? item.completed_steps.map((c: any) => c.step_id) : [],
-            tax: fd.nilaiTax || "Rp 0",
-            vendor: fd.vendor || "N/A",
-            sp3: fd.sp3No || "-",
-            realisasi: fd.realisasi || "N/A",
-            bebanBiaya: fd.capexOpex || item.departemen,
-            vpDept: fd.vpDept || item.departemen,
-            capexOpex: "-",
-            prVal: item.nominal,
-            pdVal: item.nominal,
-            pbj: "-",
-            performanceBond: "Unverified"
-          };
-        });
-        setPengadaanList(mappedPeng);
-      }
-      if (resVerif.data) {
-        const mappedVerif = resVerif.data.map((item: any) => ({
-          id: item.pengadaan_id,
-          verif_id: item.id,
-          judul: item.pengadaan_nama,
-          title: item.pengadaan_nama,
-          nama: item.pengadaan_nama,
-          tipe: item.tipe,
-          dept: item.departemen,
-          vpDept: item.departemen,
-          bebanBiaya: item.departemen,
-          rkap: "N/A",
-          prVal: "N/A",
-          pdVal: "N/A",
-          vendor: "N/A",
-          pengadaanNama: item.pengadaan_nama,
-          status: item.status || "pending"
-        }));
-        setVerifTasks(mappedVerif);
-      }
+
+      const dbVerif = resVerif.data || [];
+      const storeVerif = getVerifRecords();
+
+      const allVerif = [
+        ...dbVerif,
+        ...storeVerif.map(s => ({
+          id: s.id,
+          pengadaan_id: s.pengadaanId,
+          pengadaan_nama: s.pengadaanNama,
+          departemen: s.departemen,
+          nominal: s.nominal,
+          tipe: s.tipe,
+          submit_by: s.submitBy,
+          status: s.status,
+        }))
+      ];
+
+      const uniqueVerifMap = new Map();
+      allVerif.forEach(item => {
+        const key = item.id || item.pengadaan_id;
+        if (key && !uniqueVerifMap.has(key)) {
+          uniqueVerifMap.set(key, {
+            id: item.pengadaan_id || item.id,
+            verif_id: item.id,
+            judul: item.pengadaan_nama || item.judul || "Pengadaan Baru",
+            title: item.pengadaan_nama || item.judul || "Pengadaan Baru",
+            nama: item.pengadaan_nama || item.judul || "Pengadaan Baru",
+            tipe: item.tipe || "rup",
+            dept: item.departemen || "Umum",
+            vpDept: item.departemen || "Umum",
+            bebanBiaya: item.departemen || "Umum",
+            rkap: item.nominal || "N/A",
+            prVal: item.nominal || "N/A",
+            pdVal: item.nominal || "N/A",
+            vendor: "N/A",
+            pengadaanNama: item.pengadaan_nama || item.judul || "Pengadaan Baru",
+            status: item.status || "pending"
+          });
+        }
+      });
+
+      setVerifTasks(Array.from(uniqueVerifMap.values()));
     } catch (e) {
       console.error(e);
     } finally {
@@ -246,29 +252,41 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
     { key: "dept", label: "Department", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.departemen || r.dept}</span> },
   ];
 
-  const pbjColumns = [
-    { key: "id", label: "No. Pengadaan", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id}</span> },
-    { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama}</p> },
-    { key: "nominal", label: "Nilai Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.prVal}</span> },
-    { key: "dept", label: "Department", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen || r.dept}</span> },
-    { key: "status", label: "Status", render: (r: any) => {
-        const s = (r.status || 'pending').toLowerCase();
-        let color = 'bg-gray-100 text-gray-600 border-gray-200';
-        if (s === 'approved' || s === 'selesai' || s === 'disetujui') color = 'bg-green-50 text-green-600 border-green-200';
-        else if (s === 'rejected' || s === 'ditolak') color = 'bg-red-50 text-red-600 border-red-200';
-        else if (s === 'revisi') color = 'bg-blue-50 text-blue-600 border-blue-200';
-        else if (s === 'pending') color = 'bg-amber-50 text-amber-600 border-amber-200';
-        else if (s.includes('pengujian') || s.includes('pembayaran')) color = 'bg-blue-50 text-blue-600 border-blue-200';
-        return <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono border ${color}`}>{r.status?.toUpperCase() || 'PENDING'}</span>;
-      }
-    },
+  const pbjColumns = activeSubItem === 'pbj-task-approval-pbj' ? [
+    { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id || r.sp3 || "SP3-2024-001"}</span> },
+    { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[200px] truncate">{r.nama || r.judul}</p> },
+    { key: "pr", label: "Nilai PR (NPEI)", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nilaiPr || r.nominal || "Rp 500.000.000"}</span> },
+    { key: "po", label: "Nilai PO", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nilaiPo || "Rp 485.000.000"}</span> },
+    { key: "efisiensi", label: "Nilai Efisiensi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.nilaiEfisiensi || "Rp 15.000.000"}</span> },
+    { key: "realisasi", label: "Realisasi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.realisasi || "100%"}</span> },
+    { key: "assign", label: "Assign to", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.assignTo || "Tim PBJ 1"}</span> },
+    { key: "status", label: "Status", render: (r: any) => <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-indigo-50 text-[#3b82f6] border border-indigo-200">{r.status || "Contract Release"}</span> },
+  ] : activeSubItem === 'pbj-memo-internal' ? [
+    { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id || r.sp3 || "SP3-2024-001"}</span> },
+    { key: "judul", label: "Judul Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama || r.judul}</p> },
+    { key: "memo", label: "Nomor Memo Internal", render: (r: any) => <span className="font-mono text-gray-700 text-[11.5px]">{r.nomorMemo || "MI-2024-001"}</span> },
+    { key: "tglMemo", label: "Tanggal Memo", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.tanggalMemo || "15-01-2024"}</span> },
+    { key: "status", label: "Status", render: (r: any) => <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-green-50 text-green-700 border border-green-200">{r.status || "Approved"}</span> },
+  ] : [
+    { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id || r.sp3 || "SP3-2024-001"}</span> },
+    { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama || r.judul}</p> },
+    { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.nilaiKontrak || "Rp 485.000.000"}</span> },
+    { key: "status", label: "Status", render: (r: any) => <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-indigo-50 text-[#3b82f6] border border-indigo-200">{r.status || "Contract Release"}</span> },
   ];
 
-  const contractColumns = [
-    { key: "id", label: "No. Pengadaan", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id}</span> },
+  const contractColumns = activeSubItem === 'contract-task-approval-contract' ? [
+    { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id || r.sp3 || "SP3-2024-001"}</span> },
+    { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[200px] truncate">{r.nama || r.paket}</p> },
+    { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.nilai || "Rp 485.000.000"}</span> },
+    { key: "dept", label: "Departement", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen || r.dept || "CTIT"}</span> },
+    { key: "pbj", label: "PBJ", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.pbj || "Sarana"}</span> },
+    { key: "bond", label: "Performance Bond", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.performanceBond || "Rp 24.250.000"}</span> },
+    { key: "status", label: "Status", render: (r: any) => <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-indigo-50 text-[#3b82f6] border border-indigo-200">{r.status || "Contract Release"}</span> },
+  ] : [
+    { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id || r.sp3 || "SP3-2024-001"}</span> },
     { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama || r.paket}</p> },
-    { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.nilai}</span> },
-    { key: "dept", label: "Departemen", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.departemen || r.dept}</span> },
+    { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.nilai || "Rp 485.000.000"}</span> },
+    { key: "status", label: "Status", render: (r: any) => <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-green-50 text-green-700 border border-green-200">{r.status || "Active"}</span> },
   ];
 
   const jamlakColumns = [
@@ -569,58 +587,35 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
       </div>
 
       {showAdd && mode.startsWith("rup") && (
-        <AdminModal title="Tambah RUP (Create Timeline)" onClose={() => setShowAdd(false)} onSubmit={handleAddSubmit} submitLabel="Submit" width="max-w-2xl">
-          <div className="space-y-3">
-            <ModalField label="Pilihan RUP" required>
-              <div className="flex gap-4 pt-1">
-                {["Lebih 500 Juta", "Kurang 500 Juta"].map(opt => (
-                  <label key={opt} className="flex items-center gap-1.5 text-[11.5px] cursor-pointer">
-                    <input type="radio" name="pilihanRup" checked={formRup.pilihan === opt} onChange={() => setFormRup(p => ({ ...p, pilihan: opt }))} className="accent-[#252271]" />
-                    {opt}
-                  </label>
-                ))}
-              </div>
-            </ModalField>
-            <ModalField label="Nama Paket Pengadaan Yang Akan Dilaksanakan" required>
-              <ModalInput value={formRup.judul} onChange={v => setFormRup(p => ({ ...p, judul: v }))} placeholder="Nama paket pengadaan..." />
-            </ModalField>
-            <div className="grid grid-cols-2 gap-3">
-              <ModalField label="Opex/Capex" required>
-                <ModalSelect value={formRup.capexOpex} onChange={v => setFormRup(p => ({ ...p, capexOpex: v }))} options={[{ value: "Capex", label: "Capex" }, { value: "Opex", label: "Opex" }]} />
-              </ModalField>
-              <ModalField label="Rencana Metode Pengadaan" required>
-                <ModalSelect value={formRup.metode} onChange={v => setFormRup(p => ({ ...p, metode: v }))} options={[{ value: "Pelelangan Umum", label: "Pelelangan Umum" }, { value: "Pemilihan Langsung", label: "Pemilihan Langsung" }, { value: "Penunjukan Langsung", label: "Penunjukan Langsung" }, { value: "Pengadaan Langsung", label: "Pengadaan Langsung" }]} />
-              </ModalField>
-            </div>
-            <ModalField label="Uraian Singkat Pengadaan">
-              <ModalTextarea value={formRup.uraian} onChange={v => setFormRup(p => ({ ...p, uraian: v }))} placeholder="Uraian pekerjaan..." />
-            </ModalField>
-            <div className="grid grid-cols-3 gap-3">
-              <ModalField label="Jenis Pengadaan">
-                <ModalSelect value={formRup.jenis} onChange={v => setFormRup(p => ({ ...p, jenis: v }))} options={[{ value: "Barang", label: "Barang" }, { value: "Jasa", label: "Jasa" }, { value: "Konsultansi", label: "Konsultansi" }]} />
-              </ModalField>
-              <ModalField label="Kategori Anggaran">
-                <ModalSelect value={formRup.kategori} onChange={v => setFormRup(p => ({ ...p, kategori: v }))} options={[{ value: "Investasi", label: "Investasi" }, { value: "Eksploitasi", label: "Eksploitasi" }, { value: "Pemeliharaan", label: "Pemeliharaan" }]} />
-              </ModalField>
-              <ModalField label="PBJ" required>
-                <ModalSelect value={formRup.pbj} onChange={v => setFormRup(p => ({ ...p, pbj: v }))} options={[{ value: "Sarana", label: "Sarana" }, { value: "Non-Sarana", label: "Non-Sarana" }]} />
-              </ModalField>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <ModalField label="Tahun Anggaran" required><ModalInput value={formRup.tahunAnggaran} onChange={v => setFormRup(p => ({ ...p, tahunAnggaran: v }))} /></ModalField>
-              <ModalField label="Tahun RUP" required><ModalInput value={formRup.tahunRup} onChange={v => setFormRup(p => ({ ...p, tahunRup: v }))} /></ModalField>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <ModalField label="Nilai Paket Pengadaan (Sebelum Pajak)" required><ModalInput type="number" value={formRup.nilaiSebelumPajak} onChange={v => setFormRup(p => ({ ...p, nilaiSebelumPajak: v }))} placeholder="800000000" /></ModalField>
-              <ModalField label="Tipe Pajak" required><ModalSelect value={formRup.tipePajak} onChange={v => setFormRup(p => ({ ...p, tipePajak: v }))} options={[{ value: "PPN 11%", label: "PPN 11%" }, { value: "PPN 12%", label: "PPN 12%" }, { value: "PPh 23", label: "PPh 23" }]} /></ModalField>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <ModalField label="Target Masuk ke Logistik" required><ModalInput type="date" value={formRup.targetLogistik} onChange={v => setFormRup(p => ({ ...p, targetLogistik: v }))} /></ModalField>
-              <ModalField label="Perkiraan Waktu Pemanfaatan" required><ModalInput type="date" value={formRup.perkiraanWaktu} onChange={v => setFormRup(p => ({ ...p, perkiraanWaktu: v }))} /></ModalField>
-            </div>
-            <ModalField label="Lokasi Pekerjaan / Penyerahan Barang" required><ModalInput value={formRup.lokasi} onChange={v => setFormRup(p => ({ ...p, lokasi: v }))} placeholder="Depo KRL Depok / Kantor Pusat KCI" /></ModalField>
-          </div>
-        </AdminModal>
+        <TambahRupModal
+          onClose={() => setShowAdd(false)}
+          onSubmit={(formData) => {
+            setRupList([
+              {
+                id: `RUP-00${rupList.length + 1}`,
+                judul: formData.namaPaket || "Paket Pengadaan Baru",
+                bebanBiaya: formData.bebanBiaya || "CTI - INFORMATION TECHNOLOGY",
+                pbj: formData.pbj || "Sarana",
+                sumberDana: "RKAP 2024",
+                jenisKontrak: formData.jenisPengadaan || "Barang",
+                nilaiRkap: formData.nilaiSebelumPajak ? `Rp ${formData.nilaiSebelumPajak}` : "Rp 800.000.000",
+                tahunRkap: formData.tahunRup || "2024",
+                typeTax: formData.tipePajak || "PPN 11%",
+                nilaiTax: formData.nilaiTax ? `Rp ${formData.nilaiTax}` : "Rp 88.000.000",
+                startDate: formData.targetLogistik || new Date().toISOString().split("T")[0],
+                endDate: formData.perkiraanWaktu || "2024-12-31",
+                keterangan: formData.uraian || "Keterangan RUP baru",
+                date: new Date().toISOString().split("T")[0],
+                status: "Submitted",
+                vpDept: "VP IT",
+                capexOpex: formData.opexCapex || "Capex",
+                rkapKat: formData.kategoriAnggaran || "Investasi",
+              },
+              ...rupList,
+            ]);
+            setShowAdd(false);
+          }}
+        />
       )}
 
       {showAdd && mode.startsWith("npp") && (
@@ -657,40 +652,199 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
       )}
 
       {showDetail && (
-        <AdminModal title={`Detail ${showDetail.type.toUpperCase()}`} onClose={() => setShowDetail(null)} hideFooter width="max-w-lg">
-          <div className="space-y-2">
-            {Object.entries(showDetail.item).map(([k, v]) => (
-              <div key={k} className="flex flex-col border-b border-gray-50 pb-1">
-                <span className="text-gray-400 text-[10px] font-mono uppercase">{k}</span>
-                <span className="font-semibold text-gray-700 text-[12px]">{String(v)}</span>
+        <AdminModal
+          title={`Detail ${showDetail.type.toUpperCase()}`}
+          onClose={() => { setShowDetail(null); setShowRevisionBox(false); }}
+          hideFooter
+          width={showDetail.type === "sp3" ? "max-w-4xl" : "max-w-xl"}
+        >
+          <div className="space-y-4">
+            {showDetail.type === "sp3" ? (
+              <Sp3DetailView item={showDetail.item} />
+            ) : showDetail.type === "npp" ? (
+              <NppDetailView item={showDetail.item} showActions={false} />
+            ) : showDetail.type === "rup" ? (
+              <RupDetailView item={showDetail.item} showActions={false} />
+            ) : showDetail.type === "pengujian" ? (
+              <PengujianDetailView item={showDetail.item} showActions={false} />
+            ) : (
+              <>
+                {/* Header & Status chip */}
+                <div className="flex items-center justify-between bg-[#252271] text-white p-4 rounded-xl">
+                  <div>
+                    <p className="text-white/60 text-[11px] font-semibold">Tipe Dokumen: {showDetail.type.toUpperCase()}</p>
+                    <p className="text-white text-[14px] font-bold">{showDetail.item.judul || showDetail.item.nama || showDetail.item.paket || showDetail.item.title || showDetail.item.id}</p>
+                  </div>
+                  <span className="px-3 py-1 bg-white/10 rounded-full text-white text-[11px] font-bold border border-white/20">
+                    {showDetail.item.status || "Open"}
+                  </span>
+                </div>
+
+                {/* Information Cards (Card Grid Layout) */}
+                <div className="grid grid-cols-2 gap-3 max-h-[380px] overflow-y-auto pr-1">
+                  {Object.entries(showDetail.item)
+                    .filter(([k]) => !["verif_id", "completedSteps", "date"].includes(k))
+                    .map(([k, v]) => {
+                      const labelMap: Record<string, string> = {
+                        id: "No. SP3 / ID",
+                        noSp3: "No. SP3",
+                        judul: "Nama Paket Pengadaan",
+                        nama: "Nama Paket Pengadaan",
+                        title: "Nama Paket Pengadaan",
+                        bebanBiaya: "Beban Biaya",
+                        pbj: "Jenis PBJ",
+                        sumberDana: "Sumber Dana",
+                        jenisKontrak: "Jenis Kontrak",
+                        nilaiRkap: "Nilai RKAP",
+                        rkap: "Nilai RKAP",
+                        tahunRkap: "Tahun RKAP",
+                        typeTax: "Tipe Pajak",
+                        nilaiTax: "Nilai Pajak",
+                        tax: "Nilai Pajak",
+                        startDate: "Tanggal Mulai",
+                        endDate: "Tanggal Selesai",
+                        keterangan: "Keterangan",
+                        status: "Status",
+                        vpDept: "VP Departemen",
+                        dept: "Departemen",
+                        departemen: "Departemen",
+                        capexOpex: "Capex / Opex",
+                        rkapKat: "Kategori RKAP",
+                        sp3: "No. SP3",
+                        realisasi: "Realisasi",
+                        vendor: "Nama Vendor",
+                        coa: "Kode COA",
+                        jenisBarang: "Jenis Barang",
+                        kurs: "Mata Uang / Kurs",
+                        prVal: "Nilai PR",
+                        pdVal: "Nilai PD",
+                        efisiensi: "Nilai Efisiensi",
+                        assignTo: "Assign To",
+                        paket: "Nama Paket Kontrak",
+                        nilai: "Nilai Kontrak",
+                        nominal: "Nilai Nominal",
+                        performanceBond: "Performance Bond",
+                        totalHari: "Total Hari",
+                        hariLibur: "Hari Libur",
+                        uncontrollDays: "Uncontrollable Days",
+                        totalHariKerja: "Total Hari Kerja",
+                        tglMulai: "Tanggal Mulai",
+                        tglSelesai: "Tanggal Selesai",
+                        keuangan: "Status Keuangan",
+                        tglTerima: "Tanggal Terima",
+                        bank: "Bank Penerbit",
+                        noGaransi: "No. Garansi / Jaminan",
+                        nilaiJaminan: "Nilai Jaminan",
+                        code: "Kode Vendor",
+                        name: "Nama Vendor",
+                        street: "Alamat Vendor",
+                        country: "Negara",
+                        city: "Kota",
+                        currency: "Mata Uang",
+                        accountGroup: "Grup Akun",
+                        termOfPayment: "Syarat Pembayaran",
+                      };
+                      const formattedLabel = labelMap[k] || k.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase());
+                      return (
+                        <div key={k} className="bg-[#f8fafc] border border-[#e2e8f0] rounded-[10px] p-[12px]">
+                          <p className="text-[#64748b] text-[11.5px] font-semibold mb-[3px]">{formattedLabel}</p>
+                          <p className="text-[#252271] text-[13px] font-bold truncate">{String(v || "-")}</p>
+                        </div>
+                      );
+                    })}
+                </div>
+              </>
+            )}
+
+            {/* Catatan Revisi Textarea Box */}
+            {showRevisionBox && (
+              <div className="bg-amber-50 border border-amber-300 rounded-[12px] p-[14px] animate-in fade-in-0">
+                <p className="text-amber-900 text-[12.5px] font-bold mb-[6px] flex items-center gap-1.5">
+                  <FileWarning size={14} className="text-amber-700" />
+                  Tuliskan Catatan Revisi Dokumen Ini:
+                </p>
+                <textarea
+                  value={revisionNote}
+                  onChange={(e) => setRevisionNote(e.target.value)}
+                  placeholder="Tuliskan catatan perbaikan atau alasan revisi di sini..."
+                  className="w-full h-[75px] bg-white border border-amber-300 rounded-[8px] p-2.5 text-[12px] text-gray-800 focus:border-[#252271] outline-none mb-2"
+                />
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => setShowRevisionBox(false)}
+                    className="px-3 py-1.5 bg-white border border-gray-300 text-gray-600 rounded-lg text-[11px] font-semibold hover:bg-gray-50"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!revisionNote.trim()) { alert("Harap isi catatan revisi."); return; }
+                      if (showDetail.item.verif_id) {
+                        try {
+                          await api.post(`/verifikasi/${showDetail.item.verif_id}/revisi`, { catatan: revisionNote });
+                          fetchData();
+                        } catch(e) {}
+                      }
+                      alert("Catatan revisi berhasil dikirim!");
+                      setShowRevisionBox(false);
+                      setRevisionNote("");
+                      setShowDetail(null);
+                    }}
+                    className="px-3 py-1.5 bg-[#cc0000] text-white rounded-lg text-[11px] font-bold hover:bg-[#a00000]"
+                  >
+                    Kirim Catatan Revisi
+                  </button>
+                </div>
               </div>
-            ))}
-          </div>
-          {(showDetail.type === 'sp3' || showDetail.type === 'pbj') && (
-            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
-              <button
-                onClick={async () => {
-                  const step = showDetail.type; 
-                  const nextStep = step === 'sp3' ? 'pbj' : 'contract';
-                  try {
-                    await api.put(`/pengadaan/${showDetail.item.id}`, {
-                      completedStepId: step,
-                      currentStep: nextStep,
-                      status: `Selesai (${step.toUpperCase()})`
-                    });
+            )}
+
+            {/* Action Buttons Footer */}
+            {["pbj", "contract"].includes(showDetail.type) ? (
+              <div className="pt-3 border-t border-gray-100 flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    const item = showDetail.item;
                     setShowDetail(null);
-                    fetchData();
-                    alert(`${step.toUpperCase()} berhasil diselesaikan (Bypass)`);
-                  } catch (e) {
-                    alert(`Gagal mensimulasikan ${step.toUpperCase()}.`);
-                  }
-                }}
-                className="bg-[#252271] text-white px-4 py-2 rounded-lg text-[11px] font-semibold hover:bg-[#1a1853]"
-              >
-                Selesaikan {showDetail.type.toUpperCase()} (Bypass Tim Pengadaan)
-              </button>
-            </div>
-          )}
+                    if (showDetail.type === "pbj") setShowPbjProcess(item);
+                    else if (showDetail.type === "contract") setShowContractProcess(item);
+                  }}
+                  className="bg-[#252271] text-white px-4 py-2 rounded-xl text-[11.5px] font-bold hover:bg-[#1a1753] flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
+                >
+                  <Edit3 size={13} />
+                  Edit Process
+                </button>
+              </div>
+            ) : (
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
+                <button
+                  onClick={() => setShowRevisionBox(!showRevisionBox)}
+                  className="bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 px-3.5 py-2 rounded-xl text-[11.5px] font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <FileWarning size={13} />
+                  Revisi
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      if (showDetail.item.verif_id) {
+                        try {
+                          await api.post(`/verifikasi/${showDetail.item.verif_id}/approve`);
+                          fetchData();
+                        } catch(e) {}
+                      }
+                      alert(`${showDetail.type.toUpperCase()} berhasil diverifikasi & disetujui!`);
+                      setShowDetail(null);
+                    }}
+                    className="bg-gradient-to-r from-[#16a34a] to-[#15803d] text-white px-4 py-2 rounded-xl text-[11.5px] font-bold hover:brightness-110 flex items-center gap-1.5 shadow-sm cursor-pointer transition-all"
+                  >
+                    <CheckCircle2 size={13} />
+                    Verifikasi &amp; Setujui
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </AdminModal>
       )}
 

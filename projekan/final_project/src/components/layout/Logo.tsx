@@ -1,14 +1,13 @@
+import logoImg from "../../imports/UserDashboard/a1d658a5f37b0b6b958626283ef2524233d0a35d.png";
+
 export function Logo({ collapsed }: { collapsed: boolean }) {
   return (
-    <div className={`flex items-center h-[56px] shrink-0 px-3 ${collapsed ? "justify-center" : ""}`}>
-      <div className="flex items-center gap-2.5">
-        {!collapsed && (
-          <div className="leading-none">
-            <p className="text-white font-black text-[13px] tracking-widest">PENGADAAN</p>
-
-          </div>
-        )}
-      </div>
+    <div className={`flex items-center h-[72px] shrink-0 px-3 ${collapsed ? "justify-center" : "justify-start"}`}>
+      <img
+        src={logoImg}
+        alt="KCI Logo"
+        className={`object-contain transition-all duration-200 ${collapsed ? "h-[36px] w-[36px]" : "h-[54px] w-auto"}`}
+      />
     </div>
   );
 }

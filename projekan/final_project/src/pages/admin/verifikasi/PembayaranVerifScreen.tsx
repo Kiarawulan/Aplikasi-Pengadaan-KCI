@@ -50,9 +50,14 @@ const DEPT_OPTS = [
 ];
 
 // ─── Finance Verification Form ────────────────────────────────────────────────
-function FinanceVerifModal({ item, onClose }: { item: any; onClose: () => void }) {
+function FinanceVerifModal({ item, tipe = "outsource", onClose }: { item: any; tipe?: string; onClose: () => void }) {
   const [statusDates, setStatusDates] = useState({ cfff: "", cff: "", cf: "", siapBayar: "", lunas: "" });
-  const [syarat, setSyarat] = useState(SYARAT_DOCS.map(d => ({ doc: d, syarat: false, ada: false, ket: "" })));
+  
+  const docsList = tipe === "non-outsource" 
+    ? SYARAT_DOCS.filter(d => d !== "SPP PPT 3 Bulan") 
+    : SYARAT_DOCS;
+
+  const [syarat, setSyarat] = useState(docsList.map(d => ({ doc: d, syarat: false, ada: false, ket: "" })));
   const [syaratLain, setSyaratLain] = useState<{ doc: string; syarat: boolean; ada: boolean; ket: string }[]>([]);
   const [form, setForm] = useState({
     unit: "CUG", date: "", currency: "IDR", noPr: "", noPo: "",
@@ -67,11 +72,11 @@ function FinanceVerifModal({ item, onClose }: { item: any; onClose: () => void }
   const [updatedStatuses, setUpdatedStatuses] = useState<Record<string, boolean>>({});
 
   const STEPS = [
-    { key: "cfff", label: "Approval CFFF", note: "< Rp 200 juta" },
-    { key: "cff",  label: "Approval CFF",  note: "Rp 200-500 juta" },
-    { key: "cf",   label: "Approval CF",   note: "> Rp 500 juta" },
-    { key: "siapBayar", label: "Siap Bayar", note: "" },
-    { key: "lunas", label: "Lunas", note: "" },
+    { key: "cfff", label: "APPROVAL CFFF", note: "< Rp 200 juta" },
+    { key: "cff",  label: "APPROVAL CFF",  note: "Rp 200-500 juta" },
+    { key: "cf",   label: "APPROVAL CF",   note: "> Rp 500 juta" },
+    { key: "siapBayar", label: "SIAP BAYAR", note: "" },
+    { key: "lunas", label: "LUNAS", note: "" },
   ];
 
   const toggleSyarat = (i: number, field: "syarat" | "ada") => {
@@ -80,47 +85,53 @@ function FinanceVerifModal({ item, onClose }: { item: any; onClose: () => void }
   const addSyaratLain = () => setSyaratLain(prev => [...prev, { doc: "", syarat: false, ada: false, ket: "" }]);
   const removeSyaratLain = (i: number) => setSyaratLain(prev => prev.filter((_, idx) => idx !== i));
 
+  const labelTipe = tipe === "non-outsource" ? "Non-Outsource" : "Outsource";
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 py-6 px-4">
       <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-[#fafafa] rounded-t-2xl">
           <div>
-            <p className="font-bold text-[15px] text-[#252271]">Finance Verification</p>
-            <p className="text-[11px] text-gray-400">{item.nama}</p>
+            <h1 className="text-[#252271] text-[24px] font-extrabold leading-normal">Verification</h1>
+            <p className="text-[12px] text-gray-500 font-medium">
+              Pembayaran &gt; Payment Approve &gt; {labelTipe} &gt; <span className="font-bold text-[#252271]">Detail</span>
+            </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-[20px] font-light">x</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-[22px] font-light">✕</button>
         </div>
 
         <div className="px-6 py-5 space-y-6">
           {/* Status Steps */}
           <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">Status Proses Pembayaran</p>
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">STATUS PROSES PEMBAYARAN</p>
             <div className="grid grid-cols-5 gap-2">
               {STEPS.map(s => (
-                <div key={s.key} className="border border-gray-200 rounded-xl p-3 flex flex-col items-center gap-2">
+                <div key={s.key} className="border border-gray-200 rounded-xl p-3 flex flex-col items-center gap-2 bg-gray-50/50">
                   <p className="text-[10px] font-bold text-gray-700 text-center">{s.label}</p>
                   {s.note && <p className="text-[9px] text-gray-400 text-center">{s.note}</p>}
                   <input type="date"
                     value={(statusDates as any)[s.key]}
                     onChange={e => setStatusDates(prev => ({ ...prev, [s.key]: e.target.value }))}
-                    className="border border-gray-200 rounded-lg px-2 py-1 text-[10.5px] w-full text-center focus:outline-none focus:ring-1 focus:ring-[#252271]/30" />
+                    className="border border-gray-200 rounded-lg px-2 py-1 text-[10.5px] w-full text-center bg-white focus:outline-none focus:ring-1 focus:ring-[#252271]/30" />
                   <button
                     onClick={() => setUpdatedStatuses(prev => ({ ...prev, [s.key]: true }))}
-                    className={`text-[10px] font-semibold px-3 py-1 rounded-lg w-full transition-colors ${updatedStatuses[s.key] ? "bg-green-500 text-white" : "bg-[#252271] text-white hover:bg-[#1a1753]"}`}>
+                    className={`text-[10px] font-semibold px-3 py-1 rounded-lg w-full transition-colors ${updatedStatuses[s.key] ? "bg-green-600 text-white" : "bg-[#252271] text-white hover:bg-[#1a1753]"}`}>
                     {updatedStatuses[s.key] ? "Updated" : "Update"}
                   </button>
                 </div>
               ))}
             </div>
-            <p className="text-[10px] text-gray-400 mt-2">Setelah sirkulir disetujui &rarr; Siap Bayar &rarr; setelah dibayar &rarr; Lunas</p>
+            <p className="text-[10.5px] text-blue-800 bg-blue-50/70 border border-blue-100 rounded-lg p-2.5 mt-3">
+              Persetujuan sirkulir: CFFF (&lt; Rp 200 juta) &middot; CFF (Rp 200-500 juta) &middot; CF (&gt; Rp 500 juta). Setelah sirkulir disetujui &rarr; status &quot;Siap Bayar&quot; &rarr; setelah dibayar &rarr; status &quot;Lunas&quot;.
+            </p>
           </div>
 
           {/* Finance Verification form */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[12px] font-bold text-[#252271] uppercase tracking-wide">Finance Verification</p>
-              <div className="text-[11px] text-gray-500">Request No: <span className="font-bold font-mono text-[#252271]">{requestNo}</span></div>
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
+              <p className="text-[12px] font-bold text-[#252271] uppercase tracking-wide">FINANCE VERIFICATION</p>
+              <div className="text-[11px] text-gray-500">Request No: <span className="font-bold font-mono text-[#252271] bg-gray-100 px-2 py-0.5 rounded border border-gray-200">{requestNo}</span></div>
             </div>
 
             <div className="grid grid-cols-3 gap-3">
@@ -163,9 +174,9 @@ function FinanceVerifModal({ item, onClose }: { item: any; onClose: () => void }
                 <div className="flex gap-1">
                   <ModalInput value={form.amandemen} onChange={v => setForm(p => ({ ...p, amandemen: v }))} />
                   <button onClick={() => setForm(p => ({ ...p, amandemen: String(Math.max(0, Number(p.amandemen) - 1)) }))}
-                    className="border border-gray-200 rounded-lg px-2 py-1 text-[12px] font-bold text-gray-600 hover:bg-gray-50">-</button>
+                    className="border border-gray-200 rounded-lg px-2.5 py-1 text-[12px] font-bold text-gray-600 hover:bg-gray-50">-</button>
                   <button onClick={() => setForm(p => ({ ...p, amandemen: String(Number(p.amandemen) + 1) }))}
-                    className="border border-gray-200 rounded-lg px-2 py-1 text-[12px] font-bold text-gray-600 hover:bg-gray-50">+</button>
+                    className="border border-gray-200 rounded-lg px-2.5 py-1 text-[12px] font-bold text-gray-600 hover:bg-gray-50">+</button>
                 </div>
               </ModalField>
               <ModalField label="Tanggal Kontrak" required>
@@ -222,16 +233,16 @@ function FinanceVerifModal({ item, onClose }: { item: any; onClose: () => void }
 
           {/* Syarat Pembayaran */}
           <div>
-            <p className="text-[12px] font-bold text-[#252271] uppercase tracking-wide mb-3">Syarat Pembayaran</p>
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <p className="text-[12px] font-bold text-[#252271] uppercase tracking-wide mb-3">SYARAT PEMBAYARAN</p>
+            <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-[11.5px]">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-3 py-2.5 text-left text-gray-500 font-semibold w-8">No</th>
-                    <th className="px-3 py-2.5 text-left text-gray-500 font-semibold">Dokumen</th>
-                    <th className="px-3 py-2.5 text-center text-gray-500 font-semibold w-20">Syarat</th>
-                    <th className="px-3 py-2.5 text-center text-gray-500 font-semibold w-32">Kelengkapan</th>
-                    <th className="px-3 py-2.5 text-left text-gray-500 font-semibold">Keterangan</th>
+                  <tr className="bg-[#252271] text-white">
+                    <th className="px-3 py-2.5 text-left font-semibold w-8">No</th>
+                    <th className="px-3 py-2.5 text-left font-semibold">Dokumen</th>
+                    <th className="px-3 py-2.5 text-center font-semibold w-20">Syarat</th>
+                    <th className="px-3 py-2.5 text-center font-semibold w-32">Kelengkapan</th>
+                    <th className="px-3 py-2.5 text-left font-semibold">Keterangan</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -244,12 +255,12 @@ function FinanceVerifModal({ item, onClose }: { item: any; onClose: () => void }
                           className="w-3.5 h-3.5 accent-[#252271] cursor-pointer" />
                       </td>
                       <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 justify-center">
                           <button onClick={() => toggleSyarat(i, "ada")}
                             className={`relative w-9 h-5 rounded-full transition-colors ${row.ada ? "bg-green-500" : "bg-gray-200"}`}>
                             <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all" style={{ left: row.ada ? "18px" : "2px" }} />
                           </button>
-                          <span className="text-[10px] text-gray-400">{row.ada ? "Ada" : "Tidak"}</span>
+                          <span className="text-[10px] text-gray-500 font-medium">{row.ada ? "Tidak / Ada" : "Tidak / Ada"}</span>
                         </div>
                       </td>
                       <td className="px-3 py-2.5">
@@ -263,7 +274,7 @@ function FinanceVerifModal({ item, onClose }: { item: any; onClose: () => void }
             </div>
             <div className="flex gap-2 mt-2">
               <button onClick={() => setSyarat(prev => prev.map(s => ({ ...s, syarat: true, ada: true })))}
-                className="text-[11px] text-[#252271] border border-[#252271]/30 rounded-lg px-3 py-1 hover:bg-[#252271]/5">Check All</button>
+                className="text-[11px] text-[#252271] border border-[#252271]/30 rounded-lg px-3 py-1 hover:bg-[#252271]/5 font-semibold">Check All</button>
               <button onClick={() => setSyarat(prev => prev.map(s => ({ ...s, syarat: false, ada: false })))}
                 className="text-[11px] text-gray-500 border border-gray-200 rounded-lg px-3 py-1 hover:bg-gray-50">Uncheck All</button>
             </div>
@@ -272,7 +283,7 @@ function FinanceVerifModal({ item, onClose }: { item: any; onClose: () => void }
           {/* Syarat Pembayaran Lainnya */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[12px] font-bold text-[#252271] uppercase tracking-wide">Syarat Pembayaran Lainnya</p>
+              <p className="text-[12px] font-bold text-[#252271] uppercase tracking-wide">SYARAT PEMBAYARAN LAINNYA</p>
               <div className="flex gap-1">
                 <button onClick={() => syaratLain.length > 0 && removeSyaratLain(syaratLain.length - 1)}
                   className="border border-gray-200 rounded-lg w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-50">-</button>
@@ -281,21 +292,21 @@ function FinanceVerifModal({ item, onClose }: { item: any; onClose: () => void }
               </div>
             </div>
             {syaratLain.length > 0 && (
-              <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                 <table className="w-full text-[11.5px]">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-3 py-2 text-left text-gray-500 font-semibold w-8">No</th>
-                      <th className="px-3 py-2 text-left text-gray-500 font-semibold">Dokumen</th>
-                      <th className="px-3 py-2 text-center text-gray-500 font-semibold w-20">Syarat</th>
-                      <th className="px-3 py-2 text-center text-gray-500 font-semibold w-32">Kelengkapan</th>
-                      <th className="px-3 py-2 text-left text-gray-500 font-semibold">Keterangan</th>
+                    <tr className="bg-[#252271] text-white">
+                      <th className="px-3 py-2 text-left font-semibold w-8">No</th>
+                      <th className="px-3 py-2 text-left font-semibold">Dokumen</th>
+                      <th className="px-3 py-2 text-center font-semibold w-20">Syarat</th>
+                      <th className="px-3 py-2 text-center font-semibold w-32">Kelengkapan</th>
+                      <th className="px-3 py-2 text-left font-semibold">Keterangan</th>
                       <th className="px-3 py-2 w-8"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {syaratLain.map((row, i) => (
-                      <tr key={i} className="bg-white">
+                      <tr key={i} className="bg-white border-b border-gray-100 last:border-0">
                         <td className="px-3 py-2 text-gray-500 text-center">{i + 1}</td>
                         <td className="px-3 py-2">
                           <input type="text" value={row.doc} onChange={e => setSyaratLain(prev => prev.map((s, idx) => idx === i ? { ...s, doc: e.target.value } : s))}
@@ -306,12 +317,12 @@ function FinanceVerifModal({ item, onClose }: { item: any; onClose: () => void }
                             className="w-3.5 h-3.5 accent-[#252271] cursor-pointer" />
                         </td>
                         <td className="px-3 py-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 justify-center">
                             <button onClick={() => setSyaratLain(prev => prev.map((s, idx) => idx === i ? { ...s, ada: !s.ada } : s))}
                               className={`relative w-9 h-5 rounded-full transition-colors ${row.ada ? "bg-green-500" : "bg-gray-200"}`}>
                               <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all" style={{ left: row.ada ? "18px" : "2px" }} />
                             </button>
-                            <span className="text-[10px] text-gray-400">{row.ada ? "Ada" : "Tidak"}</span>
+                            <span className="text-[10px] text-gray-400">Tidak / Ada</span>
                           </div>
                         </td>
                         <td className="px-3 py-2">
@@ -333,14 +344,14 @@ function FinanceVerifModal({ item, onClose }: { item: any; onClose: () => void }
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex gap-3 justify-end px-6 py-4 border-t border-gray-100">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50">Kembali</button>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-[12px] font-semibold border border-purple-300 text-purple-600 hover:bg-purple-50 flex items-center gap-1">
-            <FileWarning size={12} /> Direvisi
+        {/* Footer Actions */}
+        <div className="flex gap-3 justify-end px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+          <button onClick={onClose} className="px-5 py-2 rounded-xl text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-100 bg-white">Back</button>
+          <button onClick={onClose} className="px-5 py-2 rounded-xl text-[12px] font-semibold border border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 flex items-center gap-1.5">
+            <FileWarning size={14} /> Direvisi
           </button>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-green-600 text-white hover:bg-green-700 flex items-center gap-1">
-            <CheckCircle2 size={12} /> Diterima
+          <button onClick={onClose} className="px-5 py-2 rounded-xl text-[12px] font-semibold bg-[#252271] text-white hover:bg-[#1a1753] flex items-center gap-1.5 shadow-md">
+            <CheckCircle2 size={14} /> Diterima
           </button>
         </div>
       </div>
@@ -361,42 +372,53 @@ function UmdSubmissionModal({ item, onClose }: { item: any; onClose: () => void 
     nomorPe: "", nomorG63: "", tanggalG63: "", nominalG63: "", tanggalCair: "", nomorVa: "",
     nominalG61: "", sisaUmds: "",
     nominalPajak: "", nominalPengembalian: "",
-    fileG63: "", fileLembarG61: "", fileCeklis: "", fileSuratPernyataan: "",
-    fileSuratKebenaran: "", fileNota: "", fileA9: "", fileBuktiTransfer: "",
+    fileG63: "nama_file.pdf", fileLembarG61: "nama_file.pdf", fileCeklis: "nama_file.pdf", fileSuratPernyataan: "nama_file.pdf",
+    fileSuratKebenaran: "nama_file.pdf", fileNota: "nama_file.pdf", fileA9: "nama_file.pdf", fileBuktiTransfer: "nama_file.pdf",
   });
 
   const FileRow = ({ label, fieldKey }: { label: string; fieldKey: string }) => (
     <ModalField label={label} required>
       <div className="flex gap-2 items-center">
-        <label className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 text-[11.5px] text-gray-500 cursor-pointer hover:bg-gray-50 flex-1">
-          <span className="text-gray-400">📄</span>
-          <span>{(form as any)[fieldKey] || "Choose File"}</span>
-          <input type="file" className="hidden" onChange={e => setForm(p => ({ ...p, [fieldKey]: e.target.files?.[0]?.name || "" }))} />
-        </label>
-        {(form as any)[fieldKey] && <span className="text-green-500 text-[11px]">✓</span>}
+        <input 
+          type="text" 
+          value={(form as any)[fieldKey] || "nama_file.pdf"} 
+          onChange={e => setForm(p => ({ ...p, [fieldKey]: e.target.value }))}
+          className="border border-gray-200 rounded-lg px-3 py-1.5 text-[11.5px] text-gray-700 flex-1 focus:outline-none focus:ring-1 focus:ring-[#252271]/30 bg-white"
+        />
+        <button 
+          type="button"
+          onClick={() => alert(`Membuka file ${(form as any)[fieldKey]}`)}
+          className="border border-gray-200 rounded-lg px-3 py-1.5 text-[11.5px] font-semibold text-gray-600 hover:bg-gray-50 bg-white shadow-sm"
+        >
+          View
+        </button>
       </div>
-      <p className="text-[10px] text-gray-400 mt-0.5">Pdf Maks. 20Mb</p>
+      <p className="text-[10px] text-gray-400 mt-0.5">(Pdf Maks. 20Mb)</p>
     </ModalField>
   );
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 py-6 px-4">
-      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-[#fafafa] rounded-t-2xl">
           <div>
-            <p className="font-bold text-[15px] text-[#252271]">UMD Submission Form</p>
-            <p className="text-[11px] text-gray-400">{item.nama}</p>
+            <h1 className="text-[#252271] text-[24px] font-extrabold leading-normal">Verification</h1>
+            <p className="text-[12px] text-gray-500 font-medium">
+              Pembayaran &gt; Payment Approve &gt; UMD &gt; <span className="font-bold text-[#252271]">Detail</span>
+            </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-[20px] font-light">x</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-[22px] font-light">✕</button>
         </div>
 
-        <div className="px-6 py-5 space-y-5">
-          {/* Header */}
+        <div className="px-6 py-5 space-y-6">
+          {/* Submission Form */}
           <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">Submission Form</p>
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">SUBMISSION FORM</p>
             <div className="grid grid-cols-2 gap-3">
               <ModalField label="No Dokumen" required>
-                <ModalInput value={form.noDokumen} onChange={v => setForm(p => ({ ...p, noDokumen: v }))} placeholder="DOK-2024-001" />
+                <ModalSelect value={form.noDokumen} onChange={v => setForm(p => ({ ...p, noDokumen: v }))} 
+                  options={[{ value: "", label: "— pilih —" }, { value: "DOK-001", label: "DOK-2024-001" }, { value: "DOK-002", label: "DOK-2024-002" }]} />
               </ModalField>
               <ModalField label="Bulan UMD" required>
                 <ModalInput value={form.bulanUmd} onChange={v => setForm(p => ({ ...p, bulanUmd: v }))} placeholder="Maret 2024" />
@@ -405,53 +427,51 @@ function UmdSubmissionModal({ item, onClose }: { item: any; onClose: () => void 
                 <ModalInput value={form.judul} onChange={v => setForm(p => ({ ...p, judul: v }))} />
               </ModalField>
               <ModalField label="Nominal" required>
-                <ModalInput type="number" value={form.nominal} onChange={v => setForm(p => ({ ...p, nominal: v }))} placeholder="15000000" />
+                <ModalInput type="number" value={form.nominal} onChange={v => setForm(p => ({ ...p, nominal: v }))} placeholder="0" />
               </ModalField>
             </div>
             <p className="text-[10px] text-gray-400 mt-1">*Klik Kalender untuk pilih bulan</p>
           </div>
 
-          <hr className="border-gray-100" />
-
-          {/* PE/G63 */}
-          <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">Data PE & G63</p>
-            <div className="grid grid-cols-2 gap-3">
-              <ModalField label="Nomor PE" required>
-                <ModalInput value={form.nomorPe} onChange={v => setForm(p => ({ ...p, nomorPe: v }))} placeholder="PE-2024-001" />
-              </ModalField>
-              <ModalField label="Nomor G63" required>
-                <ModalInput type="number" value={form.nomorG63} onChange={v => setForm(p => ({ ...p, nomorG63: v }))} />
-              </ModalField>
-              <ModalField label="Tanggal G63" required>
-                <ModalInput type="date" value={form.tanggalG63} onChange={v => setForm(p => ({ ...p, tanggalG63: v }))} />
-              </ModalField>
-              <ModalField label="Nominal G63 (Rp)" required>
-                <ModalInput value={form.nominalG63} onChange={v => setForm(p => ({ ...p, nominalG63: v }))} placeholder="Rp 15.000.000" />
-              </ModalField>
-              <ModalField label="Tanggal Cair" required>
-                <ModalInput type="date" value={form.tanggalCair} onChange={v => setForm(p => ({ ...p, tanggalCair: v }))} />
-              </ModalField>
-              <ModalField label="Nomor VA" required>
-                <ModalInput value={form.nomorVa} onChange={v => setForm(p => ({ ...p, nomorVa: v }))} placeholder="VA-2024-001" />
-              </ModalField>
-            </div>
+          <div className="grid grid-cols-2 gap-3">
+            <ModalField label="Nomor PE" required>
+              <ModalSelect value={form.nomorPe} onChange={v => setForm(p => ({ ...p, nomorPe: v }))}
+                options={[{ value: "", label: "— pilih —" }, { value: "PE-001", label: "PE-2024-001" }]} />
+            </ModalField>
+            <ModalField label="Nomor G63" required>
+              <ModalInput type="number" value={form.nomorG63} onChange={v => setForm(p => ({ ...p, nomorG63: v }))} placeholder="0" />
+            </ModalField>
+            <ModalField label="Tanggal G63" required>
+              <ModalInput type="date" value={form.tanggalG63} onChange={v => setForm(p => ({ ...p, tanggalG63: v }))} />
+            </ModalField>
+            <ModalField label="Nominal G63 (Rp)" required>
+              <ModalInput value={form.nominalG63} onChange={v => setForm(p => ({ ...p, nominalG63: v }))} placeholder="0" />
+            </ModalField>
+            <ModalField label="Tanggal Cair" required>
+              <ModalInput type="date" value={form.tanggalCair} onChange={v => setForm(p => ({ ...p, tanggalCair: v }))} />
+            </ModalField>
+            <ModalField label="Nomor VA" required>
+              <ModalSelect value={form.nomorVa} onChange={v => setForm(p => ({ ...p, nomorVa: v }))}
+                options={[{ value: "", label: "— pilih —" }, { value: "VA-001", label: "VA-2024-001" }]} />
+            </ModalField>
           </div>
 
           <hr className="border-gray-100" />
 
           {/* Syarat Pembayaran UMD */}
           <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">Syarat Pembayaran</p>
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">SYARAT PEMBAYARAN</p>
+            <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-[11.5px]">
-                <thead><tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-3 py-2 text-left text-gray-500 font-semibold w-8">No</th>
-                  <th className="px-3 py-2 text-left text-gray-500 font-semibold">Dokumen</th>
-                  <th className="px-3 py-2 text-center text-gray-500 font-semibold w-20">Syarat</th>
-                  <th className="px-3 py-2 text-center text-gray-500 font-semibold w-32">Kelengkapan</th>
-                  <th className="px-3 py-2 text-left text-gray-500 font-semibold">Keterangan</th>
-                </tr></thead>
+                <thead>
+                  <tr className="bg-[#252271] text-white">
+                    <th className="px-3 py-2.5 text-left font-semibold w-8">No</th>
+                    <th className="px-3 py-2.5 text-left font-semibold">Dokumen</th>
+                    <th className="px-3 py-2.5 text-center font-semibold w-20">Syarat</th>
+                    <th className="px-3 py-2.5 text-center font-semibold w-32">Kelengkapan</th>
+                    <th className="px-3 py-2.5 text-left font-semibold">Keterangan</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {syarat.map((row, i) => (
                     <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
@@ -462,12 +482,12 @@ function UmdSubmissionModal({ item, onClose }: { item: any; onClose: () => void 
                           className="w-3.5 h-3.5 accent-[#252271] cursor-pointer" />
                       </td>
                       <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 justify-center">
                           <button onClick={() => setSyarat(prev => prev.map((s, idx) => idx === i ? { ...s, ada: !s.ada } : s))}
                             className={`relative w-9 h-5 rounded-full transition-colors ${row.ada ? "bg-green-500" : "bg-gray-200"}`}>
                             <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all" style={{ left: row.ada ? "18px" : "2px" }} />
                           </button>
-                          <span className="text-[10px] text-gray-400">{row.ada ? "Ya" : "Tidak"}</span>
+                          <span className="text-[10px] text-gray-500 font-medium">Ya / Tidak Ada</span>
                         </div>
                       </td>
                       <td className="px-3 py-2.5">
@@ -483,10 +503,10 @@ function UmdSubmissionModal({ item, onClose }: { item: any; onClose: () => void 
 
           <hr className="border-gray-100" />
 
-          {/* Dokumen Tutupan */}
+          {/* Input Dokumen Tutupan */}
           <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">Input Dokumen Tutupan</p>
-            <div className="space-y-2">
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">INPUT DOKUMEN TUTUPAN</p>
+            <div className="space-y-3">
               <FileRow label="Dokumen G63 TTD Lengkap" fieldKey="fileG63" />
               <FileRow label="Lembar G61" fieldKey="fileLembarG61" />
               <FileRow label="Ceklis Pertanggungjawaban" fieldKey="fileCeklis" />
@@ -496,52 +516,63 @@ function UmdSubmissionModal({ item, onClose }: { item: any; onClose: () => void 
             </div>
             <div className="grid grid-cols-2 gap-3 mt-3">
               <ModalField label="Nominal G61" required>
-                <ModalInput type="number" value={form.nominalG61} onChange={v => setForm(p => ({ ...p, nominalG61: v }))} />
+                <ModalInput type="number" value={form.nominalG61} onChange={v => setForm(p => ({ ...p, nominalG61: v }))} placeholder="0" />
               </ModalField>
               <ModalField label="Sisa UMDS" required>
-                <ModalInput type="number" value={form.sisaUmds} onChange={v => setForm(p => ({ ...p, sisaUmds: v }))} />
+                <ModalInput type="number" value={form.sisaUmds} onChange={v => setForm(p => ({ ...p, sisaUmds: v }))} placeholder="0" />
               </ModalField>
             </div>
           </div>
 
           <hr className="border-gray-100" />
 
-          {/* Closing UMD */}
+          {/* Input Closing UMD */}
           <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">Input Closing UMD</p>
-            <div className="grid grid-cols-2 gap-3">
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">INPUT CLOSING UMD</p>
+            <div className="grid grid-cols-2 gap-3 mb-3">
               <ModalField label="Nominal Pajak">
-                <ModalInput type="number" value={form.nominalPajak} onChange={v => setForm(p => ({ ...p, nominalPajak: v }))} />
+                <ModalInput type="number" value={form.nominalPajak} onChange={v => setForm(p => ({ ...p, nominalPajak: v }))} placeholder="0" />
               </ModalField>
               <ModalField label="Nominal Pengembalian">
-                <ModalInput type="number" value={form.nominalPengembalian} onChange={v => setForm(p => ({ ...p, nominalPengembalian: v }))} />
+                <ModalInput type="number" value={form.nominalPengembalian} onChange={v => setForm(p => ({ ...p, nominalPengembalian: v }))} placeholder="0" />
               </ModalField>
             </div>
             <FileRow label="Upload Dokumen A9 Lengkap" fieldKey="fileA9" />
           </div>
 
-          <hr className="border-gray-100" />
-
-          {/* Bukti Pengembalian */}
-          <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">Input Bukti Pengembalian</p>
-            <ModalField label="Upload Bukti Transfer Pengembalian" required>
-              <div className="flex gap-2 items-center">
-                <label className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 text-[11.5px] text-gray-500 cursor-pointer hover:bg-gray-50 flex-1">
-                  <span className="text-gray-400">📄</span>
-                  <span>{form.fileBuktiTransfer || "Choose File"}</span>
-                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={e => setForm(p => ({ ...p, fileBuktiTransfer: e.target.files?.[0]?.name || "" }))} />
-                </label>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-0.5">Pdf | Jpeg | Jpg | Png Maks. 20Mb</p>
-            </ModalField>
+          {/* Input Bukti Pengembalian */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="bg-[#252271] px-4 py-2.5">
+              <p className="text-white text-[11px] font-bold uppercase tracking-wide">INPUT BUKTI PENGEMBALIAN</p>
+            </div>
+            <div className="p-4 bg-white">
+              <ModalField label="Upload Bukti Transfer Pengembalian" required>
+                <div className="flex gap-2 items-center">
+                  <input 
+                    type="text" 
+                    value={form.fileBuktiTransfer || "nama_file.pdf"} 
+                    onChange={e => setForm(p => ({ ...p, fileBuktiTransfer: e.target.value }))}
+                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-[11.5px] text-gray-700 flex-1 focus:outline-none focus:ring-1 focus:ring-[#252271]/30"
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => alert(`Membuka file ${form.fileBuktiTransfer}`)}
+                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-[11.5px] font-semibold text-gray-600 hover:bg-gray-50 shadow-sm"
+                  >
+                    View
+                  </button>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-0.5">(Pdf|Jpeg|Jpg|Png Maks. 20Mb)</p>
+              </ModalField>
+            </div>
           </div>
         </div>
 
-        <div className="flex gap-3 justify-end px-6 py-4 border-t border-gray-100">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50">Kembali</button>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-[#252271] text-white hover:bg-[#1a1753] flex items-center gap-1">
-            <CheckCircle2 size={12} /> Submit
+        {/* Footer Actions */}
+        <div className="flex gap-3 justify-end px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+          <button onClick={onClose} className="px-5 py-2 rounded-xl text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-100 bg-white">Back</button>
+          <button onClick={onClose} className="px-5 py-2 rounded-xl text-[12px] font-semibold bg-[#252271] text-white hover:bg-[#1a1753] flex items-center gap-1.5 shadow-md">
+            <CheckCircle2 size={14} /> Submit
           </button>
         </div>
       </div>
@@ -714,8 +745,8 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
           columns={payColumns} data={filteredPayments}
           searchKeys={["nama", "noSp3", "noKontrak", "namaVendor", "departemen"]}
           dateKey="tgl" topFilters={topFiltersPayment}
-          onView={(r) => setShowDetail(r)}
-          onApprove={(r) => isUmd ? setShowUmd(r) : setShowVerif(r)}
+          onView={(r) => (r.tipe === "umd" || isUmd) ? setShowUmd(r) : setShowVerif(r)}
+          onApprove={(r) => (r.tipe === "umd" || isUmd) ? setShowUmd(r) : setShowVerif(r)}
           onRevisi={(r) => handleAction("revisi", r)}
           onReject={(r) => handleAction("reject", r)}
           showVerifActions={true} showCrudActions={true}
@@ -760,8 +791,8 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
               ))}
             </div>
             <div className="pt-3 border-t border-gray-100 flex gap-2 justify-end">
-              <button onClick={() => isUmd ? setShowUmd(showDetail) : setShowVerif(showDetail)} className="bg-[#252271] text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1">
-                <ChevronRight size={12} /> {isUmd ? "Form UMD" : "Verifikasi"}
+              <button onClick={() => { const target = showDetail; setShowDetail(null); (target.tipe === 'umd' || isUmd) ? setShowUmd(target) : setShowVerif(target); }} className="bg-[#252271] text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1">
+                <ChevronRight size={12} /> {(showDetail.tipe === 'umd' || isUmd) ? "Form UMD" : "Verifikasi"}
               </button>
               <button onClick={() => handleAction("revisi", showDetail)} className="bg-purple-600 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1"><FileWarning size={12} /> Revisi</button>
               <button onClick={() => handleAction("reject", showDetail)} className="bg-red-600 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1"><XCircle size={12} /> Tolak</button>
@@ -779,7 +810,7 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
         </AdminModal>
       )}
 
-      {showVerif && <FinanceVerifModal item={showVerif} onClose={() => setShowVerif(null)} />}
+      {showVerif && <FinanceVerifModal item={showVerif} tipe={tipe || showVerif.tipe || "outsource"} onClose={() => setShowVerif(null)} />}
       {showUmd && <UmdSubmissionModal item={showUmd} onClose={() => setShowUmd(null)} />}
     </div>
   );

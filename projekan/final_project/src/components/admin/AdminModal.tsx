@@ -155,13 +155,15 @@ export function ModalInput({
 export function ModalSelect({
   value,
   onChange,
-  options,
+  options = [],
   placeholder,
+  children,
 }: {
   value: string;
   onChange: (v: string) => void;
-  options: { value: string; label: string }[];
+  options?: { value: string; label: string }[];
   placeholder?: string;
+  children?: React.ReactNode;
 }) {
   return (
     <select
@@ -170,9 +172,11 @@ export function ModalSelect({
       className="w-full h-9 px-3 rounded-lg border border-gray-200 bg-white text-[12.5px] text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 transition-all"
     >
       {placeholder && <option value="">{placeholder}</option>}
-      {options.map(opt => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
-      ))}
+      {children
+        ? children
+        : options.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
     </select>
   );
 }
