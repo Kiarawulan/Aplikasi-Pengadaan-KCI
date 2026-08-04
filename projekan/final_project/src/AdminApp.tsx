@@ -1167,14 +1167,12 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
 
   const handleVerifikasi = async () => {
     try {
-      if (row.verif_id) {
-        await api.post(`/verifikasi/${row.verif_id}/approve`).catch(() => {});
-        updateVerifRecord(row.verif_id, { status: "Approved" });
+      if (!row.verif_id) {
+        alert("Gagal: ID verifikasi tidak ditemukan.");
+        return;
       }
-      if (row.idRup || row.id) {
-        await api.put(`/rup/${row.idRup || row.id}`, { status: "Approved" }).catch(() => {});
-        updateRup(row.idRup || row.id, { status: "Approved" });
-      }
+      await api.post(`/verifikasi/${row.verif_id}/approve`);
+      updateVerifRecord(row.verif_id, { status: "approved" });
       setDocStatus("Sudah Diverifikasi");
       alert("Pengajuan Dana berhasil disetujui!");
       onBack();
@@ -1190,14 +1188,12 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
       return;
     }
     try {
-      if (row.verif_id) {
-        await api.post(`/verifikasi/${row.verif_id}/revisi`, { catatan: revisionNote }).catch(() => {});
-        updateVerifRecord(row.verif_id, { status: "revisi", catatanAdmin: revisionNote });
+      if (!row.verif_id) {
+        alert("Gagal: ID verifikasi tidak ditemukan.");
+        return;
       }
-      if (row.idRup || row.id) {
-        await api.put(`/rup/${row.idRup || row.id}`, { status: "revisi" }).catch(() => {});
-        updateRup(row.idRup || row.id, { status: "revisi" });
-      }
+      await api.post(`/verifikasi/${row.verif_id}/revisi`, { catatan: revisionNote });
+      updateVerifRecord(row.verif_id, { status: "revisi", catatanAdmin: revisionNote });
       setDocStatus("Perlu Revisi");
       alert("Catatan revisi telah dikirim!");
       onBack();
@@ -1397,78 +1393,60 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
 
   const fetchDanaData = async () => {
     try {
-      const [resVerif, resRup] = await Promise.all([
-        api.get('/verifikasi').catch(() => ({ data: [] })),
-        api.get('/rup').catch(() => ({ data: [] }))
-      ]);
+      // Primary source: real Verifikasi records from DB (tipe = park-dokumen / purchase-requisition)
+      const resVerif = await api.get('/verifikasi?tipe=park-dokumen,purchase-requisition,pengajuan-dana').catch(() => ({ data: [] }));
+      const dbVerif: any[] = resVerif.data || [];
 
-      const dbVerif = resVerif.data || [];
+      // Also merge local store records (may have items not yet synced to DB)
       const storeVerif = getVerifRecords();
-      const dbRup = resRup.data || [];
-      const storeRup = getRupList();
 
       const map = new Map<string, any>();
 
-      const initialMocks = [
-        { id: "1", noDok: "DOC-2026-001", idRup: "RUP-2024-001", judul: "Pengadaan Server Data Center KCI", nominalPD: "Rp. 150.000.000,00", nominalKonversi: "Rp. 150.000.000,00", unit: "CTIT", status: "Belum Diverifikasi", tanggal: "13-01-2026" },
-        { id: "2", noDok: "DOC-2026-002", idRup: "RUP-2024-002", judul: "Jasa Pemeliharaan AC Depo Bukit Duri", nominalPD: "Rp. 85.000.000,00", nominalKonversi: "Rp. 85.000.000,00", unit: "Logistik", status: "Sudah Diverifikasi", tanggal: "14-01-2026" },
-      ];
-      initialMocks.forEach(m => map.set(m.noDok, m));
+      // Helper to derive status label
+      const toStatus = (s: string) =>
+        s === "approved" || s === "Approved" || s === "Sudah Diverifikasi" || s === "Final"
+          ? "Sudah Diverifikasi"
+          : s === "revisi" || s === "Perlu Revisi"
+          ? "Perlu Revisi"
+          : "Belum Diverifikasi";
 
-      dbRup.forEach((r: any) => {
-        const noDokStr = `PD-${r.id}`;
-        const st = r.status === "approved" || r.status === "Approved" || r.status === "Final" ? "Sudah Diverifikasi" : "Belum Diverifikasi";
-        map.set(noDokStr, {
-          id: r.id,
-          idRup: r.id,
-          noDok: noDokStr,
-          judul: r.nama,
-          nominalPD: r.totalBudget ? `Rp. ${Number(r.totalBudget).toLocaleString('id-ID')}` : "Rp. 150.000.000,00",
-          nominalKonversi: r.totalBudget ? `Rp. ${Number(r.totalBudget).toLocaleString('id-ID')}` : "Rp. 150.000.000,00",
-          unit: r.departemen ? (r.departemen.startsWith("VP") ? r.departemen : `VP ${r.departemen}`) : "CTIT",
-          status: st,
-          tanggal: r.createdAt ? new Date(r.createdAt).toLocaleDateString('id-ID') : "15-01-2026",
-          verif_id: `VR-${r.id}`
-        });
-      });
-
-      storeRup.forEach((r: any) => {
-        const storeV = storeVerif.find(v => v.pengadaanId === r.id);
-        const rawStatus = storeV ? storeV.status : r.status;
-        const st = rawStatus === "approved" || rawStatus === "Approved" || rawStatus === "Final" ? "Sudah Diverifikasi" : "Belum Diverifikasi";
-        const noDokStr = `PD-${r.id}`;
-        map.set(noDokStr, {
-          id: r.id,
-          idRup: r.id,
-          noDok: noDokStr,
-          judul: r.nama,
-          nominalPD: r.totalBudget ? `Rp. ${Number(r.totalBudget).toLocaleString('id-ID')}` : "Rp. 150.000.000,00",
-          nominalKonversi: r.totalBudget ? `Rp. ${Number(r.totalBudget).toLocaleString('id-ID')}` : "Rp. 150.000.000,00",
-          unit: r.departemen ? (r.departemen.startsWith("VP") ? r.departemen : `VP ${r.departemen}`) : "CTIT",
-          status: st,
-          tanggal: r.createdAt ? new Date(r.createdAt).toLocaleDateString('id-ID') : "15-01-2026",
-          verif_id: storeV ? storeV.id : `VR-${r.id}`
-        });
-      });
-
+      // 1. Load from DB Verifikasi records (highest priority — real IDs)
       dbVerif.forEach((v: any) => {
-        const noDokStr = `PD-${v.pengadaan_id || v.id}`;
-        const st = v.status === "approved" || v.status === "Approved" || v.status === "Final" ? "Sudah Diverifikasi" : "Belum Diverifikasi";
-        const existing = map.get(noDokStr) || {};
-        map.set(noDokStr, {
-          ...existing,
-          id: v.pengadaan_id || v.id,
-          idRup: v.pengadaan_id || existing.idRup || "RUP-NEW",
-          noDok: noDokStr,
-          judul: v.pengadaan_nama || existing.judul || "Pengajuan Dana Baru",
-          nominalPD: existing.nominalPD || "Rp. 100.000.000,00",
-          nominalKonversi: existing.nominalKonversi || "Rp. 100.000.000,00",
-          unit: v.departemen ? (v.departemen.startsWith("VP") ? v.departemen : `VP ${v.departemen}`) : (existing.unit || "CTIT"),
-          status: st,
-          tanggal: v.created_at ? new Date(v.created_at).toLocaleDateString('id-ID') : "15-01-2026",
-          verif_id: v.id
+        const key = v.id; // use verif ID as map key to avoid duplicates
+        map.set(key, {
+          verif_id: v.id,                          // REAL verif ID — used for approve API
+          id: v.pengadaan_id,
+          noDok: v.pengadaan_id || v.id,
+          judul: v.pengadaan_nama || "Pengajuan Dana",
+          nominalPD: v.nominal || "Rp. 100.000.000,00",
+          nominalKonversi: v.nominal || "Rp. 100.000.000,00",
+          unit: v.departemen ? (v.departemen.startsWith("VP") ? v.departemen : `VP ${v.departemen}`) : "CTIT",
+          status: toStatus(v.status),
+          tanggal: v.submit_at
+            ? new Date(v.submit_at).toLocaleDateString("id-ID")
+            : v.created_at
+            ? new Date(v.created_at).toLocaleDateString("id-ID")
+            : "—",
         });
       });
+
+      // 2. Merge local store verif records (for items submitted locally but not yet in DB)
+      storeVerif
+        .filter((v: any) => ["park-dokumen", "purchase-requisition", "pengajuan-dana", "park-document"].includes(v.tipe))
+        .forEach((v: any) => {
+          if (map.has(v.id)) return; // already from DB, skip
+          map.set(v.id, {
+            verif_id: v.id,
+            id: v.pengadaanId,
+            noDok: v.pengadaanId || v.id,
+            judul: v.pengadaanNama || "Pengajuan Dana",
+            nominalPD: v.nominal || "Rp. 100.000.000,00",
+            nominalKonversi: v.nominal || "Rp. 100.000.000,00",
+            unit: v.departemen ? (v.departemen.startsWith("VP") ? v.departemen : `VP ${v.departemen}`) : "CTIT",
+            status: toStatus(v.status),
+            tanggal: v.submitAt ? new Date(v.submitAt).toLocaleDateString("id-ID") : "—",
+          });
+        });
 
       setDanaItems(Array.from(map.values()));
     } catch (e) {
