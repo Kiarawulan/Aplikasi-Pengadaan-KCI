@@ -198,8 +198,17 @@ class PengadaanController extends Controller
 
         $stepId = $request->query('stepId', $pengadaan->current_step);
 
+        // Map frontend step IDs to the actual verifikasi 'tipe' values stored in DB
+        $tipeMap = [
+            'pengajuan-dana' => ['pengajuan-dana', 'park-dokumen', 'purchase-requisition'],
+            'npp'            => ['npp'],
+            'sp3'            => ['sp3'],
+            'rup'            => ['rup'],
+        ];
+        $tipes = $tipeMap[$stepId] ?? [$stepId];
+
         $latestVerif = Verifikasi::where('pengadaan_id', $pengadaan->id)
-            ->where('tipe', $stepId)
+            ->whereIn('tipe', $tipes)
             ->latest()
             ->first();
 
@@ -216,7 +225,7 @@ class PengadaanController extends Controller
 
         return response()->json([
             'stepId'        => $stepId,
-            'status'        => $latestVerif->status, // pending, approved, revisi, rejected
+            'status'        => $latestVerif->status,
             'canProceed'    => $canProceed,
             'catatanAdmin'  => $latestVerif->catatan_admin,
             'verifiedBy'    => $latestVerif->verified_by,

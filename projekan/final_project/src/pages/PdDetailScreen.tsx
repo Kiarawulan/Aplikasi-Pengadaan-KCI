@@ -291,7 +291,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
 
     if (activeSub.id === "buat-pd") {
       const d = fd("buat-pd");
-      const isApproved = item.status === "approved" || item.status === "Selesai";
+      const isApproved = item.status === "approved" || item.status === "Selesai" || item.status === "Sudah Diverifikasi" || verifState.status === "approved";
       return (
         <div>
           <div className="flex items-center gap-2 mb-4">
@@ -438,7 +438,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
             <div className="bg-[#252271] px-4 py-2.5 flex items-center justify-between">
               <p className="text-white font-semibold text-[11.5px]">{cardHeader()}</p>
               {isCurrentSubmitted && activeSub.id !== "detail-pd" && (
-                <StatusBadge status={verifState.status === "approved" ? "Selesai" : verifState.status === "revisi" ? "Revisi" : "Menunggu Verifikasi"} />
+                <StatusBadge status={verifState.status === "approved" ? "Selesai" : verifState.status === "revisi" ? "Revisi" : item.status === "Sudah Diverifikasi" ? "Selesai" : "Menunggu Verifikasi"} />
               )}
             </div>
             <div className="p-4">{renderContent()}</div>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import logoImg from "@/imports/UserDashboard/a1d658a5f37b0b6b958626283ef2524233d0a35d.png";
 import group13Svg from "@/imports/Group13/svg-0k0x59k5bp";
 import group14Svg from "@/imports/Group14/svg-sivp8gfyg0";
@@ -11,6 +11,11 @@ import { RupDetailView } from "./components/pengadaan/RupDetailView";
 import { TambahRupModal } from "./components/pengadaan/TambahRupModal";
 import { NppDetailView } from "./components/pengadaan/NppDetailView";
 import { PengujianDetailView } from "./components/pengadaan/PengujianDetailView";
+import { api } from "./services/api";
+import { getRupList, getVerifRecords, updateRup, updateVerifRecord } from "./store/dataStore";
+import { PengadaanVerifScreen } from "./pages/admin/verifikasi/PengadaanVerifScreen";
+import { PengujianVerifScreen } from "./pages/admin/verifikasi/PengujianVerifScreen";
+import { PembayaranVerifScreen } from "./pages/admin/verifikasi/PembayaranVerifScreen";
 
 // ─── SVG path data (inlined from Figma exports) ───────────────────────────────
 const ICONS = {
@@ -1160,27 +1165,46 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
     { status: "Belum Upload", tanggal: "-", keterangan: "Dokumen Pendukung Lainnya", file: "-", size: "-", mandatory: false },
   ];
 
-  const handleVerifikasi = () => {
-    setDocStatus("Sudah Diverifikasi");
-    setShowRevisionBox(false);
-    setTrackingList((prev) => [
-      { tanggal: new Date().toISOString().replace("T", " ").substring(0, 19), keterangan: "ADMIN MELAKUKAN VERIFIKASI & APPROVAL BERKAS" },
-      ...prev,
-    ]);
+  const handleVerifikasi = async () => {
+    try {
+      if (row.verif_id) {
+        await api.post(`/verifikasi/${row.verif_id}/approve`).catch(() => {});
+        updateVerifRecord(row.verif_id, { status: "Approved" });
+      }
+      if (row.idRup || row.id) {
+        await api.put(`/rup/${row.idRup || row.id}`, { status: "Approved" }).catch(() => {});
+        updateRup(row.idRup || row.id, { status: "Approved" });
+      }
+      setDocStatus("Sudah Diverifikasi");
+      alert("Pengajuan Dana berhasil disetujui!");
+      onBack();
+    } catch (e) {
+      console.error(e);
+      alert("Gagal menyetujui Pengajuan Dana.");
+    }
   };
 
-  const handleSendRevision = () => {
+  const handleSendRevision = async () => {
     if (!revisionNote.trim()) {
       alert("Harap isi catatan revisi terlebih dahulu.");
       return;
     }
-    setDocStatus("Perlu Revisi");
-    setTrackingList((prev) => [
-      { tanggal: new Date().toISOString().replace("T", " ").substring(0, 19), keterangan: `ADMIN MEMINTA REVISI: ${revisionNote}` },
-      ...prev,
-    ]);
-    setShowRevisionBox(false);
-    setRevisionNote("");
+    try {
+      if (row.verif_id) {
+        await api.post(`/verifikasi/${row.verif_id}/revisi`, { catatan: revisionNote }).catch(() => {});
+        updateVerifRecord(row.verif_id, { status: "revisi", catatanAdmin: revisionNote });
+      }
+      if (row.idRup || row.id) {
+        await api.put(`/rup/${row.idRup || row.id}`, { status: "revisi" }).catch(() => {});
+        updateRup(row.idRup || row.id, { status: "revisi" });
+      }
+      setDocStatus("Perlu Revisi");
+      alert("Catatan revisi telah dikirim!");
+      onBack();
+    } catch (e) {
+      console.error(e);
+      alert("Gagal mengirimkan catatan revisi.");
+    }
   };
 
   return (
@@ -1356,7 +1380,8 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
   const [search, setSearch] = useState("");
   const [showDelete, setShowDelete] = useState(false);
   const [verifView, setVerifView] = useState<"list" | "detail">("list");
-  const [selectedRow, setSelectedRow] = useState<ParkDocRow | null>(null);
+  const [selectedRow, setSelectedRow] = useState<any>(null);
+  const [danaItems, setDanaItems] = useState<any[]>([]);
 
   const categoryLabels: Record<VerifCategory, string> = {
     "pengajuan-dana": "Pengajuan Dana",
@@ -1370,14 +1395,100 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
     "purchase-requisition": "Purchase Requisition",
   };
 
-  const rows = PARK_DOC_ROWS.filter(
+  const fetchDanaData = async () => {
+    try {
+      const [resVerif, resRup] = await Promise.all([
+        api.get('/verifikasi').catch(() => ({ data: [] })),
+        api.get('/rup').catch(() => ({ data: [] }))
+      ]);
+
+      const dbVerif = resVerif.data || [];
+      const storeVerif = getVerifRecords();
+      const dbRup = resRup.data || [];
+      const storeRup = getRupList();
+
+      const map = new Map<string, any>();
+
+      const initialMocks = [
+        { id: "1", noDok: "DOC-2026-001", idRup: "RUP-2024-001", judul: "Pengadaan Server Data Center KCI", nominalPD: "Rp. 150.000.000,00", nominalKonversi: "Rp. 150.000.000,00", unit: "CTIT", status: "Belum Diverifikasi", tanggal: "13-01-2026" },
+        { id: "2", noDok: "DOC-2026-002", idRup: "RUP-2024-002", judul: "Jasa Pemeliharaan AC Depo Bukit Duri", nominalPD: "Rp. 85.000.000,00", nominalKonversi: "Rp. 85.000.000,00", unit: "Logistik", status: "Sudah Diverifikasi", tanggal: "14-01-2026" },
+      ];
+      initialMocks.forEach(m => map.set(m.noDok, m));
+
+      dbRup.forEach((r: any) => {
+        const noDokStr = `PD-${r.id}`;
+        const st = r.status === "approved" || r.status === "Approved" || r.status === "Final" ? "Sudah Diverifikasi" : "Belum Diverifikasi";
+        map.set(noDokStr, {
+          id: r.id,
+          idRup: r.id,
+          noDok: noDokStr,
+          judul: r.nama,
+          nominalPD: r.totalBudget ? `Rp. ${Number(r.totalBudget).toLocaleString('id-ID')}` : "Rp. 150.000.000,00",
+          nominalKonversi: r.totalBudget ? `Rp. ${Number(r.totalBudget).toLocaleString('id-ID')}` : "Rp. 150.000.000,00",
+          unit: r.departemen ? (r.departemen.startsWith("VP") ? r.departemen : `VP ${r.departemen}`) : "CTIT",
+          status: st,
+          tanggal: r.createdAt ? new Date(r.createdAt).toLocaleDateString('id-ID') : "15-01-2026",
+          verif_id: `VR-${r.id}`
+        });
+      });
+
+      storeRup.forEach((r: any) => {
+        const storeV = storeVerif.find(v => v.pengadaanId === r.id);
+        const rawStatus = storeV ? storeV.status : r.status;
+        const st = rawStatus === "approved" || rawStatus === "Approved" || rawStatus === "Final" ? "Sudah Diverifikasi" : "Belum Diverifikasi";
+        const noDokStr = `PD-${r.id}`;
+        map.set(noDokStr, {
+          id: r.id,
+          idRup: r.id,
+          noDok: noDokStr,
+          judul: r.nama,
+          nominalPD: r.totalBudget ? `Rp. ${Number(r.totalBudget).toLocaleString('id-ID')}` : "Rp. 150.000.000,00",
+          nominalKonversi: r.totalBudget ? `Rp. ${Number(r.totalBudget).toLocaleString('id-ID')}` : "Rp. 150.000.000,00",
+          unit: r.departemen ? (r.departemen.startsWith("VP") ? r.departemen : `VP ${r.departemen}`) : "CTIT",
+          status: st,
+          tanggal: r.createdAt ? new Date(r.createdAt).toLocaleDateString('id-ID') : "15-01-2026",
+          verif_id: storeV ? storeV.id : `VR-${r.id}`
+        });
+      });
+
+      dbVerif.forEach((v: any) => {
+        const noDokStr = `PD-${v.pengadaan_id || v.id}`;
+        const st = v.status === "approved" || v.status === "Approved" || v.status === "Final" ? "Sudah Diverifikasi" : "Belum Diverifikasi";
+        const existing = map.get(noDokStr) || {};
+        map.set(noDokStr, {
+          ...existing,
+          id: v.pengadaan_id || v.id,
+          idRup: v.pengadaan_id || existing.idRup || "RUP-NEW",
+          noDok: noDokStr,
+          judul: v.pengadaan_nama || existing.judul || "Pengajuan Dana Baru",
+          nominalPD: existing.nominalPD || "Rp. 100.000.000,00",
+          nominalKonversi: existing.nominalKonversi || "Rp. 100.000.000,00",
+          unit: v.departemen ? (v.departemen.startsWith("VP") ? v.departemen : `VP ${v.departemen}`) : (existing.unit || "CTIT"),
+          status: st,
+          tanggal: v.created_at ? new Date(v.created_at).toLocaleDateString('id-ID') : "15-01-2026",
+          verif_id: v.id
+        });
+      });
+
+      setDanaItems(Array.from(map.values()));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchDanaData();
+  }, [category, doc]);
+
+  const rows = danaItems.filter(
     (r) =>
       r.noDok.toLowerCase().includes(search.toLowerCase()) ||
-      r.judul.toLowerCase().includes(search.toLowerCase())
+      r.judul.toLowerCase().includes(search.toLowerCase()) ||
+      r.unit.toLowerCase().includes(search.toLowerCase())
   );
 
   if (verifView === "detail" && selectedRow) {
-    return <VerifikasiDetailPage row={selectedRow} onBack={() => setVerifView("list")} />;
+    return <VerifikasiDetailPage row={selectedRow} onBack={() => { setVerifView("list"); fetchDanaData(); }} />;
   }
 
   return (
@@ -1845,12 +1956,131 @@ function NppDetailPage({ row, onBack }: { row: NppRow; onBack: () => void }) {
 // ─── Generic RUP list page (Task Approval / List RUP / List RUP Signed) ────────
 function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string }) {
   const [search, setSearch] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [unitFilter, setUnitFilter] = useState("Semua Unit");
+  const [statusFilter, setStatusFilter] = useState("Semua Status");
   const [view, setView] = useState<"list" | "detail" | "create">("list");
+  const [selectedRow, setSelectedRow] = useState<any>(null);
+  const [items, setItems] = useState<any[]>([]);
 
-  const rupRows = [
-    { idRup: "RUP-2024-001", vpDept: "VP CTIT", status: "Draft", tahun: "2024", opex: "CAPEX" },
-    { idRup: "RUP-2024-002", vpDept: "VP Logistik", status: "Final", tahun: "2024", opex: "OPEX" },
-  ].filter((r) => r.idRup.toLowerCase().includes(search.toLowerCase()) || r.vpDept.toLowerCase().includes(search.toLowerCase()));
+  const isTaskApproval = title === "Task Approval" || breadcrumb.includes("Task Approval");
+
+  const fetchData = async () => {
+    try {
+      const [resVerif, resRup] = await Promise.all([
+        api.get('/verifikasi').catch(() => ({ data: [] })),
+        api.get('/rup').catch(() => ({ data: [] }))
+      ]);
+
+      const dbVerif = resVerif.data || [];
+      const storeVerif = getVerifRecords();
+      const dbRup = resRup.data || [];
+      const storeRup = getRupList();
+
+      const map = new Map<string, any>();
+
+      const initialMocks = [
+        { idRup: "RUP-2024-001", id: "RUP-2024-001", nama: "Pengadaan Server Data Center KCI", vpDept: "VP CTIT", status: "Final", tahun: "2024", opex: "CAPEX" },
+        { idRup: "RUP-2024-002", id: "RUP-2024-002", nama: "Jasa Pemeliharaan AC Depo Bukit Duri", vpDept: "VP Logistik", status: "Final", tahun: "2024", opex: "OPEX" },
+      ];
+      initialMocks.forEach(m => map.set(m.idRup, m));
+
+      dbRup.forEach((r: any) => {
+        const st = r.status === "approved" || r.status === "Approved" || r.status === "Final" ? "Final" : (r.status || "Draft");
+        map.set(r.id, {
+          idRup: r.id,
+          id: r.id,
+          nama: r.nama,
+          vpDept: r.departemen ? (r.departemen.startsWith("VP") ? r.departemen : `VP ${r.departemen}`) : "VP CTIT",
+          status: st,
+          tahun: r.createdAt ? new Date(r.createdAt).getFullYear().toString() : "2024",
+          opex: r.opexCapex || "CAPEX",
+          verif_id: `VR-${r.id}`
+        });
+      });
+
+      storeRup.forEach((r: any) => {
+        const storeV = storeVerif.find(v => v.pengadaanId === r.id);
+        const rawStatus = storeV ? storeV.status : r.status;
+        const st = rawStatus === "approved" || rawStatus === "Approved" || rawStatus === "Final" ? "Final" : (rawStatus === "pending" ? "Draft" : rawStatus);
+        map.set(r.id, {
+          idRup: r.id,
+          id: r.id,
+          nama: r.nama,
+          vpDept: r.departemen ? (r.departemen.startsWith("VP") ? r.departemen : `VP ${r.departemen}`) : "VP CTIT",
+          status: st,
+          tahun: r.createdAt ? new Date(r.createdAt).getFullYear().toString() : "2024",
+          opex: r.opexCapex || "CAPEX",
+          verif_id: storeV ? storeV.id : `VR-${r.id}`
+        });
+      });
+
+      dbVerif.forEach((v: any) => {
+        if (v.tipe === "rup" || v.pengadaan_id?.startsWith("RUP")) {
+          const st = v.status === "approved" || v.status === "Approved" || v.status === "Final" ? "Final" : (v.status === "pending" ? "Draft" : v.status);
+          const existing = map.get(v.pengadaan_id) || {};
+          map.set(v.pengadaan_id, {
+            ...existing,
+            idRup: v.pengadaan_id,
+            id: v.pengadaan_id,
+            nama: v.pengadaan_nama || existing.nama || "Pengadaan RUP Baru",
+            vpDept: v.departemen ? (v.departemen.startsWith("VP") ? v.departemen : `VP ${v.departemen}`) : (existing.vpDept || "VP CTIT"),
+            status: st,
+            tahun: "2024",
+            opex: existing.opex || "CAPEX",
+            verif_id: v.id
+          });
+        }
+      });
+
+      setItems(Array.from(map.values()));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [breadcrumb, title]);
+
+  const handleApprove = async (targetRow?: any) => {
+    const target = targetRow || selectedRow;
+    if (!target) return;
+    try {
+      if (target.verif_id && !target.verif_id.startsWith("VR-RUP")) {
+        await api.post(`/verifikasi/${target.verif_id}/approve`).catch(() => {});
+      }
+      await api.put(`/rup/${target.idRup}`, { status: "Approved" }).catch(() => {});
+      updateRup(target.idRup, { status: "Approved" });
+      if (target.verif_id) {
+        updateVerifRecord(target.verif_id, { status: "Approved" });
+      }
+      fetchData();
+      alert(`RUP ${target.idRup} (${target.nama || ''}) berhasil disetujui!`);
+      setView("list");
+    } catch (e) {
+      console.error(e);
+      alert("Gagal menyetujui RUP.");
+    }
+  };
+
+  const rupRows = items.filter((r) => {
+    if (isTaskApproval) {
+      const isDraft = r.status === "Draft" || r.status === "pending" || r.status === "Pending" || r.status === "Submitted";
+      if (!isDraft) return false;
+    }
+
+    const matchSearch =
+      r.idRup.toLowerCase().includes(search.toLowerCase()) ||
+      r.vpDept.toLowerCase().includes(search.toLowerCase()) ||
+      (r.nama && r.nama.toLowerCase().includes(search.toLowerCase()));
+
+    const matchUnit = unitFilter === "Semua Unit" || r.vpDept.toLowerCase().includes(unitFilter.toLowerCase());
+    const matchStatus = statusFilter === "Semua Status" || r.status.toLowerCase() === statusFilter.toLowerCase();
+
+    return matchSearch && matchUnit && matchStatus;
+  });
 
   if (view === "detail") {
     return (
@@ -1861,13 +2091,38 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
               <svg fill="none" height="16" viewBox="0 0 16 16" width="16"><path d="M10 12L6 8L10 4" stroke="#6a7282" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>
             </button>
             <span className="text-[#99a1af] text-[16px] font-normal">{breadcrumb} &gt;</span>
-            <span className="text-[#1e2939] text-[16px] font-semibold">Detail RUP</span>
+            <span className="text-[#1e2939] text-[16px] font-semibold">Detail RUP ({selectedRow?.idRup || ""})</span>
           </div>
           <div className="bg-white border border-[#e5e7eb] rounded-[15px] p-[24px] shadow-sm mb-[20px]">
             <RupDetailView
-              onApprove={() => { alert("RUP berhasil disetujui!"); setView("list"); }}
-              onRevisi={() => { alert("Catatan revisi telah dikirim!"); setView("list"); }}
-              onReject={() => { alert("RUP berhasil ditolak."); setView("list"); }}
+              item={selectedRow}
+              onApprove={() => handleApprove(selectedRow)}
+              onRevisi={async () => {
+                const notes = prompt("Masukkan catatan revisi:");
+                if (notes === null) return;
+                if (selectedRow?.verif_id) {
+                  await api.post(`/verifikasi/${selectedRow.verif_id}/revisi`, { catatan: notes }).catch(() => {});
+                  updateVerifRecord(selectedRow.verif_id, { status: "revisi", catatanAdmin: notes });
+                }
+                await api.put(`/rup/${selectedRow.idRup}`, { status: "revisi" }).catch(() => {});
+                updateRup(selectedRow.idRup, { status: "revisi" });
+                fetchData();
+                alert("Catatan revisi telah dikirim!");
+                setView("list");
+              }}
+              onReject={async () => {
+                const notes = prompt("Masukkan alasan penolakan:");
+                if (notes === null) return;
+                if (selectedRow?.verif_id) {
+                  await api.post(`/verifikasi/${selectedRow.verif_id}/reject`, { catatan: notes }).catch(() => {});
+                  updateVerifRecord(selectedRow.verif_id, { status: "rejected", catatanAdmin: notes });
+                }
+                await api.put(`/rup/${selectedRow.idRup}`, { status: "rejected" }).catch(() => {});
+                updateRup(selectedRow.idRup, { status: "rejected" });
+                fetchData();
+                alert("RUP berhasil ditolak.");
+                setView("list");
+              }}
             />
           </div>
         </div>
@@ -1881,6 +2136,7 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
         onClose={() => setView("list")}
         onSubmit={() => {
           alert("RUP baru berhasil disimpan!");
+          fetchData();
           setView("list");
         }}
       />
@@ -1901,21 +2157,21 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
           <div className="grid grid-cols-2 gap-x-[16px] gap-y-[16px] mb-[16px]">
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Start Date</label>
-              <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">End Date</label>
-              <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Unit</label>
-              <select className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
+              <select value={unitFilter} onChange={e => setUnitFilter(e.target.value)} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
                 <option>Semua Unit</option><option>CTIT</option><option>Logistik</option>
               </select>
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Status</label>
-              <select className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
                 <option>Semua Status</option><option>Draft</option><option>Final</option>
               </select>
             </div>
@@ -1927,11 +2183,11 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
                 Buat RUP
               </button>
             )}
-            <button className="bg-[#252271] text-white text-[14px] font-medium h-[36px] px-[20px] rounded-[15px] flex items-center gap-[8px] hover:brightness-110 active:scale-95 transition-all duration-150">
+            <button onClick={() => fetchData()} className="bg-[#252271] text-white text-[14px] font-medium h-[36px] px-[20px] rounded-[15px] flex items-center gap-[8px] hover:brightness-110 active:scale-95 transition-all duration-150">
               <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><circle cx="6.875" cy="6.875" r="4.875" stroke="white" strokeWidth="1.17" /><path d="M12.25 12.25L9.74 9.74" stroke="white" strokeLinecap="round" strokeWidth="1.17" /></svg>
               Cari
             </button>
-            <button className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150">
+            <button onClick={() => { setSearch(""); setStartDate(""); setEndDate(""); setUnitFilter("Semua Unit"); setStatusFilter("Semua Status"); fetchData(); }} className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150">
               <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
                 <path d={group14Svg.p3bd12900} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                 <path d="M1.625 1.625V4.33333H4.33333" stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
@@ -1968,25 +2224,30 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
               <tbody>
                 {rupRows.map((row, i) => (
                   <tr key={i} className="border-b border-[#f3f4f6] hover:bg-[#fafafa] transition-colors">
-                    <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.idRup}</td>
+                    <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">
+                      <div>
+                        <span className="font-semibold">{row.idRup}</span>
+                        {row.nama && <p className="text-[10px] text-gray-400 max-w-[220px] truncate">{row.nama}</p>}
+                      </div>
+                    </td>
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.vpDept}</td>
                     <td className="px-[14px] py-[14px] text-center">
                       <span className="inline-flex items-center bg-[#f0f9ff] text-[#0069a8] text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px]">{row.opex}</span>
                     </td>
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.tahun}</td>
                     <td className="px-[14px] py-[14px] text-center">
-                      <span className={`inline-flex items-center text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px] ${row.status === "Final" ? "bg-[#f0fdf4] text-[#008236]" : "bg-[#f3f4f6] text-[#364153]"}`}>{row.status}</span>
+                      <span className={`inline-flex items-center text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px] ${row.status === "Final" ? "bg-[#f0fdf4] text-[#008236]" : "bg-[#fef3c7] text-[#92400e]"}`}>{row.status}</span>
                     </td>
                     <td className="px-[14px] py-[14px]">
                       <div className="flex items-center gap-[3px] justify-center">
-                        <button onClick={() => setView("detail")} className="p-[5px] rounded-[5px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150" title="Detail">
+                        <button onClick={() => { setSelectedRow(row); setView("detail"); }} className="p-[5px] rounded-[5px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150" title="Detail">
                           <svg fill="none" height="12" viewBox="0 0 12 12" width="12">
                             <path d={group14Svg.p126ce980} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
                             <path d={group14Svg.p24092800} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
                         <button className="p-[5px] rounded-[5px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150" title="Hapus">
-                          <svg fill="none" height="12" viewBox="0 0 13 13" width="13">
+                          <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
                             <path d={ICONS.trash1} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                             <path d={ICONS.trash2} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                           </svg>
@@ -4609,14 +4870,109 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
   const [search, setSearch] = useState("");
   const [showDelete, setShowDelete] = useState(false);
   const [view, setView] = useState<"list" | "detail">("list");
-  const [selectedRow, setSelectedRow] = useState<NppRow | null>(null);
+  const [selectedRow, setSelectedRow] = useState<any>(null);
+  const [nppItems, setNppItems] = useState<any[]>([]);
 
-  const rows = NPP_ROWS.filter(
-    (r) => r.idNpp.toLowerCase().includes(search.toLowerCase()) || r.divisi.toLowerCase().includes(search.toLowerCase())
+  const fetchNppData = async () => {
+    try {
+      const [resVerif, resRup] = await Promise.all([
+        api.get('/verifikasi').catch(() => ({ data: [] })),
+        api.get('/rup').catch(() => ({ data: [] }))
+      ]);
+
+      const dbVerif = resVerif.data || [];
+      const storeVerif = getVerifRecords();
+      const dbRup = resRup.data || [];
+      const storeRup = getRupList();
+
+      const map = new Map<string, any>();
+
+      const initialMocks = [
+        { idNpp: "NPP-2024-001", idRup: "RUP-2024-001", noCont: "—", divisi: "CTIT", opexCapex: "CAPEX", kategori: "IT", tahun: "2024", sp3Final: "—", status: "Draft", statusHps: "Final", nama: "Pengadaan Server Data Center KCI" },
+        { idNpp: "NPP-2024-002", idRup: "RUP-2024-002", noCont: "—", divisi: "Logistik", opexCapex: "OPEX", kategori: "Operasional", tahun: "2024", sp3Final: "—", status: "Final", statusHps: "Final", nama: "Jasa Pemeliharaan AC Depo Bukit Duri" },
+      ];
+      initialMocks.forEach(m => map.set(m.idNpp, m));
+
+      dbRup.forEach((r: any) => {
+        const idStr = `NPP-${r.id}`;
+        map.set(idStr, {
+          idNpp: idStr,
+          idRup: r.id,
+          noCont: "—",
+          divisi: r.departemen ? (r.departemen.startsWith("VP") ? r.departemen : `VP ${r.departemen}`) : "VP CTIT",
+          opexCapex: r.opexCapex || "CAPEX",
+          kategori: "General",
+          tahun: r.createdAt ? new Date(r.createdAt).getFullYear().toString() : "2024",
+          sp3Final: "—",
+          status: r.status === "approved" || r.status === "Approved" || r.status === "Final" ? "Final" : (r.status || "Draft"),
+          statusHps: "Final",
+          nama: r.nama,
+          verif_id: `VR-${r.id}`
+        });
+      });
+
+      storeRup.forEach((r: any) => {
+        const storeV = storeVerif.find(v => v.pengadaanId === r.id);
+        const rawStatus = storeV ? storeV.status : r.status;
+        const st = rawStatus === "approved" || rawStatus === "Approved" || rawStatus === "Final" ? "Final" : (rawStatus === "pending" ? "Draft" : rawStatus);
+        const idStr = `NPP-${r.id}`;
+        map.set(idStr, {
+          idNpp: idStr,
+          idRup: r.id,
+          noCont: "—",
+          divisi: r.departemen ? (r.departemen.startsWith("VP") ? r.departemen : `VP ${r.departemen}`) : "VP CTIT",
+          opexCapex: r.opexCapex || "CAPEX",
+          kategori: "General",
+          tahun: r.createdAt ? new Date(r.createdAt).getFullYear().toString() : "2024",
+          sp3Final: "—",
+          status: st,
+          statusHps: "Final",
+          nama: r.nama,
+          verif_id: storeV ? storeV.id : `VR-${r.id}`
+        });
+      });
+
+      dbVerif.forEach((v: any) => {
+        const idStr = `NPP-${v.pengadaan_id || v.id}`;
+        const st = v.status === "approved" || v.status === "Approved" || v.status === "Final" ? "Final" : (v.status === "pending" ? "Draft" : v.status);
+        const existing = map.get(idStr) || {};
+        map.set(idStr, {
+          ...existing,
+          idNpp: idStr,
+          idRup: v.pengadaan_id || existing.idRup || "RUP-NEW",
+          noCont: "—",
+          divisi: v.departemen ? (v.departemen.startsWith("VP") ? v.departemen : `VP ${v.departemen}`) : (existing.divisi || "VP CTIT"),
+          opexCapex: existing.opexCapex || "CAPEX",
+          kategori: "General",
+          tahun: "2024",
+          sp3Final: "—",
+          status: st,
+          statusHps: "Final",
+          nama: v.pengadaan_nama || existing.nama || "Pengadaan Baru",
+          verif_id: v.id
+        });
+      });
+
+      setNppItems(Array.from(map.values()));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchNppData();
+  }, [subDoc]);
+
+  const rows = nppItems.filter(
+    (r) =>
+      r.idNpp.toLowerCase().includes(search.toLowerCase()) ||
+      r.idRup.toLowerCase().includes(search.toLowerCase()) ||
+      r.divisi.toLowerCase().includes(search.toLowerCase()) ||
+      (r.nama && r.nama.toLowerCase().includes(search.toLowerCase()))
   );
 
   if (view === "detail" && selectedRow) {
-    return <NppDetailPage row={selectedRow} onBack={() => setView("list")} />;
+    return <NppDetailPage row={selectedRow} onBack={() => { setView("list"); fetchNppData(); }} />;
   }
 
   // Route RUP sub-items to RupListPage
@@ -4681,7 +5037,7 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Status</label>
               <select className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
                 <option value="">Semua Status</option>
-                <option>Status</option>
+                <option>Draft</option>
                 <option>Final</option>
               </select>
             </div>
@@ -4696,7 +5052,7 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
               Cari
             </button>
             {/* Reset */}
-            <button className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150">
+            <button onClick={() => setSearch("")} className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150">
               <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
                 <path d={group14Svg.p3bd12900} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                 <path d="M1.625 1.625V4.33333H4.33333" stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
@@ -4759,7 +5115,7 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.tahun}</td>
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.sp3Final}</td>
                     <td className="px-[14px] py-[14px] text-center">
-                      <span className="inline-flex items-center bg-[#f0fdf4] text-[#008236] text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px]">
+                      <span className={`inline-flex items-center text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px] ${row.status === "Final" ? "bg-[#f0fdf4] text-[#008236]" : "bg-[#fef3c7] text-[#92400e]"}`}>
                         {row.status}
                       </span>
                     </td>
@@ -4770,19 +5126,18 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
                     </td>
                     <td className="px-[14px] py-[14px]">
                       <div className="flex items-center gap-[3px] justify-center">
-                        {/* Detail eye */}
+                        {/* Detail eye button */}
                         <button onClick={() => { setSelectedRow(row); setView("detail"); }} className="p-[5px] rounded-[5px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150" title="Detail">
                           <svg fill="none" height="12" viewBox="0 0 12 12" width="12">
                             <path d={group14Svg.p126ce980} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
                             <path d={group14Svg.p24092800} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
-                        {/* Clipboard / upload */}
-                        <button className="p-[5px] rounded-[5px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150" title="Upload">
-                          <svg fill="none" height="12" viewBox="0 0 12 12" width="12">
-                            <path d={group14Svg.p18462c80} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d={group14Svg.p26730900} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d={group14Svg.p34efd880} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
+                        {/* Hapus button */}
+                        <button className="p-[5px] rounded-[5px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150" title="Hapus">
+                          <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
+                            <path d={ICONS.trash1} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                            <path d={ICONS.trash2} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                           </svg>
                         </button>
                       </div>

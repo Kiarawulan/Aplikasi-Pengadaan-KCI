@@ -94,6 +94,39 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
         }))
       ];
 
+      const dbRup = resRup.data || [];
+      const storeRup = getRupList();
+
+      dbRup.forEach((r: any) => {
+        if (!allVerif.some(v => v.pengadaan_id === r.id)) {
+          allVerif.push({
+            id: `VR-${r.id}`,
+            pengadaan_id: r.id,
+            pengadaan_nama: r.nama,
+            departemen: r.departemen || "Umum",
+            nominal: r.nilai || "—",
+            tipe: "rup",
+            submit_by: r.created_by || "User",
+            status: r.status || "pending",
+          });
+        }
+      });
+
+      storeRup.forEach((r: any) => {
+        if (!allVerif.some(v => v.pengadaan_id === r.id)) {
+          allVerif.push({
+            id: `VR-${r.id}`,
+            pengadaan_id: r.id,
+            pengadaan_nama: r.nama,
+            departemen: r.departemen || "Umum",
+            nominal: r.nilai || "—",
+            tipe: "rup",
+            submit_by: r.createdBy || "User",
+            status: r.status || "pending",
+          });
+        }
+      });
+
       const uniqueVerifMap = new Map();
       allVerif.forEach(item => {
         const key = item.id || item.pengadaan_id;
@@ -109,16 +142,21 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
             vpDept: item.departemen || "Umum",
             bebanBiaya: item.departemen || "Umum",
             rkap: item.nominal || "N/A",
+            nilaiRkap: item.nominal || "N/A",
             prVal: item.nominal || "N/A",
             pdVal: item.nominal || "N/A",
             vendor: "N/A",
             pengadaanNama: item.pengadaan_nama || item.judul || "Pengadaan Baru",
-            status: item.status || "pending"
+            status: item.status || "pending",
+            jenisKontrak: "Barang",
+            capexOpex: "Capex",
+            tahunRkap: "2024"
           });
         }
       });
 
       setVerifTasks(Array.from(uniqueVerifMap.values()));
+      setPengadaanList(resPeng.data || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -131,10 +169,8 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
   }, [activeSubItem]);
 
   const rupList = activeSubItem === 'rup-task-approval' 
-    ? verifTasks.filter(t => t.tipe === 'rup') 
-    : activeSubItem.includes('signed') || activeSubItem.includes('final')
-    ? pengadaanList.filter(p => p.status === 'approved' && p.currentStep === 'rup')
-    : pengadaanList;
+    ? verifTasks.filter(t => t.tipe === 'rup' && (t.status === 'pending' || t.status === 'Submitted' || t.status === 'Menunggu Verifikasi Admin')) 
+    : verifTasks.filter(t => t.tipe === 'rup');
 
   const nppList = activeSubItem === 'npp-task-approval'
     ? verifTasks.filter(t => t.tipe === 'npp')
@@ -323,16 +359,20 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
             columns={rupColumns} data={rupList} searchKeys={["judul", "bebanBiaya", "vpDept"]}
             onView={(r) => setShowDetail({ type: "rup", item: r })}
             onApprove={async (r) => {
-              if (r.verif_id) {
-                try {
-                  await api.post(`/verifikasi/${r.verif_id}/approve`);
-                  fetchData();
-                  alert("RUP berhasil disetujui.");
-                } catch (e: any) {
-                  alert(e.response?.data?.message || "Gagal menyetujui.");
+              try {
+                if (r.verif_id && !r.verif_id.startsWith("VR-RUP")) {
+                  await api.post(`/verifikasi/${r.verif_id}/approve`).catch(() => {});
                 }
-              } else {
-                setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Approved" } : item));
+                await api.put(`/rup/${r.id}`, { status: "Approved" }).catch(() => {});
+                updateRup(r.id, { status: "Approved" });
+                if (r.verif_id) {
+                  updateVerifRecord(r.verif_id, { status: "Approved" });
+                }
+                fetchData();
+                alert(`RUP ${r.nama || r.id} berhasil disetujui.`);
+              } catch (e: any) {
+                console.error(e);
+                alert("Gagal menyetujui RUP.");
               }
             }}
             onRevisi={async (r) => {

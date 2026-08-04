@@ -132,6 +132,16 @@ export function RupListScreen() {
         submitAt: new Date().toISOString(),
         status: "pending",
       });
+
+      api.post('/rup', newRup).catch(console.error);
+      api.post('/verifikasi', {
+        pengadaanId: id,
+        pengadaanNama: newRup.nama,
+        departemen: newRup.departemen,
+        nominal: newRup.nilai,
+        tipe: "rup",
+        submitBy: currentUser?.name || "User",
+      }).catch(console.error);
     }
 
     setItems(getRupList());
@@ -321,9 +331,20 @@ export function RupListScreen() {
                 nilai: formattedNilai,
                 status: "pending"
               });
+              const existingVerif = getVerifRecords().find(r => r.pengadaanId === editingId);
+              if (existingVerif) {
+                updateVerifRecord(existingVerif.id, { status: "pending", catatanAdmin: "" });
+                api.put(`/verifikasi/${existingVerif.id}`, { status: "pending", catatan_admin: "" }).catch(() => {});
+              }
+              api.put(`/rup/${editingId}`, {
+                nama: formData.namaPaket,
+                jenis: formData.jenisPengadaan || "Barang",
+                nilai: formattedNilai,
+                status: "pending"
+              }).catch(() => {});
             } else {
               const id = generateId("RUP");
-              addRup({
+              const newRup: RupItem = {
                 id,
                 nama: formData.namaPaket || "Pengadaan RUP Baru",
                 jenis: formData.jenisPengadaan || "Barang",
@@ -332,11 +353,32 @@ export function RupListScreen() {
                 status: "pending",
                 progress: "0/14",
                 departemen: currentUser?.departemen || "Umum",
-                createdBy: currentUser?.id || "unknown",
+                createdBy: currentUser?.name || currentUser?.id || "User",
                 createdAt: new Date().toISOString().split("T")[0],
+              };
+              addRup(newRup);
+              addVerifRecord({
+                id: generateId("VR"),
+                pengadaanId: id,
+                pengadaanNama: newRup.nama,
+                departemen: newRup.departemen,
+                nominal: newRup.nilai,
+                tipe: "rup",
+                submitBy: currentUser?.name || "User",
+                submitAt: new Date().toISOString(),
+                status: "pending",
               });
+              api.post('/rup', newRup).catch(console.error);
+              api.post('/verifikasi', {
+                pengadaanId: id,
+                pengadaanNama: newRup.nama,
+                departemen: newRup.departemen,
+                nominal: newRup.nilai,
+                tipe: "rup",
+                submitBy: currentUser?.name || "User",
+              }).catch(console.error);
             }
-            setItems(getRupList());
+            fetchRup();
             setShowModal(false);
             setEditingId(null);
           }}

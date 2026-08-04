@@ -91,11 +91,8 @@ class VerifikasiController extends Controller
         } else {
             $pengadaan = Pengadaan::find($verifikasi->pengadaan_id);
             if ($pengadaan) {
-                if ($verifikasi->tipe === 'purchase-requisition' || $verifikasi->tipe === 'park-dokumen' || $verifikasi->tipe === 'pengajuan-dana') {
-                    $pengadaan->status = 'approved';
-                } else {
-                    $pengadaan->status = 'Disetujui Admin (' . strtoupper($verifikasi->tipe) . ')';
-                }
+                // Set a user-readable status
+                $pengadaan->status = 'Sudah Diverifikasi';
 
                 // Mark current step completed
                 PengadaanCompletedStep::firstOrCreate([
