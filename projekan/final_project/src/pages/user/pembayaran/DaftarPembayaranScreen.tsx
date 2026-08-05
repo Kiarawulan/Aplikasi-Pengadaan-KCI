@@ -21,30 +21,15 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/pengadaan');
-      // Filter for ongoing pembayaran items based on type:
-      // must have currentStep === 'pembayaran' and 'pembayaran' is not completed
-      const pembayaranItems = res.data.filter((item: PengadaanItem) => {
-        const completed = item.completedSteps || [];
-        const isReadyForPembayaran =
-          (item.currentStep as any) === "pembayaran" ||
-          item.status === "Proses Pembayaran" ||
-          (item.id.startsWith("PR-") && (completed.includes("contract") || (item.currentStep as any) === "pembayaran")) ||
-          (item.id.startsWith("PD-") && (completed.includes("pengajuan-dana") || item.status === "approved" || item.status === "Selesai" || item.status === "Menunggu Verifikasi Admin"));
-        const isPembayaran = isReadyForPembayaran || completed.includes("pembayaran");
-        if (!isPembayaran) return false;
-
-        const isPrFlow = item.id.startsWith("PR-");
-        if (type === "umd") {
-          return !isPrFlow; // PD goes to UMD
-        } else {
-          // PRs go to payment-request, outsource, or non-outsource
-          if (!isPrFlow) return false;
-          const allFd = typeof item.formData === 'string' ? JSON.parse(item.formData) : (item.formData || {});
-          const paymentType = allFd["pelunasan"]?.jenis?.toLowerCase() || (item.nama.toLowerCase().includes("payment request") ? "payment-request" : (item.nama.toLowerCase().includes("non") ? "non-outsource" : "outsource"));
-          return paymentType === type;
-        }
-      });
+      const [paymentsResponse, pengadaanResponse] = await Promise.all([api.get('/payments'), api.get('/pengadaan')]);
+      const pengadaanById = new Map((pengadaanResponse.data || []).map((entry: PengadaanItem) => [entry.id, entry]));
+      const pembayaranItems = (paymentsResponse.data || [])
+        .filter((payment: any) => payment.payment_type === type)
+        .map((payment: any) => {
+          const pengadaan = pengadaanById.get(payment.pengadaan_id);
+          return pengadaan ? { ...pengadaan, status: payment.status, payment } : null;
+        })
+        .filter(Boolean) as PengadaanItem[];
       setItems(pembayaranItems);
     } catch (err) {
       console.error("Gagal mengambil data pembayaran:", err);

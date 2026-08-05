@@ -165,7 +165,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           setPengujianId(p.id);
           const statusLower = p.status?.toLowerCase();
 
-          if (statusLower === "selesai" || statusLower === "approved") {
+          if (statusLower === "selesai" || statusLower === "approved" || statusLower === "completed") {
             setVerifStatus("approved");
           } else if (statusLower === "diproses" || statusLower === "proses") {
             setVerifStatus("approved");
@@ -175,16 +175,16 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
           setCompletedSubs(prev => {
             const next = new Set(prev);
-            if (statusLower === "diproses" || statusLower === "approved" || statusLower === "selesai") {
+            if (statusLower === "diproses" || statusLower === "approved" || statusLower === "selesai" || statusLower === "completed") {
               next.add("pengujian.request-pengujian");
             }
-            if (statusLower === "selesai") {
+            if (statusLower === "selesai" || statusLower === "completed") {
               next.add("pengujian.hasil-pengujian");
             }
             return next;
           });
 
-          if (statusLower === "diproses" || statusLower === "approved" || statusLower === "selesai") {
+          if (statusLower === "diproses" || statusLower === "approved" || statusLower === "selesai" || statusLower === "completed") {
             setActiveSubIdx(1);
           }
         } else {
@@ -282,6 +282,11 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       }
     }
 
+    if (activeStep.id === "pengujian" && activeSubStep?.id === "bahp") {
+      setShowPrPaymentModal(true);
+      return;
+    }
+
     if (hasSubSteps && activeSubIdx < activeStep.subSteps.length - 1) {
       const curSubId = activeSubStep?.id ?? activeStep.id;
       const nextSubs = new Set([...completedSubs, `${activeStep.id}.${curSubId}`]);
@@ -371,10 +376,24 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     }
   };
 
-  const handleConfirmPrPayment = () => {
-    upd("jenis", selectedPaymentType);
-    flashSave();
-    setShowPrPaymentModal(false);
+  const handleConfirmPrPayment = async () => {
+    const paymentType = selectedPaymentType === "Outsource" ? "outsource" : "non-outsource";
+    try {
+      // Endpoint pembayaran membuat antrean verifikasi Admin dari data yang sama.
+      await api.post("/payments", {
+        pengadaan_id: item.id,
+        payment_type: paymentType,
+        form_data: { jenis: selectedPaymentType },
+      });
+      setAllFd((previous) => ({
+        ...previous,
+        pelunasan: { ...(previous.pelunasan || {}), jenis: selectedPaymentType },
+      }));
+      setShowPrPaymentModal(false);
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Pembayaran belum dapat dibuat. Pastikan pengujian telah diselesaikan Admin.");
+      return;
+    }
     const targetBack = selectedPaymentType === "Outsource" ? "pembayaran-outsource" : "pembayaran-non-outsource";
     const pIdx = steps.findIndex(s => s.id === "pembayaran");
     if (pIdx !== -1) {
@@ -510,7 +529,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                     </button>
                     <button onClick={() => {
                       if (activeStep.id === "pengujian") {
-                        handleStepSelect(steps.findIndex(s => s.id === "pembayaran"));
+                        setShowPrPaymentModal(true);
                       } else if (activeStep.id === "pembayaran") {
                         onNavigate("dashboard");
                       } else {
@@ -548,7 +567,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                     });
                     flashSave();
                     if (activeStep.id === "pengujian") {
-                      handleStepSelect(steps.findIndex(s => s.id === "pembayaran"));
+                      setShowPrPaymentModal(true);
                     }
                   }} className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-green-600 hover:bg-green-700">
                     <Check size={12} /> Selesai

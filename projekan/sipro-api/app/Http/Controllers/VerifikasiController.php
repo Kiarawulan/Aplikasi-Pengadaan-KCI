@@ -232,8 +232,10 @@ class VerifikasiController extends Controller
                 }
 
                 if ($verifikasi->tipe === 'pengujian') {
-                    Pengujian::where('pengadaan_id', $pengadaan->id)->update(['status' => 'on_progress']);
-                    $pengadaan->current_step = 'pengujian';
+                    // Persetujuan admin menutup tahap pengujian. Setelah itu
+                    // User memilih Outsource/Non-Outsource untuk membuat pembayaran.
+                    Pengujian::where('pengadaan_id', $pengadaan->id)->update(['status' => 'completed']);
+                    $pengadaan->current_step = 'pembayaran';
                     $pengadaan->status = 'on_progress';
                 }
 

@@ -43,6 +43,6 @@ export const PR_MAIN_STEPS: MainStep[] = [
   { id: "sp3", label: "SP3", subSteps: [] },
   { id: "pbj", label: "PBJ", subSteps: [] },
   { id: "contract", label: "Kontrak", subSteps: [] },
-  { id: "pengujian", label: "Pengujian", subSteps: [{ id: "request-pengujian", label: "Request Pengujian" }, { id: "hasil-pengujian", label: "Hasil Pengujian" }] },
+  { id: "pengujian", label: "Pengujian", subSteps: [{ id: "request-pengujian", label: "Request Pengujian" }, { id: "hasil-pengujian", label: "Hasil Pengujian" }, { id: "bahp", label: "Surat BAHP" }] },
   { id: "pembayaran", label: "Pembayaran", subSteps: [{ id: "pelunasan", label: "Pelunasan" }, { id: "payment-request", label: "Payment Request" }] },
 ];

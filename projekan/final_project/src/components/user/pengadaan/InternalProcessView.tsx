@@ -91,7 +91,7 @@ export function InternalProcessView({ kind, item }: Props) {
 
   const attachments = useMemo(() => {
     const uploaded = uploads
-      .filter((file: any) => file.stage === `${kind}:${steps[viewStep]}`)
+      .filter((file: any) => file.stage === `${kind}:${steps[viewStep]}` || (kind === "contract" && viewStep === steps.length - 1 && file.stage === "contract-signed"))
       .map((file: any) => ({ id: file.id, name: file.original_name, size: file.size ? `${Math.max(1, Math.round(file.size / 1024))} KB` : "", date: file.created_at ? new Date(file.created_at).toLocaleDateString("id-ID") : "" }));
     const persisted = (customFiles[viewStep] || []).filter((file) => !uploaded.some((entry) => entry.name === file.name));
     return [...uploaded, ...persisted];

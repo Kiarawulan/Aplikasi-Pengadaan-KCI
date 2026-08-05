@@ -1,6 +1,6 @@
-export function FieldInput({ label, placeholder, type = "text", required = false, span2 = false, value, onChange, disabled = false }: {
+export function FieldInput({ label, placeholder, type = "text", required = false, span2 = false, value, onChange, disabled = false, options }: {
   label: string; placeholder?: string; type?: string; required?: boolean; span2?: boolean;
-  value?: string; onChange?: (v: string) => void; disabled?: boolean;
+  value?: string; onChange?: (v: string) => void; disabled?: boolean; options?: string[];
 }) {
   return (
     <div className={span2 ? "col-span-2" : ""}>
@@ -23,12 +23,7 @@ export function FieldInput({ label, placeholder, type = "text", required = false
           disabled={disabled}
         >
           <option value="">Pilih {label.toLowerCase()}...</option>
-          {label === "Jenis Permohonan" && ["Barang", "Jasa", "Konstruksi"].map((o) => <option key={o}>{o}</option>)}
-          {label === "Tahun" && ["2023", "2024", "2025"].map((o) => <option key={o}>{o}</option>)}
-          {label === "Metode" && ["Langsung", "Tender", "Seleksi"].map((o) => <option key={o}>{o}</option>)}
-          {label === "Jenis Barang" && ["Barang Jadi", "Barang Modal", "ATK"].map((o) => <option key={o}>{o}</option>)}
-          {label === "Kurs" && ["IDR", "USD", "EUR"].map((o) => <option key={o}>{o}</option>)}
-          {label === "Metode Pengadaan" && ["Langsung", "Tender", "Seleksi Langsung"].map((o) => <option key={o}>{o}</option>)}
+          {(options || (label === "Jenis Permohonan" ? ["Barang", "Jasa", "Konstruksi"] : label === "Tahun" ? ["2023", "2024", "2025"] : label === "Metode" || label === "Metode Pengadaan" ? ["Penunjukan Langsung", "Pemilihan Langsung", "Tender Terbuka", "E-Purchasing"] : label === "Jenis Barang" ? ["IT Hardware", "IT Software", "Elektronik", "ATK", "Furnitur", "Jasa Outsource", "Jasa Konstruksi"] : label === "Kurs" ? ["IDR", "USD", "EUR", "JPY"] : [])).map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
       ) : (
         <input

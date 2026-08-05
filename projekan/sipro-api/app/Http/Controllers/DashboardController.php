@@ -6,6 +6,7 @@ use App\Models\Pengadaan;
 use App\Models\Pengujian;
 use App\Models\Rup;
 use App\Models\Verifikasi;
+use App\Models\ProcessHistory;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -49,6 +50,27 @@ class DashboardController extends Controller
             'status' => $v->status,
             'type' => $v->tipe,
         ]);
+
+        // Riwayat proses mencatat aksi submit/revisi/approval aktual dari User
+        // maupun Admin, sehingga dashboard tidak menggunakan aktivitas dummy.
+        $activities = ProcessHistory::query()
+            ->when(! $user->is_admin, function ($query) use ($user) {
+                $query->whereIn('pengadaan_id', Pengadaan::where('departemen', $user->departemen)->select('id'));
+            })
+            ->latest()
+            ->take(10)
+            ->get()
+            ->map(function ($history) {
+                $record = Pengadaan::find($history->pengadaan_id);
+                return [
+                    'title' => $record?->nama ?: $history->pengadaan_id,
+                    'meta' => ($history->actor_name ?: 'Pengguna') . ' - ' . $history->created_at->diffForHumans(),
+                    'status' => $history->to_status,
+                    'type' => $history->step_id,
+                    'action' => $history->action,
+                    'created_at' => $history->created_at,
+                ];
+            });
 
         return response()->json([
             'summary' => [

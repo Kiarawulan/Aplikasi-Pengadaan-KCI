@@ -92,6 +92,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/templates/{template}', [TemplateDokumenController::class, 'update'])->middleware('admin.only');
     Route::delete('/templates/{template}', [TemplateDokumenController::class, 'destroy'])->middleware('admin.only');
 
+    // Opsi vendor diperlukan oleh form NPP User; perubahan master tetap khusus Admin.
+    Route::get('/vendors/options', [VendorController::class, 'index'])->middleware('module.permission:pengadaan,viewer');
+
     // Vendors
     Route::apiResource('/vendors', VendorController::class)->middleware('module.permission:masterData,editor');
 

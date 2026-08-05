@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AdminTopBar } from "@/components/admin/layout/AdminTopBar";
 import { Plus, Search, Edit3, Trash2, X, Database, Building2, Briefcase, Users, MapPin, Banknote, Tag, FileStack, CalendarDays, Percent, CreditCard, FlaskConical, PenTool, Activity } from "lucide-react";
+import { api } from "@/services/api";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -427,6 +428,22 @@ export function MasterDataScreen() {
   const [showEdit, setShowEdit] = useState<MasterItem | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const loadVendors = async () => {
+    const response = await api.get("/vendors");
+    const vendors = (response.data || []).map((vendor: any) => ({
+      id: vendor.id,
+      nama: vendor.nama,
+      npwp: vendor.npwp || "â€”",
+      kategori: vendor.kategori,
+      status: String(vendor.status || "").replace(/^./, (letter) => letter.toUpperCase()),
+      kontak: vendor.kontak_person || "â€”",
+      telepon: vendor.telepon || "â€”",
+    }));
+    setAllData((previous) => ({ ...previous, vendor: vendors }));
+  };
+
+  useEffect(() => { loadVendors().catch((error) => console.error("Gagal memuat master vendor:", error)); }, []);
+
   const currentTabDef = TABS.find(t => t.id === activeTab)!;
   const columns = useMemo(() => getColumns(activeTab), [activeTab]);
   const formFields = useMemo(() => getFormFields(activeTab), [activeTab]);
@@ -438,7 +455,13 @@ export function MasterDataScreen() {
     return data.filter(item => Object.values(item).some(v => String(v).toLowerCase().includes(q)));
   }, [data, search]);
 
-  const handleAdd = (formData: Record<string, any>) => {
+  const handleAdd = async (formData: Record<string, any>) => {
+    if (activeTab === "vendor") {
+      await api.post("/vendors", { ...formData, kontakPerson: formData.kontak, status: String(formData.status || "aktif").toLowerCase() });
+      await loadVendors();
+      setShowAdd(false);
+      return;
+    }
     const prefix = activeTab.split("-").map(w => w[0].toUpperCase()).join("");
     const newItem: MasterItem = {
       id: `${prefix}-${String(data.length + 1).padStart(3, "0")}`,
@@ -448,8 +471,14 @@ export function MasterDataScreen() {
     setShowAdd(false);
   };
 
-  const handleEdit = (formData: Record<string, any>) => {
+  const handleEdit = async (formData: Record<string, any>) => {
     if (!showEdit) return;
+    if (activeTab === "vendor") {
+      await api.put(`/vendors/${showEdit.id}`, { ...formData, kontakPerson: formData.kontak, status: String(formData.status || "aktif").toLowerCase() });
+      await loadVendors();
+      setShowEdit(null);
+      return;
+    }
     setAllData(prev => ({
       ...prev,
       [activeTab]: prev[activeTab].map(item => item.id === showEdit.id ? { ...item, ...formData } : item),
@@ -457,8 +486,14 @@ export function MasterDataScreen() {
     setShowEdit(null);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteId) return;
+    if (activeTab === "vendor") {
+      await api.delete(`/vendors/${deleteId}`);
+      await loadVendors();
+      setDeleteId(null);
+      return;
+    }
     setAllData(prev => ({
       ...prev,
       [activeTab]: prev[activeTab].filter(item => item.id !== deleteId),

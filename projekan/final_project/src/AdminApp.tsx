@@ -1460,6 +1460,10 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
 
 function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: VerifDoc }) {
   const [search, setSearch] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [unitFilter, setUnitFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [showDelete, setShowDelete] = useState(false);
   const [verifView, setVerifView] = useState<"list" | "detail">("list");
   const [selectedRow, setSelectedRow] = useState<any>(null);
@@ -1507,6 +1511,7 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
         map.set(key, {
           verif_id: v.id,                          // REAL verif ID — used for approve API
           id: v.pengadaan_id,
+          submittedAt: v.submit_at || v.created_at || "",
           noDok: v.pengadaan_id || v.id,
           judul: v.pengadaan_nama || "Pengajuan Dana",
           nominalPD: v.nominal || "Rp. 100.000.000,00",
@@ -1529,6 +1534,7 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
           map.set(v.id, {
             verif_id: v.id,
             id: v.pengadaanId,
+            submittedAt: v.submitAt || "",
             noDok: v.pengadaanId || v.id,
             judul: v.pengadaanNama || "Pengajuan Dana",
             nominalPD: v.nominal || "Rp. 100.000.000,00",
@@ -1554,7 +1560,13 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
       r.noDok.toLowerCase().includes(search.toLowerCase()) ||
       r.judul.toLowerCase().includes(search.toLowerCase()) ||
       r.unit.toLowerCase().includes(search.toLowerCase())
-  );
+  ).filter((r) => {
+    const date = r.submittedAt ? new Date(r.submittedAt).toISOString().slice(0, 10) : "";
+    return (!startDate || date >= startDate)
+      && (!endDate || date <= endDate)
+      && (!unitFilter || r.unit.toLowerCase().includes(unitFilter.toLowerCase()))
+      && (!statusFilter || r.status === statusFilter);
+  });
 
   if (verifView === "detail" && selectedRow) {
     return <VerifikasiDetailPage row={selectedRow} onBack={() => { setVerifView("list"); fetchDanaData(); }} />;
@@ -1571,27 +1583,24 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
           <div className="grid grid-cols-2 gap-x-[16px] gap-y-[16px] mb-[16px]">
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Start Date</label>
-              <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+              <input value={startDate} onChange={(event) => setStartDate(event.target.value)} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">End Date</label>
-              <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+              <input value={endDate} onChange={(event) => setEndDate(event.target.value)} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Unit</label>
-              <select className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
+              <select value={unitFilter} onChange={(event) => setUnitFilter(event.target.value)} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
                 <option value="">Semua Unit</option>
-                <option>CTIT</option>
-                <option>Logistik</option>
-                <option>Keuangan</option>
+                {Array.from(new Set(danaItems.map((entry) => entry.unit).filter(Boolean))).map((entry) => <option key={entry} value={entry}>{entry}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Status</label>
-              <select className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
                 <option value="">Semua Status</option>
-                <option>Open</option>
-                <option>Closed</option>
+                {Array.from(new Set(danaItems.map((entry) => entry.status).filter(Boolean))).map((entry) => <option key={entry} value={entry}>{entry}</option>)}
               </select>
             </div>
           </div>
@@ -1603,7 +1612,7 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
               </svg>
               Cari
             </button>
-            <button className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150">
+            <button onClick={() => { setSearch(""); setStartDate(""); setEndDate(""); setUnitFilter(""); setStatusFilter(""); }} className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150">
               <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
                 <path d={group13Svg.p3bd12900} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                 <path d="M1.625 1.625V4.33333H4.33333" stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
@@ -2751,9 +2760,9 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
       setUploadingSp3(true);
       const payload = new FormData();
       payload.append("file", file);
-      payload.append("stage", "sp3");
+      payload.append("stage", "sp3-signed");
       await api.post(`/pengadaan/${selectedRow.pengadaan_id}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
-      alert("Surat SP3 berhasil diunggah. User sekarang dapat melihat dan mengunduhnya.");
+      alert("Surat SP3 signed berhasil diunggah. User sekarang dapat melihat dan mengunduhnya.");
     } catch (error: any) {
       alert(error?.response?.data?.message || "Surat SP3 gagal diunggah.");
     } finally {
@@ -2924,7 +2933,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
 
           <div className="flex gap-[10px] justify-end">
             <label className="h-[36px] px-[16px] border border-[#252271] text-[#252271] text-[13px] font-bold rounded-[8px] hover:bg-[#eef2ff] active:scale-95 transition-all duration-150 flex items-center cursor-pointer">
-              {uploadingSp3 ? "Mengunggah..." : "Unggah Surat SP3"}
+              {uploadingSp3 ? "Mengunggah..." : "Unggah Surat SP3 Signed"}
               <input type="file" accept=".pdf,.doc,.docx" className="hidden" disabled={uploadingSp3} onChange={uploadSp3File} />
             </label>
             <button onClick={() => { setActionNote(""); setShowReject(true); }} className="h-[36px] px-[16px] border border-red-300 bg-red-50 text-red-600 text-[13px] font-bold rounded-[8px] hover:bg-red-100 active:scale-95 transition-all duration-150">Tolak</button>
@@ -3163,26 +3172,50 @@ const PBJ_STEPS = [
   "Penunjukan Pemenang (SPPBJ)"
 ];
 
+type DocFilters = { startDate: string; endDate: string; unit: string; status: string };
+
+const matchesDocFilters = (row: any, filters: DocFilters) => {
+  const date = row.submit_at ? new Date(row.submit_at).toISOString().slice(0, 10) : "";
+  const unit = String(row.dept || row.divisi || row.departemen || "").toLowerCase();
+  const status = String(row.status || "").toLowerCase();
+  return (!filters.startDate || date >= filters.startDate)
+    && (!filters.endDate || date <= filters.endDate)
+    && (!filters.unit || unit.includes(filters.unit.toLowerCase()))
+    && (!filters.status || status === filters.status.toLowerCase());
+};
+
 // shared filter+table shell (matching user reference images)
-function DocFilterBar({ onSearch, search }: { search: string; onSearch: (v: string) => void }) {
+function DocFilterBar({ onSearch, search, onFilter }: { search: string; onSearch: (v: string) => void; onFilter?: (filters: DocFilters) => void }) {
+  const [filters, setFilters] = useState<DocFilters>({ startDate: "", endDate: "", unit: "", status: "" });
+  const updateFilter = (patch: Partial<DocFilters>) => {
+    const next = { ...filters, ...patch };
+    setFilters(next);
+    onFilter?.(next);
+  };
+  const reset = () => {
+    const empty = { startDate: "", endDate: "", unit: "", status: "" };
+    setFilters(empty);
+    onFilter?.(empty);
+    onSearch("");
+  };
   return (
     <div className="bg-[#f5f7fd] border border-[#e5e7eb] rounded-[15px] p-[20px] mb-[20px]">
       <div className="grid grid-cols-2 gap-x-[16px] gap-y-[16px] mb-[16px]">
         <div>
           <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Start Date</label>
-          <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+          <input value={filters.startDate} onChange={(event) => updateFilter({ startDate: event.target.value })} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
         </div>
         <div>
           <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">End Date</label>
-          <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+          <input value={filters.endDate} onChange={(event) => updateFilter({ endDate: event.target.value })} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
         </div>
         <div>
           <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Unit</label>
-          <input placeholder="Semua Unit..." className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+          <input value={filters.unit} onChange={(event) => updateFilter({ unit: event.target.value })} placeholder="Semua Unit..." className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
         </div>
         <div>
           <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Status</label>
-          <select className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
+          <select value={filters.status} onChange={(event) => updateFilter({ status: event.target.value })} className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
             <option value="">Semua Status</option>
             <option value="Contract Release">Contract Release</option>
             <option value="Approved">Approved</option>
@@ -3195,7 +3228,7 @@ function DocFilterBar({ onSearch, search }: { search: string; onSearch: (v: stri
           <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><circle cx="6.875" cy="6.875" r="4.875" stroke="white" strokeWidth="1.17" /><path d="M12.25 12.25L9.74 9.74" stroke="white" strokeLinecap="round" strokeWidth="1.17" /></svg>
           Cari
         </button>
-        <button className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150 cursor-pointer" onClick={() => onSearch("")}>
+        <button className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150 cursor-pointer" onClick={reset}>
           <svg fill="none" height="13" viewBox="0 0 13 13" width="13"><path d={group14Svg.p3bd12900} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" /><path d="M1.625 1.625V4.33333H4.33333" stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" /></svg>
         </button>
       </div>
@@ -3600,10 +3633,11 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
 
 function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-internal" }) {
   const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<DocFilters>({ startDate: "", endDate: "", unit: "", status: "" });
   const [view, setView] = useState<"list" | "proses">("list");
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const { items: verificationItems, refresh, process: processVerification } = useAdminVerificationQueue("pbj");
-  const queueRows = verificationItems.map(mapVerificationRow);
+  const queueRows = verificationItems.map(mapVerificationRow).filter((row) => matchesDocFilters(row, filters));
 
   React.useEffect(() => {
     setView("list");
@@ -3649,7 +3683,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
           <span className="font-bold text-[#1e2939]">{breadcrumbLabel}</span>
         </p>
 
-        <DocFilterBar search={search} onSearch={setSearch} />
+        <DocFilterBar search={search} onSearch={setSearch} onFilter={setFilters} />
 
         <div className="bg-white border border-[#e5e7eb] rounded-[10px] overflow-hidden">
           <div className="overflow-x-auto">
@@ -4067,7 +4101,7 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
               <p className="text-[#252271] text-[12px] font-bold tracking-[0.3px]">Dokumen Lampiran Step Ini</p>
               <label className="bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#252271] text-[11.5px] font-semibold px-[12px] py-[5px] rounded-[8px] flex items-center gap-[6px] cursor-pointer transition-colors border border-[#cbd5e1]">
                 <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M6 2.5V9.5M2.5 6H9.5" stroke="#252271" strokeLinecap="round" strokeWidth="1.5"/></svg>
-                Unggah Lampiran
+                {activeStep === CONTRACT_STEPS.length - 1 ? "Unggah Surat Kontrak" : "Unggah Lampiran"}
                 <input type="file" className="hidden" onChange={handleUploadFile} />
               </label>
             </div>
@@ -4167,10 +4201,11 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
 
 function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" }) {
   const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<DocFilters>({ startDate: "", endDate: "", unit: "", status: "" });
   const [view, setView] = useState<"list" | "proses">("list");
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const { items: verificationItems, refresh, process: processVerification } = useAdminVerificationQueue("contract");
-  const queueRows = verificationItems.map(mapVerificationRow);
+  const queueRows = verificationItems.map(mapVerificationRow).filter((row) => matchesDocFilters(row, filters));
 
   React.useEffect(() => {
     setView("list");
@@ -4199,7 +4234,7 @@ function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" 
   const uploadAttachment = async (row: any, file: File, step: string) => {
     const payload = new FormData();
     payload.append("file", file);
-    payload.append("stage", `contract:${step}`);
+    payload.append("stage", step === CONTRACT_STEPS[CONTRACT_STEPS.length - 1] ? "contract-signed" : `contract:${step}`);
     await api.post(`/pengadaan/${row.pengadaan_id}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
   };
 
@@ -4216,7 +4251,7 @@ function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" 
           <span className="font-bold text-[#1e2939]">{breadcrumbLabel}</span>
         </p>
 
-        <DocFilterBar search={search} onSearch={setSearch} />
+        <DocFilterBar search={search} onSearch={setSearch} onFilter={setFilters} />
 
         <div className="bg-white border border-[#e5e7eb] rounded-[10px] overflow-hidden">
           <div className="overflow-x-auto">
@@ -4342,7 +4377,7 @@ type PengujianRequestRow = {
   status: string;
 };
 
-function DetailPengujianPage({ item, isKontrak, onBack, onProcess }: { item: any; isKontrak: boolean; onBack: () => void; onProcess?: (action: "approve" | "revisi" | "reject") => Promise<void> }) {
+function DetailPengujianPage({ item, isKontrak, onBack, onProcess, onUploadBahp }: { item: any; isKontrak: boolean; onBack: () => void; onProcess?: (action: "approve" | "revisi" | "reject") => Promise<void>; onUploadBahp?: (file: File) => Promise<void> }) {
   const titleName = isKontrak ? (item as PengujianKontrakRow).namaPaket : (item as PengujianRequestRow).namaPengujian;
   const docNo = isKontrak ? (item as PengujianKontrakRow).idNpp : (item as PengujianRequestRow).noRequest;
   const vendorOrDept = isKontrak ? (item as PengujianKontrakRow).vendor : (item as PengujianRequestRow).pemohon;
@@ -4363,6 +4398,7 @@ function DetailPengujianPage({ item, isKontrak, onBack, onProcess }: { item: any
         onReject={() => { if (onProcess) onProcess("reject").catch((error: any) => alert(error?.response?.data?.message || "Pengujian gagal ditolak.")); }}
         onRevisi={() => { if (onProcess) onProcess("revisi").catch((error: any) => alert(error?.response?.data?.message || "Catatan revisi gagal dikirim.")); }}
       />
+      {!isKontrak && onUploadBahp && <div className="px-6 pb-6 -mt-4 bg-[#f8fafc]"><label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#252271] text-white text-[12px] font-bold cursor-pointer hover:bg-[#1a1860]">Unggah Surat BAHP Signed<input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) onUploadBahp(file).catch((error: any) => alert(error?.response?.data?.message || "Surat BAHP gagal diunggah.")); event.target.value = ""; }} /></label></div>}
     </div>
   );
 }
@@ -4370,6 +4406,10 @@ function DetailPengujianPage({ item, isKontrak, onBack, onProcess }: { item: any
 
 function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
   const [search, setSearch] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [unit, setUnit] = useState("");
+  const [status, setStatus] = useState("");
   const [view, setView] = useState<"list" | "detail">("list");
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const { items: verificationItems } = useAdminVerificationQueue("outsource,non-outsource,umd,payment-request");
@@ -4393,7 +4433,22 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
       r.noPembayaran.toLowerCase().includes(search.toLowerCase()) ||
       r.namaPaket.toLowerCase().includes(search.toLowerCase()) ||
       r.vendor.toLowerCase().includes(search.toLowerCase())
-  );
+  ).filter((r) => {
+      const submittedAt = r.submit_at ? new Date(r.submit_at).toISOString().slice(0, 10) : "";
+      return (!startDate || submittedAt >= startDate)
+        && (!endDate || submittedAt <= endDate)
+        && (!unit || String(r.dept || "").toLowerCase() === unit.toLowerCase())
+        && (!status || String(r.status || "").toLowerCase() === status.toLowerCase());
+    });
+
+  const uploadProof = async (row: any, file: File) => {
+    if (!row.pengadaan_id) return;
+    const payload = new FormData();
+    payload.append("file", file);
+    payload.append("stage", "pelunasan-proof");
+    await api.post(`/pengadaan/${row.pengadaan_id}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
+    alert("Surat bukti pelunasan berhasil diunggah dan dapat diunduh User.");
+  };
 
   const subDocLabels: Record<PembayaranDoc, string> = {
     "pembayaran-outsource": "Payment Approve > Outsource",
@@ -4429,22 +4484,22 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
           <div className="grid grid-cols-2 gap-x-[16px] gap-y-[16px] mb-[16px]">
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Start Date</label>
-              <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+              <input value={startDate} onChange={(event) => setStartDate(event.target.value)} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">End Date</label>
-              <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+              <input value={endDate} onChange={(event) => setEndDate(event.target.value)} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Unit</label>
-              <select className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
-                <option value="">Semua Unit</option><option>Keuangan</option><option>CTIT</option>
+              <select value={unit} onChange={(event) => setUnit(event.target.value)} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
+                <option value="">Semua Unit</option>{Array.from(new Set(verificationItems.map((entry: any) => entry.departemen).filter(Boolean))).map((entry: string) => <option key={entry} value={entry}>{entry}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Status</label>
-              <select className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
-                <option value="">Semua Status</option><option>Draft</option><option>Verifikasi</option><option>Disetujui</option><option>Cair</option>
+              <select value={status} onChange={(event) => setStatus(event.target.value)} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
+                <option value="">Semua Status</option>{Array.from(new Set(verificationItems.map((entry: any) => entry.status).filter(Boolean))).map((entry: string) => <option key={entry} value={entry}>{entry}</option>)}
               </select>
             </div>
           </div>
@@ -4498,16 +4553,16 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
                       <span className={`px-[10px] py-[3px] rounded-full text-[11px] font-medium ${r.status === "Disetujui" || r.status === "Cair" ? "bg-[#d1fae5] text-[#065f46]" : "bg-[#dbeafe] text-[#1d4ed8]"}`}>{r.status}</span>
                     </td>
                     <td className="px-[14px] py-[10px] text-center">
-                      <button
+                      <div className="flex items-center justify-center gap-1"><button
                         onClick={() => { setSelectedRow(r); setView("detail"); }}
-                        className="p-[5px] rounded-[5px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150 mx-auto"
+                        className="p-[5px] rounded-[5px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150"
                         title="Detail"
                       >
                         <svg fill="none" height="12" viewBox="0 0 12 12" width="12">
                           <path d={group14Svg.p126ce980} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
                           <path d={group14Svg.p24092800} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
-                      </button>
+                      </button><label title="Unggah Surat Bukti Pelunasan" className="p-[5px] rounded-[5px] text-[#252271] hover:bg-[#e0e7ff] cursor-pointer text-[10px] font-bold">Upload<input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadProof(r, file).catch((error: any) => alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.")); event.target.value = ""; }} /></label></div>
                     </td>
                   </tr>
                 ))}
@@ -4565,8 +4620,17 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
     setView("list");
   };
 
+  const uploadBahp = async (file: File) => {
+    if (!selectedItem?.pengadaan_id) return;
+    const payload = new FormData();
+    payload.append("file", file);
+    payload.append("stage", "bahp-signed");
+    await api.post(`/pengadaan/${selectedItem.pengadaan_id}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
+    alert("Surat BAHP signed berhasil diunggah dan dapat diunduh User.");
+  };
+
   if (view === "detail" && selectedItem) {
-    return <DetailPengujianPage item={selectedItem} isKontrak={isKontrak} onBack={() => setView("list")} onProcess={processSelected} />;
+    return <DetailPengujianPage item={selectedItem} isKontrak={isKontrak} onBack={() => setView("list")} onProcess={processSelected} onUploadBahp={uploadBahp} />;
   }
 
   return (

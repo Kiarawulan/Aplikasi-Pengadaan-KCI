@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Upload, Download, FileText, Trash2, Edit3, Eye, Plus, Search, X } from "lucide-react";
 import { AdminTopBar } from "@/components/admin/layout/AdminTopBar";
 import { useAuth } from "@/store/authStore";
+import { api } from "@/services/api";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -247,7 +248,7 @@ function ConfirmDeleteModal({ onConfirm, onClose }: { onConfirm: () => void; onC
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export function TemplateDokumenAdminScreen() {
   const { currentUser } = useAuth();
-  const [templates, setTemplates] = useState<Template[]>(INITIAL_TEMPLATES);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [activeTab, setActiveTab] = useState<KategoriUtama>("Pengadaan");
   const [search, setSearch] = useState("");
   const [subFilter, setSubFilter] = useState("Semua");
@@ -255,6 +256,27 @@ export function TemplateDokumenAdminScreen() {
   const [showEdit, setShowEdit] = useState<Template | null>(null);
   const [showDetail, setShowDetail] = useState<Template | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const loadTemplates = async () => {
+    const response = await api.get("/templates");
+    setTemplates((response.data || []).map((item: any): Template => {
+      const [rawCategory, rawSubcategory] = String(item.kategori || "Pengadaan|RUP").split("|");
+      const kategoriUtama: KategoriUtama = ["Pengadaan", "Pengujian", "Pembayaran"].includes(rawCategory) ? rawCategory as KategoriUtama : "Pengadaan";
+      return {
+        id: item.id,
+        judul: item.nama,
+        kategoriUtama,
+        subkategori: rawSubcategory || SUBKATEGORI_MAP[kategoriUtama][0],
+        tipeFile: item.tipe,
+        ukuran: item.ukuran || "â€”",
+        uploadedBy: item.uploaded_by || "Admin",
+        uploadedAt: item.uploaded_at || item.created_at || "â€”",
+        deskripsi: item.deskripsi || "",
+      };
+    }));
+  };
+
+  useEffect(() => { loadTemplates().catch((error) => console.error("Gagal memuat template dokumen:", error)); }, []);
 
   // ── Filtered data ─────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -273,26 +295,23 @@ export function TemplateDokumenAdminScreen() {
   }), [templates]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleAdd = (data: Omit<Template, "id" | "uploadedBy" | "uploadedAt">) => {
-    const newTpl: Template = {
-      ...data,
-      id: `TPL-${String(templates.length + 1).padStart(3, "0")}`,
-      uploadedBy: currentUser?.name || "Admin",
-      uploadedAt: new Date().toISOString().split("T")[0],
-    };
-    setTemplates(prev => [newTpl, ...prev]);
+  const handleAdd = async (data: Omit<Template, "id" | "uploadedBy" | "uploadedAt">) => {
+    await api.post("/templates", { nama: data.judul, kategori: `${data.kategoriUtama}|${data.subkategori}`, tipe: data.tipeFile, ukuran: data.ukuran, deskripsi: data.deskripsi });
+    await loadTemplates();
     setShowAdd(false);
   };
 
-  const handleEdit = (data: Omit<Template, "id" | "uploadedBy" | "uploadedAt">) => {
+  const handleEdit = async (data: Omit<Template, "id" | "uploadedBy" | "uploadedAt">) => {
     if (!showEdit) return;
-    setTemplates(prev => prev.map(t => t.id === showEdit.id ? { ...t, ...data } : t));
+    await api.put(`/templates/${showEdit.id}`, { nama: data.judul, kategori: `${data.kategoriUtama}|${data.subkategori}`, tipe: data.tipeFile, ukuran: data.ukuran, deskripsi: data.deskripsi });
+    await loadTemplates();
     setShowEdit(null);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteId) return;
-    setTemplates(prev => prev.filter(t => t.id !== deleteId));
+    await api.delete(`/templates/${deleteId}`);
+    await loadTemplates();
     setDeleteId(null);
   };
 

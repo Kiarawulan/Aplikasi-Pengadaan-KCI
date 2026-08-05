@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/store/authStore";
+import { api } from "@/services/api";
 import { AdminTopBar } from "@/components/admin/layout/AdminTopBar";
 import {
   BarChart3, TrendingUp, FileText, ClipboardList, FlaskConical, Wallet,
@@ -689,6 +690,34 @@ function PembayaranDashboard() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN DASHBOARD SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
+function LiveDashboard({ activeTab }: { activeTab: DashboardTab }) {
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get("/dashboard").then((response) => setDashboard(response.data)).catch(() => setDashboard(null)).finally(() => setLoading(false));
+  }, []);
+
+  const summary = dashboard?.summary || {};
+  const status = dashboard?.statusDistribution || [];
+  const monthly = dashboard?.monthly || [];
+  const activities = dashboard?.recentActivity || [];
+  const titleByTab: Record<DashboardTab, string> = { "pengajuan-dana": "Pengajuan Dana", pengujian: "Pengujian", pengadaan: "Pengadaan", pembayaran: "Pembayaran" };
+  const cardData = [
+    { label: "Total Pengadaan", value: summary.totalPengadaan ?? 0, icon: ClipboardList },
+    { label: "Dalam Proses", value: summary.dalamProses ?? 0, icon: Clock },
+    { label: "Pengujian Selesai", value: summary.pengujianSelesai ?? 0, icon: FlaskConical },
+    { label: "Menunggu Verifikasi", value: summary.perluVerifikasi ?? 0, icon: AlertTriangle },
+  ];
+
+  if (loading) return <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-[12px] text-gray-500">Memuat dashboard dari database...</div>;
+  return <div className="space-y-5">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{cardData.map((card) => { const Icon = card.icon; return <div key={card.label} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"><div className="flex items-start justify-between"><div><p className="text-[10.5px] font-bold uppercase tracking-wide text-gray-400">{card.label}</p><p className="mt-2 text-[28px] font-extrabold text-[#252271]">{card.value}</p></div><span className="rounded-xl bg-[#252271]/10 p-2 text-[#252271]"><Icon size={18} /></span></div><p className="mt-2 text-[10px] text-gray-400">Data aktual sistem</p></div>; })}</div>
+    <div className="grid gap-5 xl:grid-cols-5"><div className="rounded-2xl border border-gray-100 bg-white p-5 xl:col-span-3"><SectionTitle icon={BarChart3}>Tren {titleByTab[activeTab]}</SectionTitle><div className="mt-5 space-y-3">{monthly.map((entry: any) => <div key={entry.month} className="grid grid-cols-[38px_1fr_32px] items-center gap-3 text-[11px]"><span className="font-semibold text-gray-500">{entry.month}</span><div className="h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-[#e6251c]" style={{ width: `${Math.min(100, (entry.pengadaan || 0) * 10)}%` }} /></div><span className="text-right font-bold text-[#252271]">{entry.pengadaan || 0}</span></div>)}</div></div><div className="rounded-2xl border border-gray-100 bg-white p-5 xl:col-span-2"><SectionTitle icon={PieChart}>Status Dokumen</SectionTitle><div className="mt-4 space-y-3">{status.map((entry: any) => <div key={entry.name} className="flex items-center justify-between"><span className="flex items-center gap-2 text-[11px] text-gray-600"><i className="h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />{entry.name}</span><span className="text-[13px] font-extrabold text-[#252271]">{entry.value}</span></div>)}</div></div></div>
+    <div className="rounded-2xl border border-gray-100 bg-white p-5"><SectionTitle icon={Clock}>Laporan Aktivitas User & Admin</SectionTitle><div className="mt-4 divide-y divide-gray-100">{activities.length === 0 ? <p className="py-4 text-[11px] text-gray-400">Belum ada aktivitas pada periode ini.</p> : activities.map((activity: any, index: number) => <div key={`${activity.title}-${activity.created_at || index}`} className="flex items-center justify-between gap-4 py-3"><div><p className="text-[12px] font-bold text-gray-700">{activity.title}</p><p className="text-[10.5px] text-gray-400">{activity.meta} â€¢ {activity.action || activity.type}</p></div><span className="rounded-full bg-[#f5f7fd] px-2.5 py-1 text-[10px] font-bold text-[#252271]">{activity.status || "diproses"}</span></div>)}</div></div>
+  </div>;
+}
+
 export function AdminDashboardScreen() {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<DashboardTab>("pengajuan-dana");
@@ -727,11 +756,7 @@ export function AdminDashboardScreen() {
           })}
         </div>
 
-        {/* Tab Content */}
-        {activeTab === "pengajuan-dana" && <PengajuanDanaDashboard />}
-        {activeTab === "pengujian" && <PengujianDashboard />}
-        {activeTab === "pengadaan" && <PengadaanDashboard />}
-        {activeTab === "pembayaran" && <PembayaranDashboard />}
+        <LiveDashboard activeTab={activeTab} />
 
       </div>
     </div>

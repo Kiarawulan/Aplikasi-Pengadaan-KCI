@@ -1,4 +1,5 @@
 import { FileText, User, Check, Download } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { ParkStep } from "@/types";
 import { FieldInput } from "@/components/common/FieldInput";
 import { FileUploadInput } from "@/components/common/FileUploadInput";
@@ -8,6 +9,7 @@ import { getPengujianList } from "@/store/dataStore";
 import { useAuth } from "@/store/authStore";
 import { Sp3DetailView } from "./Sp3DetailView";
 import { InternalProcessView } from "./InternalProcessView";
+import { api } from "@/services/api";
 
 export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
   step: ParkStep; subStepId: string;
@@ -16,6 +18,36 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
   item?: any;
 }) {
   const { currentUser } = useAuth();
+  const [signedDocuments, setSignedDocuments] = useState<any[]>([]);
+  const [vendorOptions, setVendorOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!item?.id) return;
+    api.get(`/pengadaan/${item.id}/documents`)
+      .then((response) => setSignedDocuments(response.data?.data || []))
+      .catch(() => setSignedDocuments([]));
+  }, [item?.id]);
+
+  useEffect(() => {
+    api.get("/vendors/options").then((response) => setVendorOptions((response.data || []).map((vendor: any) => vendor.nama).filter(Boolean))).catch(() => setVendorOptions([]));
+  }, []);
+
+  const downloadDocument = async (document: any) => {
+    const response = await api.get(`/documents/${document.id}/download`, { responseType: "blob" });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = window.document.createElement("a");
+    link.href = url;
+    link.download = document.original_name;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const SignedDocument = ({ stage, title, emptyText }: { stage: string; title: string; emptyText: string }) => {
+    const documents = signedDocuments.filter((document) => document.stage === stage);
+    return <div className="space-y-3">
+      <p className="text-[11.5px] font-semibold text-[#0a0a0a]">{title}</p>
+      {documents.length === 0 ? <p className="text-[11.5px] text-[#6b6b6b] bg-[#f9f9f9] border border-[#e2e2e2] rounded px-3 py-3">{emptyText}</p> : documents.map((document) => <div key={document.id} className="flex items-center justify-between gap-3 bg-[#f9f9f9] border border-[#e2e2e2] rounded px-3 py-2"><div className="min-w-0"><p className="text-[11.5px] font-medium truncate">{document.original_name}</p><p className="text-[10px] text-[#6b6b6b]">{document.size ? `${Math.max(1, Math.round(document.size / 1024))} KB` : "Dokumen signed"}</p></div><button onClick={() => downloadDocument(document)} className="shrink-0 flex items-center gap-1.5 bg-[#252271] text-white text-[10px] font-medium px-3 py-1.5 rounded"><Download size={11} /> Download</button></div>)}</div>;
+  };
   const f = (k: string) => {
     if (allFd[subStepId]?.[k]) return allFd[subStepId][k];
     if (k === 'kurs') return allFd['kurs'] || item?.formData?.kurs || "";
@@ -35,7 +67,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
       <div className="mb-3"><p className="text-[11.5px] font-medium text-[#0a0a0a] mb-1">Realisasi</p><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-[13px] h-[13px] rounded-[2px] border border-[#767676] bg-white shrink-0 cursor-pointer" checked={f("realisasi") === "true"} onChange={(e) => u("realisasi")(e.target.checked ? "true" : "false")} /><p className="text-[11.5px]">Tandai sebagai realisasi</p></label></div>
       <div className="grid grid-cols-2 gap-x-[12px] gap-y-[12px]">
         <FieldInput label="Metode" type="select" required value={f("metode")} onChange={u("metode")} />
-        <FieldInput label="Vendor Name" placeholder="Nama vendor..." required value={f("vendor")} onChange={u("vendor")} />
+        <FieldInput label="Vendor Name" type="select" options={vendorOptions} required value={f("vendor")} onChange={u("vendor")} />
         <FieldInput label="Nilai PR" placeholder="0" type="number" required value={f("nilaiPr")} onChange={u("nilaiPr")} />
         <FieldInput label="COA" placeholder="Kode akun..." required value={f("coa")} onChange={u("coa")} />
         <FieldInput label="Jenis Barang" type="select" required value={f("jenisBarang")} onChange={u("jenisBarang")} />
@@ -212,25 +244,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
         </div>
       </div>
     );
-    if (subStepId === "bahp") return (
-      <div className="space-y-4">
-        <div>
-          <p className="text-[11.5px] font-medium text-[#0a0a0a] mb-[5px]">Output BAHP (Dari Admin)</p>
-          <div className="flex items-center justify-between bg-[#f9f9f9] border border-[#e2e2e2] rounded px-3 py-2">
-            <div><p className="text-[11.5px] font-medium">Draft-BAHP.pdf</p><p className="text-[10px] text-[#6b6b6b]">312 KB</p></div>
-            <button disabled={statusLabel.toLowerCase() !== 'selesai'} className="flex items-center gap-1.5 bg-[#252271] text-white text-[10px] font-medium px-3 py-1.5 rounded disabled:bg-gray-300 disabled:cursor-not-allowed"><Download size={11} /> Download BAHP</button>
-          </div>
-        </div>
-        <div className="pt-2 border-t border-[#e2e2e2]">
-          <FileUploadInput label="Input File BAHP dengan TTD" required value={f("fileBahpTtd")} onChange={u("fileBahpTtd")} />
-        </div>
-        <div className="grid grid-cols-2 gap-x-[12px] gap-y-[12px]">
-          <FieldInput label="Tanggal BAHP" type="date" required value={f("tanggal")} onChange={u("tanggal")} />
-          <FieldInput label="Nomor BAHP" placeholder="BAHP-RUP-xxx-xxxx" required value={f("nomor")} onChange={u("nomor")} />
-          <FieldInput label="Keterangan" placeholder="Keterangan tambahan..." type="textarea" span2 value={f("keterangan")} onChange={u("keterangan")} />
-        </div>
-      </div>
-    );
+    if (subStepId === "bahp") return <SignedDocument stage="bahp-signed" title="Surat BAHP Signed" emptyText="Surat BAHP signed belum diunggah oleh Admin." />;
   }
   if (step === "pembayaran") {
     if (subStepId === "pelunasan") {
@@ -250,10 +264,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
             })}
           </div>
           <div className="grid grid-cols-1 gap-y-[12px]">
-            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-               <p className="text-[11.5px] font-medium text-gray-700 mb-2">Pelunasan (Nota dan sebagainya) dari C-Fits</p>
-               <button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><Download size={13} /> Download Pelunasan</button>
-            </div>
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg"><SignedDocument stage="pelunasan-proof" title="Surat Bukti Pelunasan" emptyText="Surat bukti pelunasan belum diunggah oleh Admin." /></div>
             <FieldInput label="Keterangan" type="textarea" required value={f("keterangan")} onChange={u("keterangan")} />
             
             <div className="flex items-center gap-2">
