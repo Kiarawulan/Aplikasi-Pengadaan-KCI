@@ -71,10 +71,18 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
           status: item.status || matchingPeng?.status || "pending",
         };
 
-        if (item.tipe === "park-dokumen" || item.tipe === "pd" || item.tipe === "pengajuan-dana") {
-          pdList.push(mapped);
-        } else {
+        const isPr = (
+          pId.startsWith("PR-") ||
+          pId.startsWith("PRQ-") ||
+          item.tipe === "purchase-requisition" ||
+          item.tipe === "pr" ||
+          matchingPeng?.id?.startsWith("PR-")
+        );
+
+        if (isPr) {
           prList.push(mapped);
+        } else {
+          pdList.push(mapped);
         }
       });
 
@@ -113,7 +121,7 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
 
   const handleAddSubmit = () => {
     const newRecord = {
-      id: `${isParkDoc ? "PRK" : "PRQ"}-${Math.floor(Math.random() * 900) + 100}`,
+      id: `${isParkDoc ? "PD" : "PR"}-${Math.floor(Math.random() * 900) + 100}`,
       emailPic: form.emailPic || `${adminName.toLowerCase().replace(" ", ".")}@kci.co.id`,
       tahun: form.tahun,
       divisi: form.divisi,
@@ -148,11 +156,13 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
       if (item.verif_id) {
         if (type === "approve") {
           await api.post(`/verifikasi/${item.verif_id}/approve`);
+        } else if (type === "revisi") {
+          await api.post(`/verifikasi/${item.verif_id}/revisi`, { catatan: catatanText || 'Perlu revisi' });
         } else {
-          await api.post(`/verifikasi/${item.verif_id}/reject`, { catatan: catatanText }); // backend treats reject/revisi as same for now
+          await api.post(`/verifikasi/${item.verif_id}/reject`, { catatan: catatanText || 'Ditolak Admin' });
         }
       } else {
-        await api.put(`/pengadaan/${item.id}`, { status: type === 'approve' ? 'approved' : 'rejected' });
+        await api.put(`/pengadaan/${item.id}`, { status: type === 'approve' ? 'approved' : type === 'revisi' ? 'Perlu Revisi' : 'rejected' });
       }
       fetchVerifData();
     } catch (err) {
@@ -253,7 +263,7 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <ModalField label="Divisi" required>
-                <ModalSelect value={form.divisi} onChange={v => setForm(p => ({ ...p, divisi: v }))} options={["CTIT", "Logistik", "HC", "Finance", "Operasional"]} />
+                <ModalSelect value={form.divisi} onChange={v => setForm(p => ({ ...p, divisi: v }))} options={["CTIT", "Logistik", "HC", "Finance", "Operasional"].map(o => ({ value: o, label: o }))} />
               </ModalField>
               <ModalField label="Jenis Permohonan" required>
                 <ModalSelect value={form.jenisPermohonan} onChange={v => setForm(p => ({ ...p, jenisPermohonan: v }))} options={[{value:"Barang",label:"Barang"},{value:"Jasa",label:"Jasa"},{value:"Konstruksi",label:"Konstruksi"},{value:"Konsultansi",label:"Konsultansi"}]} />

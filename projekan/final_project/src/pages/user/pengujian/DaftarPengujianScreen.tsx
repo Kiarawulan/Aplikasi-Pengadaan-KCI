@@ -25,8 +25,13 @@ export function DaftarPengujianScreen({ onSelectItem }: {
       // must have currentStep === 'pengujian' and 'pengujian' is not completed
       const pengujianItems = res.data.filter((item: PengadaanItem) => {
         const completed = item.completedSteps || [];
-        const isReadyForPengujian = completed.includes("contract");
-        return isReadyForPengujian && !completed.includes("pengujian");
+        const isReadyForPengujian =
+          completed.includes("contract") ||
+          completed.includes("pengajuan-dana") ||
+          item.currentStep === "pengujian" ||
+          item.status === "Proses Pengujian" ||
+          completed.includes("pengujian");
+        return isReadyForPengujian;
       });
       setItems(pengujianItems);
     } catch (err) {

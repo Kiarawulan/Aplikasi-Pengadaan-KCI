@@ -133,47 +133,248 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        // ─── 3. Initial Pengadaan ────────────────────────────────────────────────
-        $p1 = Pengadaan::updateOrCreate(
-            ['id' => 'PD-001'],
+        // ─── 3. Initial Pengadaan (PR & PD Dummy Data across all steps) ────────
+        $pengadaanItems = [
+            // PR Items
             [
-                'nama' => 'Pengadaan Laptop Dell Latitude 5540',
+                'id' => 'PR-001',
+                'nama' => 'Pengadaan Server Storage Data Center KCI',
                 'departemen' => 'CTIT',
-                'nominal' => 'Rp 150.000.000',
-                'tanggal' => '2024-01-15',
-                'status' => 'Park Dokumen',
+                'nominal' => 'Rp 800.000.000',
+                'tanggal' => '2024-02-01',
+                'status' => 'Menunggu Verifikasi Admin',
                 'current_step' => 'npp',
                 'created_by' => 'USR-005',
-            ]
-        );
-
-        $p2 = Pengadaan::updateOrCreate(
-            ['id' => 'PD-002'],
+                'form_data' => [
+                    'emailPic' => 'andi.it@kci.co.id',
+                    'tahun' => '2024',
+                    'subUnit' => 'CTI - INFORMATION TECHNOLOGY',
+                    'jenisPermohonan' => 'Barang',
+                    'judulPermohonan' => 'Pengadaan Server Storage Data Center KCI',
+                    'nominalPermohonan' => 'Rp 800.000.000',
+                    'detailPermohonan' => 'Pengadaan server storage 100TB untuk Data Center KCI',
+                ],
+            ],
             [
-                'nama' => 'Pengadaan AC Split 2PK Office',
+                'id' => 'PR-002',
+                'nama' => 'Pengadaan Perangkat Router & Switch Core Cisco',
+                'departemen' => 'CTIT',
+                'nominal' => 'Rp 350.000.000',
+                'tanggal' => '2024-02-05',
+                'status' => 'Menunggu Verifikasi Admin',
+                'current_step' => 'pengajuan-dana',
+                'created_by' => 'USR-005',
+                'form_data' => [
+                    'emailPic' => 'andi.it@kci.co.id',
+                    'tahun' => '2024',
+                    'subUnit' => 'CTI - INFORMATION TECHNOLOGY',
+                    'jenisPermohonan' => 'Barang',
+                    'judulPermohonan' => 'Pengadaan Perangkat Router & Switch Core Cisco',
+                    'nominalPermohonan' => 'Rp 350.000.000',
+                ],
+            ],
+            [
+                'id' => 'PR-003',
+                'nama' => 'Pengadaan Sistem Keamanan Monitoring CCTV Stasiun',
+                'departemen' => 'CTIT',
+                'nominal' => 'Rp 780.000.000',
+                'tanggal' => '2024-02-10',
+                'status' => 'approved',
+                'current_step' => 'sp3',
+                'created_by' => 'USR-005',
+                'form_data' => [
+                    'emailPic' => 'andi.it@kci.co.id',
+                    'tahun' => '2024',
+                    'subUnit' => 'CTI - INFORMATION TECHNOLOGY',
+                    'jenisPermohonan' => 'Jasa & Barang',
+                    'judulPermohonan' => 'Pengadaan Sistem Keamanan Monitoring CCTV Stasiun',
+                    'nominalPermohonan' => 'Rp 780.000.000',
+                ],
+            ],
+            [
+                'id' => 'PR-004',
+                'nama' => 'Pengadaan Suku Cadang Bogie KRL Series 200',
                 'departemen' => 'Logistik',
-                'nominal' => 'Rp 45.000.000',
-                'tanggal' => '2024-01-20',
-                'status' => 'Park Dokumen',
-                'current_step' => 'npp',
+                'nominal' => 'Rp 320.000.000',
+                'tanggal' => '2024-02-12',
+                'status' => 'approved',
+                'current_step' => 'pbj',
                 'created_by' => 'USR-002',
-            ]
-        );
-
-        // ─── 4. Initial Verifikasi ───────────────────────────────────────────────
-        Verifikasi::updateOrCreate(
-            ['id' => 'VR-001'],
+                'form_data' => [
+                    'emailPic' => 'budi.logistik@kci.co.id',
+                    'tahun' => '2024',
+                    'subUnit' => 'CUG - LOGISTIC',
+                    'jenisPermohonan' => 'Barang',
+                    'judulPermohonan' => 'Pengadaan Suku Cadang Bogie KRL Series 200',
+                    'nominalPermohonan' => 'Rp 320.000.000',
+                ],
+            ],
             [
-                'pengadaan_id' => 'PD-001',
-                'pengadaan_nama' => 'Pengadaan Laptop Dell Latitude 5540',
+                'id' => 'PR-005',
+                'nama' => 'Pengadaan Lisensi Software Windows & RedHat',
                 'departemen' => 'CTIT',
                 'nominal' => 'Rp 150.000.000',
-                'tipe' => 'park-dokumen',
-                'submit_by' => 'Andi IT',
-                'submit_at' => now()->subDays(2),
-                'status' => 'pending',
-            ]
-        );
+                'tanggal' => '2024-02-15',
+                'status' => 'approved',
+                'current_step' => 'contract',
+                'created_by' => 'USR-005',
+                'form_data' => [
+                    'emailPic' => 'andi.it@kci.co.id',
+                    'tahun' => '2024',
+                    'subUnit' => 'CTI - INFORMATION TECHNOLOGY',
+                    'jenisPermohonan' => 'Barang',
+                    'judulPermohonan' => 'Pengadaan Lisensi Software Windows & RedHat',
+                    'nominalPermohonan' => 'Rp 150.000.000',
+                ],
+            ],
+            [
+                'id' => 'PR-006',
+                'nama' => 'Pengadaan Fire Alarm & Pemadam Depo Bukit Duri',
+                'departemen' => 'Logistik',
+                'nominal' => 'Rp 210.000.000',
+                'tanggal' => '2024-02-18',
+                'status' => 'Proses Pengujian',
+                'current_step' => 'pengujian',
+                'created_by' => 'USR-002',
+                'form_data' => [
+                    'emailPic' => 'budi.logistik@kci.co.id',
+                    'tahun' => '2024',
+                    'subUnit' => 'CUG - LOGISTIC',
+                    'jenisPermohonan' => 'Barang & Jasa',
+                    'judulPermohonan' => 'Pengadaan Fire Alarm & Pemadam Depo Bukit Duri',
+                    'nominalPermohonan' => 'Rp 210.000.000',
+                    'request-pengujian' => [
+                        'tanggalPengujian' => '2024-02-25',
+                        'noDO' => 'DO-2024-991',
+                        'assignTo' => 'Tim Penguji Logistik & K3',
+                    ],
+                ],
+            ],
+            [
+                'id' => 'PR-007',
+                'nama' => 'Pengadaan Jasa Outsource Pemeliharaan Sarpas IT',
+                'departemen' => 'CTIT',
+                'nominal' => 'Rp 450.000.000',
+                'tanggal' => '2024-02-20',
+                'status' => 'Proses Pembayaran',
+                'current_step' => 'pembayaran',
+                'created_by' => 'USR-005',
+                'form_data' => [
+                    'emailPic' => 'andi.it@kci.co.id',
+                    'tahun' => '2024',
+                    'subUnit' => 'CTI - INFORMATION TECHNOLOGY',
+                    'jenisPermohonan' => 'Jasa',
+                    'judulPermohonan' => 'Pengadaan Jasa Outsource Pemeliharaan Sarpas IT',
+                    'nominalPermohonan' => 'Rp 450.000.000',
+                    'pelunasan' => [
+                        'jenis' => 'Outsource',
+                        'keterangan' => 'Pelunasan termin 1 permohonan pembayaran outsource IT',
+                    ],
+                ],
+            ],
+            [
+                'id' => 'PR-008',
+                'nama' => 'Pengadaan Perangkat Komputer Workstation Graphic',
+                'departemen' => 'CTIT',
+                'nominal' => 'Rp 195.000.000',
+                'tanggal' => '2024-02-22',
+                'status' => 'Proses Pembayaran',
+                'current_step' => 'pembayaran',
+                'created_by' => 'USR-005',
+                'form_data' => [
+                    'emailPic' => 'andi.it@kci.co.id',
+                    'tahun' => '2024',
+                    'subUnit' => 'CTI - INFORMATION TECHNOLOGY',
+                    'jenisPermohonan' => 'Barang',
+                    'judulPermohonan' => 'Pengadaan Perangkat Komputer Workstation Graphic',
+                    'nominalPermohonan' => 'Rp 195.000.000',
+                    'pelunasan' => [
+                        'jenis' => 'Non-outsource',
+                        'keterangan' => 'Pelunasan tagihan perangkat workstation',
+                    ],
+                ],
+            ],
+
+            // PD Items
+            [
+                'id' => 'PD-001',
+                'nama' => 'Park Document - Pengadaan ATK & Office Supplies Q1',
+                'departemen' => 'Logistik',
+                'nominal' => 'Rp 25.000.000',
+                'tanggal' => '2024-02-01',
+                'status' => 'Menunggu Verifikasi Admin',
+                'current_step' => 'pengajuan-dana',
+                'created_by' => 'USR-002',
+                'form_data' => [
+                    'emailPic' => 'budi.logistik@kci.co.id',
+                    'tahun' => '2024',
+                    'subUnit' => 'CUG - LOGISTIC',
+                    'jenisPermohonan' => 'Barang',
+                    'judulPermohonan' => 'Park Document - Pengadaan ATK & Office Supplies Q1',
+                    'nominalPermohonan' => 'Rp 25.000.000',
+                ],
+            ],
+            [
+                'id' => 'PD-002',
+                'nama' => 'Park Document - Pemeliharaan Rutin AC Kantor Pusat',
+                'departemen' => 'Logistik',
+                'nominal' => 'Rp 45.000.000',
+                'tanggal' => '2024-02-10',
+                'status' => 'Proses Pembayaran',
+                'current_step' => 'pembayaran',
+                'created_by' => 'USR-002',
+                'form_data' => [
+                    'emailPic' => 'budi.logistik@kci.co.id',
+                    'tahun' => '2024',
+                    'subUnit' => 'CUG - LOGISTIC',
+                    'jenisPermohonan' => 'Jasa',
+                    'judulPermohonan' => 'Park Document - Pemeliharaan Rutin AC Kantor Pusat',
+                    'nominalPermohonan' => 'Rp 45.000.000',
+                    'pelunasan' => [
+                        'jenis' => 'UMD',
+                        'keterangan' => 'Pencairan dana UMD untuk servis AC kantor pusat',
+                    ],
+                ],
+            ],
+            [
+                'id' => 'PD-003',
+                'nama' => 'Park Document - Pengujian Genset Emergency Depo Depok',
+                'departemen' => 'Logistik',
+                'nominal' => 'Rp 60.000.000',
+                'tanggal' => '2024-02-15',
+                'status' => 'Proses Pengujian',
+                'current_step' => 'pengujian',
+                'created_by' => 'USR-002',
+                'form_data' => [
+                    'emailPic' => 'budi.logistik@kci.co.id',
+                    'tahun' => '2024',
+                    'subUnit' => 'CUG - LOGISTIC',
+                    'jenisPermohonan' => 'Jasa & Uji',
+                    'judulPermohonan' => 'Park Document - Pengujian Genset Emergency Depo Depok',
+                    'nominalPermohonan' => 'Rp 60.000.000',
+                ],
+            ],
+        ];
+
+        foreach ($pengadaanItems as $pi) {
+            $p = Pengadaan::updateOrCreate(['id' => $pi['id']], $pi);
+
+            // Record verifikasi entries
+            $isPr = str_starts_with($pi['id'], 'PR-');
+            Verifikasi::updateOrCreate(
+                ['id' => 'VR-' . $pi['id']],
+                [
+                    'pengadaan_id' => $pi['id'],
+                    'pengadaan_nama' => $pi['nama'],
+                    'departemen' => $pi['departemen'],
+                    'nominal' => $pi['nominal'],
+                    'tipe' => $isPr ? 'purchase-requisition' : 'park-dokumen',
+                    'submit_by' => $pi['created_by'] === 'USR-005' ? 'Andi IT' : 'Budi Logistik',
+                    'submit_at' => now()->subDays(3),
+                    'status' => str_contains($pi['status'], 'Menunggu') ? 'pending' : 'approved',
+                ]
+            );
+        }
 
         // ─── 5. Initial Template Dokumen ────────────────────────────────────────
         $templates = [

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from "react";
 import type { Screen, PengadaanItem } from "./types";
 import { AuthProvider, useAuth } from "./store/authStore";
 import { LoginPage } from "./pages/auth/LoginPage";
@@ -17,21 +17,83 @@ import {
   DaftarPembayaranScreen,
 } from "./pages/user";
 
+// ─── Error Boundary Component ──────────────────────────────────────────────────
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("React ErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center font-sans">
+          <div className="bg-white rounded-2xl p-8 max-w-md shadow-xl border border-slate-200">
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4 font-bold text-xl">⚠️</div>
+            <h2 className="text-[#252271] text-lg font-extrabold mb-2">Terjadi Kesalahan Tampilan</h2>
+            <p className="text-xs text-slate-500 mb-6">Sistem mendeteksi kesalahan data. Silakan reset sesi untuk kembali ke tampilan utama.</p>
+            <button
+              onClick={() => {
+                localStorage.removeItem("sipro_last_user_screen");
+                localStorage.removeItem("sipro_last_selected_item");
+                localStorage.removeItem("sipro_last_back_screen");
+                window.location.href = "/";
+              }}
+              className="w-full py-2.5 bg-[#252271] text-white rounded-xl text-xs font-bold shadow-md hover:bg-[#1a1753] transition-colors"
+            >
+              Reset Sesi & Reload
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ─── User App (fully synchronized via Laravel MySQL API) ──────────────────────
 function UserApp() {
-  const [screen, setScreen] = useState<Screen>(() => {
-    return (localStorage.getItem("sipro_last_user_screen") as Screen) || "dashboard";
-  });
   const [selectedItem, setSelectedItem] = useState<PengadaanItem | null>(() => {
-    const saved = localStorage.getItem("sipro_last_selected_item");
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem("sipro_last_selected_item");
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      return (parsed && parsed.id) ? parsed : null;
+    } catch {
+      return null;
+    }
   });
+
+  const [screen, setScreen] = useState<Screen>(() => {
+    const savedScreen = (localStorage.getItem("sipro_last_user_screen") as Screen) || "dashboard";
+    const savedItem = localStorage.getItem("sipro_last_selected_item");
+    if ((savedScreen === "pd-detail" || savedScreen === "pr-detail") && !savedItem) {
+      return "daftar-pengadaan";
+    }
+    return savedScreen;
+  });
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem("sipro_user_sidebar_collapsed") === "true";
   });
   const [backScreen, setBackScreen] = useState<Screen>(() => {
     return (localStorage.getItem("sipro_last_back_screen") as Screen) || "dashboard";
   });
+
+  useEffect(() => {
+    if ((screen === "pd-detail" || screen === "pr-detail") && !selectedItem) {
+      setScreen("daftar-pengadaan");
+      localStorage.setItem("sipro_last_user_screen", "daftar-pengadaan");
+    }
+  }, [screen, selectedItem]);
 
   const handleNavigate = (s: Screen) => {
     setScreen(s);
@@ -42,11 +104,13 @@ function UserApp() {
     }
   };
 
-  const handleSelectItem = (item: PengadaanItem, s: Screen) => {
+  const handleSelectItem = (item: PengadaanItem, s: Screen, targetBackScreen?: Screen) => {
+    if (!item || !item.id) return;
     setSelectedItem(item);
     localStorage.setItem("sipro_last_selected_item", JSON.stringify(item));
-    setBackScreen(screen);
-    localStorage.setItem("sipro_last_back_screen", screen);
+    const bScreen = targetBackScreen || screen;
+    setBackScreen(bScreen);
+    localStorage.setItem("sipro_last_back_screen", bScreen);
     setScreen(s);
     localStorage.setItem("sipro_last_user_screen", s);
   };
@@ -74,7 +138,7 @@ function UserApp() {
             />
           )}
           {screen === "pd-detail" && selectedItem && (
-            <PdDetailScreen item={selectedItem} fromScreen={backScreen} onBack={() => handleNavigate(backScreen)} onNavigate={handleNavigate} />
+            <PdDetailScreen item={selectedItem} fromScreen={backScreen} onBack={() => handleNavigate(backScreen)} onNavigate={handleNavigate} onSelectItem={handleSelectItem} />
           )}
           {screen === "purchase-requisition" && (
             <PurchaseRequestionScreen
@@ -82,35 +146,35 @@ function UserApp() {
             />
           )}
           {screen === "pr-detail" && selectedItem && (
-            <PrDetailScreen item={selectedItem} fromScreen={backScreen} onBack={() => handleNavigate(backScreen)} onNavigate={handleNavigate} />
+            <PrDetailScreen item={selectedItem} fromScreen={backScreen} onBack={() => handleNavigate(backScreen)} onNavigate={handleNavigate} onSelectItem={handleSelectItem} />
           )}
           {screen === "daftar-pengujian" && (
             <DaftarPengujianScreen
-              onSelectItem={(item) => handleSelectItem(item, item.id.startsWith("PR-") ? "pr-detail" : "pd-detail")}
+              onSelectItem={(item) => handleSelectItem(item, item.id?.startsWith("PR-") ? "pr-detail" : "pd-detail", "daftar-pengujian")}
             />
           )}
           {screen === "pembayaran-outsource" && (
             <DaftarPembayaranScreen
               type="outsource"
-              onSelectItem={(item) => handleSelectItem(item, "pr-detail")}
+              onSelectItem={(item) => handleSelectItem(item, "pr-detail", "pembayaran-outsource")}
             />
           )}
           {screen === "pembayaran-non-outsource" && (
             <DaftarPembayaranScreen
               type="non-outsource"
-              onSelectItem={(item) => handleSelectItem(item, "pr-detail")}
+              onSelectItem={(item) => handleSelectItem(item, "pr-detail", "pembayaran-non-outsource")}
             />
           )}
           {screen === "pembayaran-payment-request" && (
             <DaftarPembayaranScreen
               type="payment-request"
-              onSelectItem={(item) => handleSelectItem(item, "pr-detail")}
+              onSelectItem={(item) => handleSelectItem(item, "pr-detail", "pembayaran-payment-request")}
             />
           )}
           {screen === "pembayaran-umd" && (
             <DaftarPembayaranScreen
               type="umd"
-              onSelectItem={(item) => handleSelectItem(item, "pd-detail")}
+              onSelectItem={(item) => handleSelectItem(item, "pd-detail", "pembayaran-umd")}
             />
           )}
           {screen === "template-dokumen" && <TemplateDokumenScreen />}
@@ -138,8 +202,10 @@ function AppRoot() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppRoot />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppRoot />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

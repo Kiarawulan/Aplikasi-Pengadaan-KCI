@@ -16,20 +16,58 @@ import { api } from "@/services/api";
 import { useAuth } from "@/store/authStore";
 
 
-export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item: PengadaanItem; fromScreen?: string; onBack: () => void; onNavigate: (s: Screen) => void }) {
-  let steps: any[] = [];
-  if (fromScreen && fromScreen.includes("pembayaran")) {
-    steps = [{ id: "pembayaran", label: "Pembayaran", subSteps: [{ id: "pelunasan", label: "Pelunasan" }, { id: "payment-request", label: "Payment Request" }] }];
-  } else if (fromScreen && fromScreen.includes("pengujian")) {
-    steps = [{ id: "pengujian", label: "Pengujian", subSteps: [{ id: "request-pengujian", label: "Request Pengujian" }, { id: "hasil-pengujian", label: "Hasil Pengujian" }] }];
+export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectItem }: { 
+  item: PengadaanItem; 
+  fromScreen?: string; 
+  onBack: () => void; 
+  onNavigate: (s: Screen) => void;
+  onSelectItem?: (item: PengadaanItem, s: Screen, back?: Screen) => void;
+}) {
+  if (!item || !item.id) {
+    return (
+      <div className="p-8 text-center text-gray-500">
+        <p className="text-sm font-semibold">Data Park Document tidak ditemukan.</p>
+        <button onClick={() => onNavigate("daftar-pengadaan")} className="mt-4 px-4 py-2 bg-[#252271] text-white text-xs rounded-xl font-bold">
+          Kembali ke Daftar Pengadaan
+        </button>
+      </div>
+    );
+  }
+
+  const steps = [...PD_MAIN_STEPS];
+
+  const goToUmdPayment = () => {
+    api.put(`/pengadaan/${item.id}`, { currentStep: "pembayaran", status: "Proses Pembayaran" }).catch(() => {});
+    const pIdx = steps.findIndex(s => s.id === "pembayaran");
+    if (pIdx !== -1) {
+      setActiveStepIdx(pIdx);
+      setActiveSubIdx(0);
+    }
+    if (onSelectItem) {
+      onSelectItem(item, "pd-detail", "pembayaran-umd");
+    } else {
+      onNavigate("pembayaran-umd");
+    }
+  };
+
+  let defaultStepIdx = 0;
+  if (fromScreen && (fromScreen.includes("pembayaran") || fromScreen === "pembayaran-umd")) {
+    const idx = steps.findIndex(s => s.id === "pembayaran");
+    if (idx !== -1) defaultStepIdx = idx;
+  } else if (fromScreen && (fromScreen.includes("pengujian") || fromScreen === "daftar-pengujian")) {
+    const idx = steps.findIndex(s => s.id === "pengujian");
+    if (idx !== -1) defaultStepIdx = idx;
+  } else if (item.currentStep === "pembayaran") {
+    const idx = steps.findIndex(s => s.id === "pembayaran");
+    if (idx !== -1) defaultStepIdx = idx;
+  } else if (item.currentStep === "pengujian") {
+    const idx = steps.findIndex(s => s.id === "pengujian");
+    if (idx !== -1) defaultStepIdx = idx;
   } else {
-    steps = [...PD_MAIN_STEPS];
+    const uncompIdx = steps.findIndex(s => !(item.completedSteps || []).includes(s.id as any));
+    defaultStepIdx = uncompIdx === -1 ? 0 : uncompIdx;
   }
   const { currentUser } = useAuth();
-
-  // Find first uncompleted step
-  const initialStepIdx = steps.findIndex(s => !item.completedSteps?.includes(s.id));
-  const defaultStepIdx = initialStepIdx === -1 ? 0 : initialStepIdx;
 
   // Load initial submitted subs from item state or meta
   const [submittedSubs, setSubmittedSubs] = useState<Set<string>>(() => {
@@ -117,12 +155,21 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
       }
       setSubmittedSubs(s);
 
-      // Auto-update active steps based on fresh data
-      const initialStepIdx = steps.findIndex(st => !(fresh.completedSteps || []).includes(st.id as any));
-      const newStepIdx = initialStepIdx === -1 ? 0 : initialStepIdx;
-      setActiveStepIdx(newStepIdx);
+      // Auto-update active steps preserving target step
+      let targetIdx = defaultStepIdx;
+      if (fromScreen && (fromScreen.includes("pembayaran") || fromScreen === "pembayaran-umd")) {
+        const pIdx = steps.findIndex(st => st.id === "pembayaran");
+        if (pIdx !== -1) targetIdx = pIdx;
+      } else if (fresh.currentStep === "pembayaran") {
+        const pIdx = steps.findIndex(st => st.id === "pembayaran");
+        if (pIdx !== -1) targetIdx = pIdx;
+      } else if (fromScreen && (fromScreen.includes("pengujian") || fromScreen === "daftar-pengujian")) {
+        const pIdx = steps.findIndex(st => st.id === "pengujian");
+        if (pIdx !== -1) targetIdx = pIdx;
+      }
+      setActiveStepIdx(targetIdx);
 
-      const step = steps[newStepIdx];
+      const step = steps[targetIdx];
       if (step && step.subSteps) {
         let firstUncompleted = 0;
         for (let i = 0; i < step.subSteps.length; i++) {
@@ -144,8 +191,9 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
     loading: boolean;
   }>({ status: "not_submitted", canProceed: true, loading: false });
 
-  const activeStep = steps[activeStepIdx];
-  const activeSub = activeStep.subSteps[activeSubIdx];
+  const activeStep = steps[activeStepIdx] || steps[0];
+  const hasSubSteps = activeStep?.subSteps ? activeStep.subSteps.length > 0 : false;
+  const activeSub = hasSubSteps ? (activeStep.subSteps[activeSubIdx] || activeStep.subSteps[0]) : { id: "buat-pd", label: "Buat PD" };
 
   const subKey = (stepId: string, subId: string) => `${stepId}.${subId}`;
   const isSubSubmitted = (stepId: string, subId: string) => submittedSubs.has(subKey(stepId, subId));
@@ -243,11 +291,18 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
       }
     } else {
       // Submit current sub-step to backend API for Admin verification
+      // For pembayaran step (UMD), use 'umd' as tipe so admin sees it in UMD payment verification
+      const tipeToSubmit = activeStep.id === 'pembayaran' ? 'umd' : activeSub.id;
       try {
         await api.post(`/pengadaan/${item.id}/submit-step`, {
           stepId: activeStep.id,
-          tipe: activeSub.id,
+          tipe: tipeToSubmit,
         });
+        // Also save the UMD form data to backend when submitting
+        if (activeStep.id === 'pembayaran') {
+          const umdFormData = { ...allFd, umdData: allFd['umdData'] || {} };
+          await api.put(`/pengadaan/${item.id}/form-data`, umdFormData).catch(() => {});
+        }
       } catch { }
 
       const nextSubs = new Set([...submittedSubs, subKey(activeStep.id, activeSub.id)]);
@@ -370,56 +425,151 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
         </div>
       );
     }
-    if (activeSub.id === "payment-request") {
-      const d = fd("payment-request");
-      const u = (k: string) => (v: string) => upd("payment-request", k, v);
-      return (
-        <div className="space-y-3">
-          <FileUploadInput label="Input File BAHP dengan TTD" required value={d["fileBAHP"] ?? ""} onChange={u("fileBAHP")} />
-          <FieldInput label="Keterangan" placeholder="Keterangan tambahan..." type="textarea" value={d["keterangan"]} onChange={u("keterangan")} />
-          {d["fileBAHP"] && (
-            <div><p className="text-[11.5px] font-medium text-[#0a0a0a] mb-1">Status</p><StatusBadge status="Proses" /></div>
-          )}
-        </div>
-      );
-    }
-    if (activeSub.id === "nota-dokumen") {
-      const d = fd("nota-dokumen");
-      const u = (k: string) => (v: string) => upd("nota-dokumen", k, v);
-      return (
-        <div className="space-y-3">
-          <div>
-            <p className="text-[11.5px] font-medium text-[#0a0a0a] mb-[5px]">Nota dan Dokumen</p>
-            <div className="flex items-center justify-between bg-[#f9f9f9] border border-[#e2e2e2] rounded px-3 py-2">
-              <div><p className="text-[11.5px] font-medium">Nota-PD-001-2025.pdf</p><p className="text-[10px] text-[#6b6b6b]">245 KB</p></div>
-              <button className="flex items-center gap-1.5 bg-[#252271] text-white text-[10px] font-medium px-3 py-1.5 rounded"><Download size={11} /> Download</button>
+    if (activeStep.id === "pembayaran" || activeSub.id === "pelunasan" || activeSub.id === "payment-request") {
+      const d = fd("umdData") || fd("pembayaran") || fd("buat-pd") || {};
+      const u = (k: string) => (v: string) => upd("umdData", k, v);
+
+      const isSubmitted = verifState.status === "pending" || verifState.status === "approved";
+
+      if (isSubmitted) {
+        return (
+          <div className="space-y-4">
+            <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-4 flex items-center justify-between">
+              <div>
+                <p className="text-[12px] font-bold text-blue-900">Hasil Isian Form UMD</p>
+                <p className="text-[10.5px] text-blue-700">Dokumen telah disubmit dan dapat dilihat detailnya oleh Admin di sistem Verification.</p>
+              </div>
+              <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+                verifState.status === "approved" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+              }`}>
+                {verifState.status === "approved" ? "✓ Disetujui Admin" : "⏳ Menunggu Verifikasi Admin"}
+              </span>
+            </div>
+
+            {/* Read only summary for User */}
+            <div className="space-y-4">
+              <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-2xs space-y-3">
+                <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide border-b border-gray-100 pb-2">1. Submission Form UMD</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                  <SummaryRow label="No Dokumen" value={d["noDokumen"] || item.id || "DOK-2024-001"} />
+                  <SummaryRow label="Bulan UMD" value={d["bulanUmd"] || "Maret 2024"} />
+                  <SummaryRow label="Judul" value={d["judul"] || item.nama} />
+                  <SummaryRow label="Nominal" value={d["nominal"] || item.nominal} />
+                </div>
+              </div>
+
+              <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-2xs space-y-3">
+                <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide border-b border-gray-100 pb-2">2. Data PE & G63</p>
+                <div className="grid grid-cols-3 gap-x-6 gap-y-2">
+                  <SummaryRow label="Nomor PE" value={d["nomorPe"] || "PE-2024-001"} />
+                  <SummaryRow label="Nomor G63" value={d["nomorG63"] || "G63-2024-089"} />
+                  <SummaryRow label="Tanggal G63" value={d["tanggalG63"] || "2024-03-15"} />
+                  <SummaryRow label="Nominal G63" value={d["nominalG63"] || item.nominal} />
+                  <SummaryRow label="Tanggal Cair" value={d["tanggalCair"] || "2024-03-20"} />
+                  <SummaryRow label="Nomor VA" value={d["nomorVa"] || "VA-88291039"} />
+                </div>
+              </div>
+
+              <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-2xs space-y-3">
+                <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide border-b border-gray-100 pb-2">3. Syarat Pembayaran & Dokumen Tutupan</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                  <SummaryRow label="G64 / Surat Pernyataan" value={d["fileG64"] || d["fileSuratPernyataanUmd"] || "Uploaded ✓"} />
+                  <SummaryRow label="Dokumen G63 TTD Lengkap" value={d["fileG63"] || "g63_ttd_lengkap.pdf"} />
+                  <SummaryRow label="Lembar G61" value={d["fileLembarG61"] || "lembar_g61.pdf"} />
+                  <SummaryRow label="Ceklis Pertanggungjawaban" value={d["fileCeklis"] || "ceklis.pdf"} />
+                  <SummaryRow label="Nominal G61" value={d["nominalG61"] || item.nominal} />
+                  <SummaryRow label="Sisa UMDS" value={d["sisaUmds"] || "Rp 0"} />
+                </div>
+              </div>
+
+              <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-2xs space-y-3">
+                <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide border-b border-gray-100 pb-2">4. Closing & Bukti Transfer</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                  <SummaryRow label="Nominal Pajak" value={d["nominalPajak"] || "Rp 0"} />
+                  <SummaryRow label="Nominal Pengembalian" value={d["nominalPengembalian"] || "Rp 0"} />
+                  <SummaryRow label="Dokumen A9 Lengkap" value={d["fileA9"] || "dokumen_a9.pdf"} />
+                  <SummaryRow label="Bukti Transfer Pengembalian" value={d["fileBuktiTransfer"] || "bukti_transfer.pdf"} />
+                </div>
+              </div>
             </div>
           </div>
-          <FieldInput label="Keterangan" placeholder="Keterangan terkait nota..." type="textarea" value={d["keterangan"]} onChange={u("keterangan")} />
-          <div><p className="text-[11.5px] font-medium text-[#0a0a0a] mb-1">Status</p><StatusBadge status="Proses" /></div>
-        </div>
-      );
-    }
-    if (activeSub.id === "dokumen-tutupan") {
-      const d = fd("dokumen-tutupan");
-      const u = (k: string) => (v: string) => upd("dokumen-tutupan", k, v);
+        );
+      }
+
+      // Interactive form filling for User
       return (
-        <div className="space-y-3">
-          <FileUploadInput label="Dokumen Tutupan" required value={d["fileTutupan"] ?? ""} onChange={u("fileTutupan")} />
-          <FieldInput label="Keterangan" placeholder="Keterangan dokumen tutupan..." type="textarea" value={d["keterangan"]} onChange={u("keterangan")} />
-          {d["fileTutupan"] && (
-            <div><p className="text-[11.5px] font-medium text-[#0a0a0a] mb-1">Status Verifikasi</p><StatusBadge status="Proses" /></div>
-          )}
-        </div>
-      );
-    }
-    if (activeSub.id === "pengembalian-dana") {
-      const d = fd("pengembalian-dana");
-      const u = (k: string) => (v: string) => upd("pengembalian-dana", k, v);
-      return (
-        <div className="space-y-3">
-          <FileUploadInput label="File Pengembalian Dana (Nota dan sebagainya)" value={d["filePengembalian"] ?? ""} onChange={u("filePengembalian")} />
-          <FieldInput label="Keterangan" placeholder="Keterangan pengembalian dana..." type="textarea" value={d["keterangan"]} onChange={u("keterangan")} />
+        <div className="space-y-6">
+          {/* 1. SUBMISSION FORM UMD */}
+          <div className="bg-[#fcfcfd] border border-[#e5e7eb] rounded-xl p-4 space-y-3 shadow-2xs">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-200/60">
+              <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide">1. SUBMISSION FORM UMD</p>
+              <span className="text-[10px] bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded">Form Pengisian User</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <FieldInput label="No Dokumen" placeholder="Contoh: DOK-2024-001" required value={d["noDokumen"]} onChange={u("noDokumen")} />
+              <FieldInput label="Bulan UMD" placeholder="Contoh: Maret 2024" required value={d["bulanUmd"]} onChange={u("bulanUmd")} />
+              <FieldInput label="Judul" placeholder="Judul UMD..." required value={d["judul"] || item.nama} onChange={u("judul")} />
+              <FieldInput label="Nominal (Rp)" placeholder="0" type="number" required value={d["nominal"] || item.nominal} onChange={u("nominal")} />
+            </div>
+          </div>
+
+          {/* 2. DATA PE & G63 */}
+          <div className="bg-[#fcfcfd] border border-[#e5e7eb] rounded-xl p-4 space-y-3 shadow-2xs">
+            <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide pb-2 border-b border-gray-200/60">2. DATA PE & G63</p>
+            <div className="grid grid-cols-2 gap-3">
+              <FieldInput label="Nomor PE" placeholder="Contoh: PE-2024-001" required value={d["nomorPe"]} onChange={u("nomorPe")} />
+              <FieldInput label="Nomor G63" placeholder="Contoh: G63-2024-089" required value={d["nomorG63"]} onChange={u("nomorG63")} />
+              <FieldInput label="Tanggal G63" type="date" required value={d["tanggalG63"]} onChange={u("tanggalG63")} />
+              <FieldInput label="Nominal G63 (Rp)" placeholder="0" type="number" required value={d["nominalG63"]} onChange={u("nominalG63")} />
+              <FieldInput label="Tanggal Cair" type="date" required value={d["tanggalCair"]} onChange={u("tanggalCair")} />
+              <FieldInput label="Nomor VA" placeholder="Contoh: VA-88291039" required value={d["nomorVa"]} onChange={u("nomorVa")} />
+            </div>
+          </div>
+
+          {/* 3. SYARAT PEMBAYARAN UMD */}
+          <div className="bg-[#fcfcfd] border border-[#e5e7eb] rounded-xl p-4 space-y-3 shadow-2xs">
+            <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide pb-2 border-b border-gray-200/60">3. SYARAT PEMBAYARAN UMD</p>
+            <div className="space-y-2.5">
+              <FileUploadInput label="Upload Dokumen G64" required value={d["fileG64"]} onChange={u("fileG64")} />
+              <FileUploadInput label="Upload Surat Pernyataan" required value={d["fileSuratPernyataanUmd"]} onChange={u("fileSuratPernyataanUmd")} />
+              <FileUploadInput label="Upload Surat Pernyataan Keabsahan Dokumen" required value={d["fileKeabsahan"]} onChange={u("fileKeabsahan")} />
+            </div>
+          </div>
+
+          {/* 4. INPUT DOKUMEN TUTUPAN */}
+          <div className="bg-[#fcfcfd] border border-[#e5e7eb] rounded-xl p-4 space-y-3 shadow-2xs">
+            <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide pb-2 border-b border-gray-200/60">4. INPUT DOKUMEN TUTUPAN</p>
+            <div className="grid grid-cols-2 gap-3">
+              <FileUploadInput label="Dokumen G63 TTD Lengkap" required value={d["fileG63"]} onChange={u("fileG63")} />
+              <FileUploadInput label="Lembar G61" required value={d["fileLembarG61"]} onChange={u("fileLembarG61")} />
+              <FileUploadInput label="Ceklis Pertanggungjawaban" required value={d["fileCeklis"]} onChange={u("fileCeklis")} />
+              <FileUploadInput label="Surat Pernyataan Keaslian Dokumen" required value={d["fileSuratKeaslian"]} onChange={u("fileSuratKeaslian")} />
+              <FileUploadInput label="Surat Kebenaran Barang/Jasa" required value={d["fileSuratKebenaran"]} onChange={u("fileSuratKebenaran")} />
+              <FileUploadInput label="Nota / Kwitansi Pertanggungjawaban" required value={d["fileNota"]} onChange={u("fileNota")} />
+            </div>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <FieldInput label="Nominal G61 (Rp)" placeholder="0" type="number" required value={d["nominalG61"]} onChange={u("nominalG61")} />
+              <FieldInput label="Sisa UMDS (Rp)" placeholder="0" type="number" required value={d["sisaUmds"]} onChange={u("sisaUmds")} />
+            </div>
+          </div>
+
+          {/* 5. INPUT CLOSING UMD */}
+          <div className="bg-[#fcfcfd] border border-[#e5e7eb] rounded-xl p-4 space-y-3 shadow-2xs">
+            <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide pb-2 border-b border-gray-200/60">5. INPUT CLOSING UMD</p>
+            <div className="grid grid-cols-2 gap-3">
+              <FieldInput label="Nominal Pajak (Rp)" placeholder="0" type="number" value={d["nominalPajak"]} onChange={u("nominalPajak")} />
+              <FieldInput label="Nominal Pengembalian (Rp)" placeholder="0" type="number" value={d["nominalPengembalian"]} onChange={u("nominalPengembalian")} />
+            </div>
+            <FileUploadInput label="Upload Dokumen A9 Lengkap" required value={d["fileA9"]} onChange={u("fileA9")} />
+          </div>
+
+          {/* 6. INPUT BUKTI PENGEMBALIAN */}
+          <div className="bg-[#252271] text-white p-4 rounded-xl space-y-3 shadow-md">
+            <p className="text-[11.5px] font-bold uppercase tracking-wide">6. INPUT BUKTI PENGEMBALIAN DANA</p>
+            <div className="bg-white text-gray-800 p-3.5 rounded-lg border border-gray-200">
+              <FileUploadInput label="Upload Bukti Transfer Pengembalian" required value={d["fileBuktiTransfer"]} onChange={u("fileBuktiTransfer")} />
+            </div>
+          </div>
         </div>
       );
     }
@@ -484,7 +634,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
             </div>
           </div>
           <button
-            onClick={() => onNavigate("pembayaran-umd")}
+            onClick={goToUmdPayment}
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#252271] text-white rounded-lg text-[11px] font-bold hover:bg-[#1a1860] transition-colors shrink-0 shadow-xs"
           >
             Lanjut ke Pembayaran UMD <ChevronRight size={12} />
@@ -503,7 +653,14 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
         <StepTracker
           steps={steps} activeStepIdx={activeStepIdx} activeSubIdx={activeSubIdx}
           completedStepIds={completedStepIds} submittedSubs={submittedSubs}
-          onSelectStep={(idx) => { if (canAccessStep(idx)) { setActiveStepIdx(idx); setActiveSubIdx(0); } }}
+          onSelectStep={(idx) => {
+            if (steps[idx]?.id === "pembayaran") {
+              goToUmdPayment();
+            } else if (canAccessStep(idx)) {
+              setActiveStepIdx(idx);
+              setActiveSubIdx(0);
+            }
+          }}
           onSelectSub={(sIdx) => { if (canAccessSub(sIdx)) setActiveSubIdx(sIdx); }}
           canAccessStep={canAccessStep}
           canAccessSub={canAccessSub}
@@ -521,7 +678,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
               <div className="px-4 pb-3.5 pt-3.5 border-t border-[#e2e2e2] flex items-center justify-between">
                 <button onClick={goPrev} disabled={isFirstSub} className="flex items-center gap-1.5 px-4 h-[30px] rounded border border-gray-200 text-[11.5px] text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"><ChevronLeft size={12} /> Kembali</button>
                 <div className="flex gap-2">
-                  <button onClick={flashSave} className="px-4 h-[30px] rounded border border-[#252271] text-[11.5px] text-[#252271] font-medium hover:bg-[#252271]/5">
+                  <button onClick={() => flashSave()} className="px-4 h-[30px] rounded border border-[#252271] text-[11.5px] text-[#252271] font-medium hover:bg-[#252271]/5">
                     Simpan
                   </button>
 
@@ -533,7 +690,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
 
                   {verifState.status === "approved" ? (
                     <button
-                      onClick={() => onNavigate("pembayaran-umd")}
+                      onClick={goToUmdPayment}
                       className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-bold transition-all bg-[#252271] hover:bg-[#1a1860] shadow-sm"
                     >
                       Selesai, Lanjut ke Pembayaran UMD <ChevronRight size={12} />

@@ -19,8 +19,8 @@ export function Sidebar({ screen, backScreen, onNavigate, collapsed, onToggleCol
       <nav className="flex-1 flex flex-col gap-0.5 px-2 py-1 overflow-y-auto overflow-x-hidden">
         <NavItem icon={<LayoutDashboard size={15} />} label="Dashboard" active={screen === "dashboard"} collapsed={collapsed} onClick={() => onNavigate("dashboard")} />
         <NavItem icon={<FileText size={15} />} label="RUP" active={screen === "rup-list"} collapsed={collapsed} onClick={() => onNavigate("rup-list")} />
-        <DaftarPengadaanNavItem screen={screen} onNavigate={onNavigate} collapsed={collapsed} />
-        <NavItem icon={<FileSearch size={15} />} label="Daftar Pengujian" active={screen === "daftar-pengujian"} collapsed={collapsed} onClick={() => onNavigate("daftar-pengujian")} />
+        <DaftarPengadaanNavItem screen={screen} backScreen={backScreen} onNavigate={onNavigate} collapsed={collapsed} />
+        <NavItem icon={<FileSearch size={15} />} label="Daftar Pengujian" active={screen === "daftar-pengujian" || (["pd-detail", "pr-detail"].includes(screen) && backScreen === "daftar-pengujian")} collapsed={collapsed} onClick={() => onNavigate("daftar-pengujian")} />
         <DaftarPembayaranNavItem screen={screen} backScreen={backScreen} onNavigate={onNavigate} collapsed={collapsed} />
         <NavItem icon={<FolderOpen size={15} />} label="Template Dokumen" active={screen === "template-dokumen"} collapsed={collapsed} onClick={() => onNavigate("template-dokumen")} />
       </nav>
@@ -29,4 +29,3 @@ export function Sidebar({ screen, backScreen, onNavigate, collapsed, onToggleCol
     </div>
   );
 }
-

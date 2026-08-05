@@ -29,6 +29,8 @@ interface VerifTableProps<T extends { id: string }> {
   onAdd?: () => void;
   onDownload?: () => void;
   addLabel?: string;
+  approveLabel?: string;
+  hideIndexColumn?: boolean;
   showVerifActions?: boolean;
   showCrudActions?: boolean;
   emptyMessage?: string;
@@ -69,6 +71,7 @@ export function VerifTable<T extends { id: string }>({
   onAdd,
   onDownload,
   addLabel = "Tambah",
+  hideIndexColumn = false,
   showVerifActions = false,
   showCrudActions = true,
   emptyMessage = "Tidak ada data",
@@ -224,7 +227,9 @@ export function VerifTable<T extends { id: string }>({
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50/80 border-b border-gray-100">
-              <th className="text-left px-4 py-3 text-[10.5px] font-semibold text-gray-500 uppercase tracking-wider w-10">No</th>
+              {!hideIndexColumn && (
+                <th className="text-left px-4 py-3 text-[10.5px] font-semibold text-gray-500 uppercase tracking-wider w-10">No</th>
+              )}
               {columns.map(col => (
                 <th key={col.key} className={`text-left px-4 py-3 text-[10.5px] font-semibold text-gray-500 uppercase tracking-wider ${col.width ?? ""}`}>
                   {col.label}
@@ -237,11 +242,13 @@ export function VerifTable<T extends { id: string }>({
           </thead>
           <tbody className="divide-y divide-gray-50">
             {paginated.length === 0 ? (
-              <tr><td colSpan={columns.length + 2} className="px-4 py-10 text-center text-gray-400 text-[12px]">{emptyMessage}</td></tr>
+              <tr><td colSpan={columns.length + (hideIndexColumn ? 1 : 2)} className="px-4 py-10 text-center text-gray-400 text-[12px]">{emptyMessage}</td></tr>
             ) : (
               paginated.map((row, i) => (
                 <tr key={row.id} className={i % 2 === 1 ? "bg-gray-50/30" : ""}>
-                  <td className="px-4 py-3.5 text-[11px] text-gray-400">{(page - 1) * pageSize + i + 1}</td>
+                  {!hideIndexColumn && (
+                    <td className="px-4 py-3.5 text-[11px] text-gray-400">{(page - 1) * pageSize + i + 1}</td>
+                  )}
                   {columns.map(col => (
                     <td key={col.key} className="px-4 py-3.5 text-[11px]">{col.render(row)}</td>
                   ))}

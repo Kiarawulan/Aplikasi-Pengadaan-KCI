@@ -50,11 +50,21 @@ const DEPT_OPTS = [
 ];
 
 // ─── Finance Verification Form ────────────────────────────────────────────────
-function FinanceVerifModal({ item, tipe = "outsource", onClose }: { item: any; tipe?: string; onClose: () => void }) {
+function FinanceVerifModal({
+  item,
+  tipe = "outsource",
+  onClose,
+  onAction
+}: {
+  item: any;
+  tipe?: string;
+  onClose: () => void;
+  onAction?: (type: "approve" | "revisi" | "reject", item: any) => void;
+}) {
   const [statusDates, setStatusDates] = useState({ cfff: "", cff: "", cf: "", siapBayar: "", lunas: "" });
-  
-  const docsList = tipe === "non-outsource" 
-    ? SYARAT_DOCS.filter(d => d !== "SPP PPT 3 Bulan") 
+
+  const docsList = tipe === "non-outsource"
+    ? SYARAT_DOCS.filter(d => d !== "SPP PPT 3 Bulan")
     : SYARAT_DOCS;
 
   const [syarat, setSyarat] = useState(docsList.map(d => ({ doc: d, syarat: false, ada: false, ket: "" })));
@@ -68,13 +78,13 @@ function FinanceVerifModal({ item, tipe = "outsource", onClose }: { item: any; t
     nilaiKontrak: item.nominal || "", nilaiAmandemen: "0", nilaiInvoice: "",
     tujuanBank: "Bank BNI", businessArea: "", batasBayar: "",
   });
-  const [requestNo] = useState(`REQ-${Math.floor(Math.random()*9000+1000)}`);
+  const [requestNo] = useState(`REQ-${Math.floor(Math.random() * 9000 + 1000)}`);
   const [updatedStatuses, setUpdatedStatuses] = useState<Record<string, boolean>>({});
 
   const STEPS = [
     { key: "cfff", label: "APPROVAL CFFF", note: "< Rp 200 juta" },
-    { key: "cff",  label: "APPROVAL CFF",  note: "Rp 200-500 juta" },
-    { key: "cf",   label: "APPROVAL CF",   note: "> Rp 500 juta" },
+    { key: "cff", label: "APPROVAL CFF", note: "Rp 200-500 juta" },
+    { key: "cf", label: "APPROVAL CF", note: "> Rp 500 juta" },
     { key: "siapBayar", label: "SIAP BAYAR", note: "" },
     { key: "lunas", label: "LUNAS", note: "" },
   ];
@@ -137,7 +147,7 @@ function FinanceVerifModal({ item, tipe = "outsource", onClose }: { item: any; t
             <div className="grid grid-cols-3 gap-3">
               <ModalField label="Unit" required>
                 <ModalSelect value={form.unit} onChange={v => setForm(p => ({ ...p, unit: v }))}
-                  options={["CUG","CTR","CTI","COS","CTS","CUS","CAF"].map(u => ({ value: u, label: u }))} />
+                  options={["CUG", "CTR", "CTI", "COS", "CTS", "CUS", "CAF"].map(u => ({ value: u, label: u }))} />
               </ModalField>
               <ModalField label="Date" required>
                 <ModalInput type="date" value={form.date} onChange={v => setForm(p => ({ ...p, date: v }))} />
@@ -223,7 +233,7 @@ function FinanceVerifModal({ item, tipe = "outsource", onClose }: { item: any; t
               </ModalField>
               <ModalField label="Business Area" required>
                 <ModalSelect value={form.businessArea} onChange={v => setForm(p => ({ ...p, businessArea: v }))}
-                  options={["Area Jakarta","Area Bogor","Area Depok","Area Tangerang","Area Bekasi","Area Serpong"].map(a => ({ value: a, label: a }))} />
+                  options={["Area Jakarta", "Area Bogor", "Area Depok", "Area Tangerang", "Area Bekasi", "Area Serpong"].map(a => ({ value: a, label: a }))} />
               </ModalField>
               <ModalField label="Batas Bayar dalam Kontrak / SPK / SPB" required>
                 <ModalInput value={form.batasBayar} onChange={v => setForm(p => ({ ...p, batasBayar: v }))} placeholder="14 hari kerja" />
@@ -345,14 +355,32 @@ function FinanceVerifModal({ item, tipe = "outsource", onClose }: { item: any; t
         </div>
 
         {/* Footer Actions */}
-        <div className="flex gap-3 justify-end px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
-          <button onClick={onClose} className="px-5 py-2 rounded-xl text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-100 bg-white">Back</button>
-          <button onClick={onClose} className="px-5 py-2 rounded-xl text-[12px] font-semibold border border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 flex items-center gap-1.5">
-            <FileWarning size={14} /> Direvisi
+        <div className="flex gap-2 justify-end px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-100 bg-white">
+            Kembali
           </button>
-          <button onClick={onClose} className="px-5 py-2 rounded-xl text-[12px] font-semibold bg-[#252271] text-white hover:bg-[#1a1753] flex items-center gap-1.5 shadow-md">
-            <CheckCircle2 size={14} /> Diterima
-          </button>
+          {onAction && (
+            <>
+              <button
+                onClick={() => { onClose(); onAction("revisi", item); }}
+                className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-1.5 shadow-sm"
+              >
+                <FileWarning size={14} /> Minta Revisi
+              </button>
+              <button
+                onClick={() => { onClose(); onAction("reject", item); }}
+                className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-red-600 text-white hover:bg-red-700 flex items-center gap-1.5 shadow-sm"
+              >
+                <XCircle size={14} /> Tolak Pembayaran
+              </button>
+              <button
+                onClick={() => { onClose(); onAction("approve", item); }}
+                className="px-5 py-2 rounded-xl text-[12px] font-semibold bg-green-600 text-white hover:bg-green-700 flex items-center gap-1.5 shadow-sm"
+              >
+                <CheckCircle2 size={14} /> Setujui (Approve)
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -360,42 +388,48 @@ function FinanceVerifModal({ item, tipe = "outsource", onClose }: { item: any; t
 }
 
 // ─── UMD Submission Form ──────────────────────────────────────────────────────
-function UmdSubmissionModal({ item, onClose }: { item: any; onClose: () => void }) {
-  const UMD_SYARAT = [
-    { doc: "G64", syarat: false, ada: false, ket: "" },
-    { doc: "Surat Pernyataan", syarat: false, ada: false, ket: "" },
-    { doc: "Surat Pernyataan Keabsahan Dokumen", syarat: false, ada: false, ket: "" },
-  ];
-  const [syarat, setSyarat] = useState(UMD_SYARAT);
-  const [form, setForm] = useState({
-    noDokumen: "", bulanUmd: "", judul: item.nama || "", nominal: item.nominal || "",
-    nomorPe: "", nomorG63: "", tanggalG63: "", nominalG63: "", tanggalCair: "", nomorVa: "",
-    nominalG61: "", sisaUmds: "",
-    nominalPajak: "", nominalPengembalian: "",
-    fileG63: "nama_file.pdf", fileLembarG61: "nama_file.pdf", fileCeklis: "nama_file.pdf", fileSuratPernyataan: "nama_file.pdf",
-    fileSuratKebenaran: "nama_file.pdf", fileNota: "nama_file.pdf", fileA9: "nama_file.pdf", fileBuktiTransfer: "nama_file.pdf",
-  });
+// ─── UMD Submission Detail View (Admin Read-Only) ──────────────────────────────
+function UmdSubmissionModal({
+  item,
+  onClose,
+  onAction
+}: {
+  item: any;
+  onClose: () => void;
+  onAction?: (type: "approve" | "revisi" | "reject", item: any) => void;
+}) {
+  const umdData = item.formData?.umdData || item.formData?.["buat-pd"] || item.formData || {};
 
-  const FileRow = ({ label, fieldKey }: { label: string; fieldKey: string }) => (
-    <ModalField label={label} required>
-      <div className="flex gap-2 items-center">
-        <input 
-          type="text" 
-          value={(form as any)[fieldKey] || "nama_file.pdf"} 
-          onChange={e => setForm(p => ({ ...p, [fieldKey]: e.target.value }))}
-          className="border border-gray-200 rounded-lg px-3 py-1.5 text-[11.5px] text-gray-700 flex-1 focus:outline-none focus:ring-1 focus:ring-[#252271]/30 bg-white"
-        />
-        <button 
-          type="button"
-          onClick={() => alert(`Membuka file ${(form as any)[fieldKey]}`)}
-          className="border border-gray-200 rounded-lg px-3 py-1.5 text-[11.5px] font-semibold text-gray-600 hover:bg-gray-50 bg-white shadow-sm"
-        >
-          View
-        </button>
-      </div>
-      <p className="text-[10px] text-gray-400 mt-0.5">(Pdf Maks. 20Mb)</p>
-    </ModalField>
+  const UMD_SYARAT = umdData.syaratDocs || [
+    { doc: "G64", syarat: true, ada: true, ket: "Lengkap dan terverifikasi", file: umdData.fileG64 || "g64_dokumen.pdf" },
+    { doc: "Surat Pernyataan", syarat: true, ada: true, ket: "Sudah di TTD basah", file: umdData.fileSuratPernyataanUmd || "surat_pernyataan_umd.pdf" },
+    { doc: "Surat Pernyataan Keabsahan Dokumen", syarat: true, ada: true, ket: "Keabsahan sah", file: umdData.fileKeabsahan || "keabsahan_dokumen.pdf" },
+  ];
+
+  const ReadOnlyField = ({ label, value }: { label: string; value: string }) => (
+    <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+      <p className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
+      <p className="text-[12.5px] font-bold text-[#252271] mt-0.5">{value || "—"}</p>
+    </div>
   );
+
+  const FileDetailRow = ({ label, fileName }: { label: string; fileName: string }) => (
+    <div className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2.5">
+      <div>
+        <p className="text-[10.5px] font-semibold text-gray-500">{label}</p>
+        <p className="text-[12px] font-bold text-gray-800 mt-0.5">{fileName || "nama_file.pdf"}</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => alert(`Membuka file ${fileName || "nama_file.pdf"}`)}
+        className="flex items-center gap-1 bg-[#252271] text-white hover:bg-[#1a1753] px-3 py-1.5 rounded-lg text-[11px] font-semibold shadow-xs"
+      >
+        <Download size={12} /> View File
+      </button>
+    </div>
+  );
+
+  const status = item.status || "pending";
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 py-6 px-4">
@@ -403,9 +437,17 @@ function UmdSubmissionModal({ item, onClose }: { item: any; onClose: () => void 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-[#fafafa] rounded-t-2xl">
           <div>
-            <h1 className="text-[#252271] text-[24px] font-extrabold leading-normal">Verification</h1>
-            <p className="text-[12px] text-gray-500 font-medium">
-              Pembayaran &gt; Payment Approve &gt; UMD &gt; <span className="font-bold text-[#252271]">Detail</span>
+            <div className="flex items-center gap-2">
+              <h1 className="text-[#252271] text-[22px] font-extrabold leading-normal">Detail Pengajuan UMD (Hasil Isian User)</h1>
+              <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase ${status === "approved" || status === "Selesai" ? "bg-green-100 text-green-700" :
+                  status === "revisi" ? "bg-purple-100 text-purple-700" :
+                    status === "rejected" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
+                }`}>
+                {status}
+              </span>
+            </div>
+            <p className="text-[12px] text-gray-500 font-medium mt-0.5">
+              Pembayaran &gt; Payment Approve &gt; UMD &gt; <span className="font-bold text-[#252271]">Hasil Isian Form User</span>
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-[22px] font-light">✕</button>
@@ -414,85 +456,68 @@ function UmdSubmissionModal({ item, onClose }: { item: any; onClose: () => void 
         <div className="px-6 py-5 space-y-6">
           {/* Submission Form */}
           <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">SUBMISSION FORM</p>
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">1. SUBMISSION FORM UMD</p>
             <div className="grid grid-cols-2 gap-3">
-              <ModalField label="No Dokumen" required>
-                <ModalSelect value={form.noDokumen} onChange={v => setForm(p => ({ ...p, noDokumen: v }))} 
-                  options={[{ value: "", label: "— pilih —" }, { value: "DOK-001", label: "DOK-2024-001" }, { value: "DOK-002", label: "DOK-2024-002" }]} />
-              </ModalField>
-              <ModalField label="Bulan UMD" required>
-                <ModalInput value={form.bulanUmd} onChange={v => setForm(p => ({ ...p, bulanUmd: v }))} placeholder="Maret 2024" />
-              </ModalField>
-              <ModalField label="Judul" required>
-                <ModalInput value={form.judul} onChange={v => setForm(p => ({ ...p, judul: v }))} />
-              </ModalField>
-              <ModalField label="Nominal" required>
-                <ModalInput type="number" value={form.nominal} onChange={v => setForm(p => ({ ...p, nominal: v }))} placeholder="0" />
-              </ModalField>
+              <ReadOnlyField label="No Dokumen" value={umdData.noDokumen || item.id || "DOK-2024-001"} />
+              <ReadOnlyField label="Bulan UMD" value={umdData.bulanUmd || "Maret 2024"} />
+              <ReadOnlyField label="Judul" value={umdData.judul || item.nama || "—"} />
+              <ReadOnlyField label="Nominal" value={umdData.nominal || item.nominal || "—"} />
             </div>
-            <p className="text-[10px] text-gray-400 mt-1">*Klik Kalender untuk pilih bulan</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <ModalField label="Nomor PE" required>
-              <ModalSelect value={form.nomorPe} onChange={v => setForm(p => ({ ...p, nomorPe: v }))}
-                options={[{ value: "", label: "— pilih —" }, { value: "PE-001", label: "PE-2024-001" }]} />
-            </ModalField>
-            <ModalField label="Nomor G63" required>
-              <ModalInput type="number" value={form.nomorG63} onChange={v => setForm(p => ({ ...p, nomorG63: v }))} placeholder="0" />
-            </ModalField>
-            <ModalField label="Tanggal G63" required>
-              <ModalInput type="date" value={form.tanggalG63} onChange={v => setForm(p => ({ ...p, tanggalG63: v }))} />
-            </ModalField>
-            <ModalField label="Nominal G63 (Rp)" required>
-              <ModalInput value={form.nominalG63} onChange={v => setForm(p => ({ ...p, nominalG63: v }))} placeholder="0" />
-            </ModalField>
-            <ModalField label="Tanggal Cair" required>
-              <ModalInput type="date" value={form.tanggalCair} onChange={v => setForm(p => ({ ...p, tanggalCair: v }))} />
-            </ModalField>
-            <ModalField label="Nomor VA" required>
-              <ModalSelect value={form.nomorVa} onChange={v => setForm(p => ({ ...p, nomorVa: v }))}
-                options={[{ value: "", label: "— pilih —" }, { value: "VA-001", label: "VA-2024-001" }]} />
-            </ModalField>
+          {/* Data PE & G63 */}
+          <div>
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">2. DATA PE & G63</p>
+            <div className="grid grid-cols-3 gap-3">
+              <ReadOnlyField label="Nomor PE" value={umdData.nomorPe || "PE-2024-001"} />
+              <ReadOnlyField label="Nomor G63" value={umdData.nomorG63 || "G63-2024-089"} />
+              <ReadOnlyField label="Tanggal G63" value={umdData.tanggalG63 || "2024-03-15"} />
+              <ReadOnlyField label="Nominal G63 (Rp)" value={umdData.nominalG63 || item.nominal || "—"} />
+              <ReadOnlyField label="Tanggal Cair" value={umdData.tanggalCair || "2024-03-20"} />
+              <ReadOnlyField label="Nomor VA" value={umdData.nomorVa || "VA-88291039"} />
+            </div>
           </div>
 
           <hr className="border-gray-100" />
 
           {/* Syarat Pembayaran UMD */}
           <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">SYARAT PEMBAYARAN</p>
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">3. SYARAT PEMBAYARAN UMD</p>
             <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-[11.5px]">
                 <thead>
                   <tr className="bg-[#252271] text-white">
                     <th className="px-3 py-2.5 text-left font-semibold w-8">No</th>
                     <th className="px-3 py-2.5 text-left font-semibold">Dokumen</th>
-                    <th className="px-3 py-2.5 text-center font-semibold w-20">Syarat</th>
-                    <th className="px-3 py-2.5 text-center font-semibold w-32">Kelengkapan</th>
+                    <th className="px-3 py-2.5 text-center font-semibold w-24">Syarat</th>
+                    <th className="px-3 py-2.5 text-center font-semibold w-28">Kelengkapan</th>
                     <th className="px-3 py-2.5 text-left font-semibold">Keterangan</th>
+                    <th className="px-3 py-2.5 text-center font-semibold w-24">File</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {syarat.map((row, i) => (
+                  {UMD_SYARAT.map((row: any, i: number) => (
                     <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
                       <td className="px-3 py-2.5 text-gray-500 text-center">{i + 1}</td>
-                      <td className="px-3 py-2.5 font-medium text-gray-700">{row.doc} <span className="text-red-500">*</span></td>
+                      <td className="px-3 py-2.5 font-semibold text-gray-800">{row.doc}</td>
                       <td className="px-3 py-2.5 text-center">
-                        <input type="checkbox" checked={row.syarat} onChange={() => setSyarat(prev => prev.map((s, idx) => idx === i ? { ...s, syarat: !s.syarat } : s))}
-                          className="w-3.5 h-3.5 accent-[#252271] cursor-pointer" />
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${row.syarat ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>
+                          {row.syarat ? "Wajib" : "Opsional"}
+                        </span>
                       </td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-2 justify-center">
-                          <button onClick={() => setSyarat(prev => prev.map((s, idx) => idx === i ? { ...s, ada: !s.ada } : s))}
-                            className={`relative w-9 h-5 rounded-full transition-colors ${row.ada ? "bg-green-500" : "bg-gray-200"}`}>
-                            <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all" style={{ left: row.ada ? "18px" : "2px" }} />
-                          </button>
-                          <span className="text-[10px] text-gray-500 font-medium">Ya / Tidak Ada</span>
-                        </div>
+                      <td className="px-3 py-2.5 text-center">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${row.ada !== false ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                          {row.ada !== false ? "✓ Ada" : "✕ Tidak Ada"}
+                        </span>
                       </td>
-                      <td className="px-3 py-2.5">
-                        <input type="text" value={row.ket} onChange={e => setSyarat(prev => prev.map((s, idx) => idx === i ? { ...s, ket: e.target.value } : s))}
-                          className="border border-gray-200 rounded-lg px-2 py-1 text-[11px] w-full focus:outline-none" placeholder="Keterangan..." />
+                      <td className="px-3 py-2.5 text-gray-600">{row.ket || "Dokumen sesuai permohonan"}</td>
+                      <td className="px-3 py-2.5 text-center">
+                        <button
+                          onClick={() => alert(`Membuka file ${row.file || row.doc + '.pdf'}`)}
+                          className="text-[#252271] hover:underline text-[11px] font-semibold"
+                        >
+                          View
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -505,22 +530,18 @@ function UmdSubmissionModal({ item, onClose }: { item: any; onClose: () => void 
 
           {/* Input Dokumen Tutupan */}
           <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">INPUT DOKUMEN TUTUPAN</p>
-            <div className="space-y-3">
-              <FileRow label="Dokumen G63 TTD Lengkap" fieldKey="fileG63" />
-              <FileRow label="Lembar G61" fieldKey="fileLembarG61" />
-              <FileRow label="Ceklis Pertanggungjawaban" fieldKey="fileCeklis" />
-              <FileRow label="Surat Pernyataan Keaslian Dokumen" fieldKey="fileSuratPernyataan" />
-              <FileRow label="Surat Pernyataan Kebenaran Barang/Jasa" fieldKey="fileSuratKebenaran" />
-              <FileRow label="Nota atau Kwitansi Pertanggungjawaban" fieldKey="fileNota" />
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">4. DOKUMEN TUTUPAN HASIL ISIAN USER</p>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <FileDetailRow label="Dokumen G63 TTD Lengkap" fileName={umdData.fileG63 || "g63_ttd_lengkap.pdf"} />
+              <FileDetailRow label="Lembar G61" fileName={umdData.fileLembarG61 || "lembar_g61.pdf"} />
+              <FileDetailRow label="Ceklis Pertanggungjawaban" fileName={umdData.fileCeklis || "ceklis_pertanggungjawaban.pdf"} />
+              <FileDetailRow label="Surat Pernyataan Keaslian Dokumen" fileName={umdData.fileSuratPernyataan || umdData.fileSuratKeaslian || "surat_keaslian_dokumen.pdf"} />
+              <FileDetailRow label="Surat Kebenaran Barang/Jasa" fileName={umdData.fileSuratKebenaran || "surat_kebenaran_bj.pdf"} />
+              <FileDetailRow label="Nota / Kwitansi Pertanggungjawaban" fileName={umdData.fileNota || "nota_kwitansi.pdf"} />
             </div>
-            <div className="grid grid-cols-2 gap-3 mt-3">
-              <ModalField label="Nominal G61" required>
-                <ModalInput type="number" value={form.nominalG61} onChange={v => setForm(p => ({ ...p, nominalG61: v }))} placeholder="0" />
-              </ModalField>
-              <ModalField label="Sisa UMDS" required>
-                <ModalInput type="number" value={form.sisaUmds} onChange={v => setForm(p => ({ ...p, sisaUmds: v }))} placeholder="0" />
-              </ModalField>
+            <div className="grid grid-cols-2 gap-3">
+              <ReadOnlyField label="Nominal G61" value={umdData.nominalG61 || item.nominal || "—"} />
+              <ReadOnlyField label="Sisa UMDS" value={umdData.sisaUmds || "Rp 0"} />
             </div>
           </div>
 
@@ -528,52 +549,48 @@ function UmdSubmissionModal({ item, onClose }: { item: any; onClose: () => void 
 
           {/* Input Closing UMD */}
           <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">INPUT CLOSING UMD</p>
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">5. CLOSING UMD HASIL ISIAN USER</p>
             <div className="grid grid-cols-2 gap-3 mb-3">
-              <ModalField label="Nominal Pajak">
-                <ModalInput type="number" value={form.nominalPajak} onChange={v => setForm(p => ({ ...p, nominalPajak: v }))} placeholder="0" />
-              </ModalField>
-              <ModalField label="Nominal Pengembalian">
-                <ModalInput type="number" value={form.nominalPengembalian} onChange={v => setForm(p => ({ ...p, nominalPengembalian: v }))} placeholder="0" />
-              </ModalField>
+              <ReadOnlyField label="Nominal Pajak" value={umdData.nominalPajak || "Rp 0"} />
+              <ReadOnlyField label="Nominal Pengembalian" value={umdData.nominalPengembalian || "Rp 0"} />
             </div>
-            <FileRow label="Upload Dokumen A9 Lengkap" fieldKey="fileA9" />
+            <FileDetailRow label="Upload Dokumen A9 Lengkap" fileName={umdData.fileA9 || "dokumen_a9_lengkap.pdf"} />
           </div>
 
-          {/* Input Bukti Pengembalian */}
-          <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            <div className="bg-[#252271] px-4 py-2.5">
-              <p className="text-white text-[11px] font-bold uppercase tracking-wide">INPUT BUKTI PENGEMBALIAN</p>
-            </div>
-            <div className="p-4 bg-white">
-              <ModalField label="Upload Bukti Transfer Pengembalian" required>
-                <div className="flex gap-2 items-center">
-                  <input 
-                    type="text" 
-                    value={form.fileBuktiTransfer || "nama_file.pdf"} 
-                    onChange={e => setForm(p => ({ ...p, fileBuktiTransfer: e.target.value }))}
-                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-[11.5px] text-gray-700 flex-1 focus:outline-none focus:ring-1 focus:ring-[#252271]/30"
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => alert(`Membuka file ${form.fileBuktiTransfer}`)}
-                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-[11.5px] font-semibold text-gray-600 hover:bg-gray-50 shadow-sm"
-                  >
-                    View
-                  </button>
-                </div>
-                <p className="text-[10px] text-gray-400 mt-0.5">(Pdf|Jpeg|Jpg|Png Maks. 20Mb)</p>
-              </ModalField>
-            </div>
+          {/* Bukti Pengembalian */}
+          <div>
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">6. BUKTI PENGEMBALIAN DANA USER</p>
+            <FileDetailRow label="Upload Bukti Transfer Pengembalian" fileName={umdData.fileBuktiTransfer || "bukti_transfer_pengembalian.pdf"} />
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="flex gap-3 justify-end px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
-          <button onClick={onClose} className="px-5 py-2 rounded-xl text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-100 bg-white">Back</button>
-          <button onClick={onClose} className="px-5 py-2 rounded-xl text-[12px] font-semibold bg-[#252271] text-white hover:bg-[#1a1753] flex items-center gap-1.5 shadow-md">
-            <CheckCircle2 size={14} /> Submit
+        <div className="flex gap-2 justify-end px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-100 bg-white">
+            Kembali
           </button>
+          {onAction && (
+            <>
+              <button
+                onClick={() => { onClose(); onAction("revisi", item); }}
+                className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-1.5 shadow-sm"
+              >
+                <FileWarning size={14} /> Minta Revisi
+              </button>
+              <button
+                onClick={() => { onClose(); onAction("reject", item); }}
+                className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-red-600 text-white hover:bg-red-700 flex items-center gap-1.5 shadow-sm"
+              >
+                <XCircle size={14} /> Tolak UMD
+              </button>
+              <button
+                onClick={() => { onClose(); onAction("approve", item); }}
+                className="px-5 py-2 rounded-xl text-[12px] font-semibold bg-green-600 text-white hover:bg-green-700 flex items-center gap-1.5 shadow-sm"
+              >
+                <CheckCircle2 size={14} /> Setujui UMD (Approve)
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -589,30 +606,79 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
   const fetchPengadaanData = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/pengadaan');
-      const allData = res.data
-        .filter((item: any) => item.currentStep === 'pembayaran')
-        .map((item: any) => {
-          const fd = typeof item.formData === 'string' ? JSON.parse(item.formData) : (item.formData || {});
-          const tipe = fd.jenisPembayaran === 'umd' ? 'umd' : 'non-outsource'; // simplistic logic for mock
+      const [resPeng, resVerif] = await Promise.all([
+        api.get('/pengadaan').catch(() => ({ data: [] })),
+        api.get('/verifikasi').catch(() => ({ data: [] })),
+      ]);
+      const pengList: any[] = resPeng.data || [];
+      const verifList: any[] = resVerif.data || [];
+
+      // Combine verifikasi records with their pengadaan data
+      const paymentVerifs = verifList.filter((v: any) =>
+        ['umd', 'outsource', 'non-outsource', 'pembayaran', 'payment-request'].includes(v.tipe)
+      );
+
+      const allData: any[] = paymentVerifs.map((v: any) => {
+        const peng = pengList.find((p: any) => p.id === v.pengadaan_id);
+        const fd = peng ? (typeof peng.formData === 'string' ? JSON.parse(peng.formData) : (peng.formData || {})) : {};
+        const umdData = fd.umdData || fd['buat-pd'] || {};
+        const pelunasanData = fd.pelunasan || {};
+
+        // Determine payment type from verif tipe
+        let tipe = v.tipe;
+        if (tipe === 'pembayaran') {
+          // fallback: check if PD (umd) or PR
+          tipe = v.pengadaan_id?.startsWith('PD-') ? 'umd' : 'outsource';
+        }
+
+        return {
+          id: v.pengadaan_id,
+          verif_id: v.id,
+          noSp3: fd.sp3No || peng?.id || '-',
+          noKontrak: peng?.id || v.pengadaan_id,
+          nama: v.pengadaan_nama || peng?.nama || '-',
+          nominal: v.nominal || peng?.nominal || '-',
+          namaVendor: pelunasanData.vendor || fd.vendor || 'N/A',
+          noRekening: fd.rekening || '-',
+          bank: fd.bank || '-',
+          departemen: v.departemen || peng?.departemen || '-',
+          tgl: v.submit_at ? v.submit_at.split('T')[0] : (peng?.tanggal || new Date().toISOString().split('T')[0]),
+          tipe,
+          status: v.status,
+          formData: fd,
+          currentStep: peng?.currentStep || 'pembayaran',
+        };
+      });
+
+      // Also include PD items that are in pembayaran step but may not have verif records yet
+      const withoutVerif = pengList
+        .filter((p: any) => p.currentStep === 'pembayaran' && !paymentVerifs.find((v: any) => v.pengadaan_id === p.id))
+        .map((p: any) => {
+          const fd = typeof p.formData === 'string' ? JSON.parse(p.formData) : (p.formData || {});
+          const tipe = p.id.startsWith('PD-') ? 'umd' : (() => {
+            const j = (fd.pelunasan?.jenis || '').toLowerCase();
+            return j.includes('non') ? 'non-outsource' : (j.includes('payment') ? 'payment-request' : 'outsource');
+          })();
           return {
-            id: item.id,
-            noSp3: fd.sp3No || "-",
-            noKontrak: item.id,
-            nama: item.nama,
-            nominal: item.nominal,
-            namaVendor: fd.vendor || "N/A",
-            noRekening: fd.rekening || "-",
-            bank: fd.bank || "-",
-            departemen: item.departemen,
-            tgl: item.tanggal,
-            tipe: tipe,
-            status: item.status,
-            currentStep: item.currentStep,
-            verif_id: item.id
+            id: p.id,
+            verif_id: null,
+            noSp3: fd.sp3No || '-',
+            noKontrak: p.id,
+            nama: p.nama,
+            nominal: p.nominal,
+            namaVendor: fd.vendor || 'N/A',
+            noRekening: fd.rekening || '-',
+            bank: fd.bank || '-',
+            departemen: p.departemen,
+            tgl: p.tanggal,
+            tipe,
+            status: p.status,
+            formData: fd,
+            currentStep: p.currentStep,
           };
         });
-      setPayments(allData);
+
+      setPayments([...allData, ...withoutVerif]);
     } catch (err) {
       console.error(err);
     } finally {
@@ -652,9 +718,9 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
 
   const handleAddSubmit = () => {
     if (isReport) {
-      setReports([{ id: `REP-${Math.floor(Math.random()*900)+100}`, nama: form.nama || "Laporan Baru", tgl: form.tgl || new Date().toISOString().split("T")[0], file: `laporan_${Date.now()}.xlsx`, tipe: tipe || "daily", ket: "Laporan baru" }, ...reports]);
+      setReports([{ id: `REP-${Math.floor(Math.random() * 900) + 100}`, nama: form.nama || "Laporan Baru", tgl: form.tgl || new Date().toISOString().split("T")[0], file: `laporan_${Date.now()}.xlsx`, tipe: tipe || "daily", ket: "Laporan baru" }, ...reports]);
     } else {
-      setPayments([{ id: `PAY-${Math.floor(Math.random()*900)+100}`, noSp3: form.noSp3 || `SP3-${Math.floor(Math.random()*9000)+1000}`, noKontrak: form.noKontrak || `KTR-${Math.floor(Math.random()*900)+100}`, nama: form.nama || "Pembayaran Baru", nominal: form.nominal ? `Rp ${form.nominal}` : "Rp 50.000.000", namaVendor: form.namaVendor || "PT Vendor Baru", noRekening: form.noRekening || "-", bank: form.bank, departemen: form.departemen, tgl: form.tgl || new Date().toISOString().split("T")[0], tipe: tipe || "outsource", status: "pending" }, ...payments]);
+      setPayments([{ id: `PAY-${Math.floor(Math.random() * 900) + 100}`, noSp3: form.noSp3 || `SP3-${Math.floor(Math.random() * 9000) + 1000}`, noKontrak: form.noKontrak || `KTR-${Math.floor(Math.random() * 900) + 100}`, nama: form.nama || "Pembayaran Baru", nominal: form.nominal ? `Rp ${form.nominal}` : "Rp 50.000.000", namaVendor: form.namaVendor || "PT Vendor Baru", noRekening: form.noRekening || "-", bank: form.bank, departemen: form.departemen, tgl: form.tgl || new Date().toISOString().split("T")[0], tipe: tipe || "outsource", status: "pending" }, ...payments]);
     }
     setShowAdd(false);
     setForm({ noSp3: "", noKontrak: "", nama: "", nominal: "", namaVendor: "", noRekening: "", bank: "Bank BNI", departemen: "CUG - LOGISTIC", tgl: "" });
@@ -666,16 +732,26 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
     const { type, item } = confirmAction;
 
     try {
-      if (type === "approve") {
-        await api.post(`/verifikasi/${item.verif_id}/approve`);
+      if (item.verif_id) {
+        if (type === "approve") {
+          await api.post(`/verifikasi/${item.verif_id}/approve`);
+        } else if (type === "revisi") {
+          await api.post(`/verifikasi/${item.verif_id}/revisi`, { catatan: catatanText || 'Perlu revisi' });
+        } else {
+          await api.post(`/verifikasi/${item.verif_id}/reject`, { catatan: catatanText || 'Ditolak Admin' });
+        }
       } else {
-        await api.post(`/verifikasi/${item.verif_id}/reject`);
+        // No verif record, update pengadaan status directly
+        await api.put(`/pengadaan/${item.id}`, {
+          status: type === 'approve' ? 'Sudah Diverifikasi' : type === 'revisi' ? 'Perlu Revisi' : 'Ditolak Admin'
+        });
       }
       fetchPengadaanData();
     } catch (err) {
-      console.error(err);
+      console.error('Gagal melakukan aksi verifikasi:', err);
+      alert('Gagal memproses. Silakan coba lagi.');
     }
-    
+
     setConfirmAction(null);
     setShowVerif(null);
     setShowUmd(null);
@@ -783,7 +859,7 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
         <AdminModal title="Detail Pembayaran" onClose={() => setShowDetail(null)} hideFooter width="max-w-lg">
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
-              {[{k:"No. Dokumen",v:showDetail.id},{k:"No. SP3",v:showDetail.noSp3},{k:"No. Kontrak",v:showDetail.noKontrak},{k:"Judul Pengadaan",v:showDetail.nama},{k:"Nominal",v:showDetail.nominal},{k:"Nama Vendor",v:showDetail.namaVendor},{k:"No. Rekening",v:showDetail.noRekening},{k:"Bank",v:showDetail.bank},{k:"Departemen",v:showDetail.departemen},{k:"Tanggal",v:showDetail.tgl},{k:"Tipe",v:showDetail.tipe},{k:"Status",v:showDetail.status}].map(row => (
+              {[{ k: "No. Dokumen", v: showDetail.id }, { k: "No. SP3", v: showDetail.noSp3 }, { k: "No. Kontrak", v: showDetail.noKontrak }, { k: "Judul Pengadaan", v: showDetail.nama }, { k: "Nominal", v: showDetail.nominal }, { k: "Nama Vendor", v: showDetail.namaVendor }, { k: "No. Rekening", v: showDetail.noRekening }, { k: "Bank", v: showDetail.bank }, { k: "Departemen", v: showDetail.departemen }, { k: "Tanggal", v: showDetail.tgl }, { k: "Tipe", v: showDetail.tipe }, { k: "Status", v: showDetail.status }].map(row => (
                 <div key={row.k} className="flex flex-col border-b border-gray-50 pb-1.5">
                   <span className="text-gray-400 text-[10px] font-mono uppercase">{row.k}</span>
                   <span className="font-semibold text-gray-700 text-[12px]">{row.v}</span>
@@ -810,8 +886,8 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
         </AdminModal>
       )}
 
-      {showVerif && <FinanceVerifModal item={showVerif} tipe={tipe || showVerif.tipe || "outsource"} onClose={() => setShowVerif(null)} />}
-      {showUmd && <UmdSubmissionModal item={showUmd} onClose={() => setShowUmd(null)} />}
+      {showVerif && <FinanceVerifModal item={showVerif} tipe={tipe || showVerif.tipe || "outsource"} onClose={() => setShowVerif(null)} onAction={handleAction} />}
+      {showUmd && <UmdSubmissionModal item={showUmd} onClose={() => setShowUmd(null)} onAction={handleAction} />}
     </div>
   );
 }

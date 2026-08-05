@@ -20,28 +20,29 @@ export function BuatPembayaranPopup({ onClose, onSuccess, paymentType }: {
       .then((res) => {
         const eligible = res.data.filter((item: PengadaanItem) => {
           const completed = item.completedSteps || [];
+          const statusLower = item.status?.toLowerCase() || "";
+
+          if (paymentType === "umd") {
+            const isPd = item.id.startsWith("PD-");
+            const isApproved = statusLower === "approved" ||
+                               statusLower === "selesai" ||
+                               statusLower.includes("disetujui") ||
+                               completed.includes("pengajuan-dana");
+            return isPd && isApproved;
+          }
+
           const isReady = item.status === "Selesai" ||
             completed.includes("pengujian") ||
-            (item.id.startsWith("PD-") && (completed.includes("pengajuan-dana") || item.status === "approved" || item.status === "Menunggu Verifikasi Admin")) ||
             completed.includes("contract") ||
             completed.includes("pbj") ||
             completed.includes("sp3") ||
-            (item.status && item.status.includes("Disetujui Admin")) ||
-            item.status === "approved";
+            statusLower.includes("disetujui") ||
+            statusLower === "approved";
 
           const isAlreadyInPembayaran = item.currentStep === "pembayaran";
           if (!isReady || isAlreadyInPembayaran) return false;
 
-          // Scope scoping rule requested by user:
-          // Park Document (PD-) items are ONLY for UMD.
-          // Outsource, non-outsource, and payment-request MUST NOT show PD- items.
-          if (paymentType === "umd") {
-            return item.id.startsWith("PD-");
-          } else if (paymentType === "outsource" || paymentType === "non-outsource" || paymentType === "payment-request") {
-            return !item.id.startsWith("PD-");
-          }
-
-          return true;
+          return !item.id.startsWith("PD-");
         });
         setItems(eligible);
       })
@@ -70,18 +71,24 @@ export function BuatPembayaranPopup({ onClose, onSuccess, paymentType }: {
     }
   };
 
+  const isUmdType = paymentType === "umd";
+
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl p-6 w-full max-w-[500px] shadow-2xl flex flex-col max-h-[80vh]">
         <div className="flex items-start justify-between mb-4">
-          <h2 className="text-[#252271] text-lg font-extrabold">Buat Pembayaran Baru</h2>
+          <h2 className="text-[#252271] text-lg font-extrabold">
+            {isUmdType ? "Buat Pembayaran UMD — Pilih Park Document Approved" : "Buat Pembayaran Baru"}
+          </h2>
           <button onClick={onClose} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
             <X size={14} className="text-gray-600" />
           </button>
         </div>
 
         <p className="text-[11.5px] text-gray-500 mb-4">
-          Pilih pengadaan (atau pengujian) yang telah selesai untuk dilanjutkan ke tahap Pembayaran.
+          {isUmdType
+            ? "Pilih data Park Document (PD) yang telah disetujui (Approved) untuk langsung dilakukan pengisian form & proses Pembayaran UMD."
+            : "Pilih pengadaan (atau pengujian) yang telah selesai untuk dilanjutkan ke tahap Pembayaran."}
         </p>
 
         <div className="relative mb-4">

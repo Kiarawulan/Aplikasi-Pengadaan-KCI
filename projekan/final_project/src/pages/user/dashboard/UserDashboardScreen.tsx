@@ -12,14 +12,14 @@ function StatCard({ label, value, icon: Icon, gradient, sub }: {
   label: string; value: string | number; icon: any; gradient: string; sub?: string;
 }) {
   return (
-    <div className={`relative overflow-hidden bg-gradient-to-br ${gradient} rounded-[20px] p-5 text-white shadow-lg group hover:shadow-xl transition-all duration-300`)}>
+    <div className={`relative overflow-hidden bg-gradient-to-br ${gradient} rounded-[20px] p-5 text-white shadow-lg group hover:shadow-xl transition-all duration-300`}>
       <div className="absolute top-2 right-2 opacity-15 group-hover:opacity-25 transition-opacity">
         <Icon size={42} />
       </div>
       <p className="text-white/70 text-[10.5px] font-semibold uppercase tracking-wider mb-1">{label}</p>
       <p className="text-[30px] font-extrabold leading-none">{value}</p>
-{ sub && <p className="text-white/55 text-[10px] mt-1">{sub}</p> }
-    </div >
+      {sub && <p className="text-white/55 text-[10px] mt-1">{sub}</p>}
+    </div>
   );
 }
 

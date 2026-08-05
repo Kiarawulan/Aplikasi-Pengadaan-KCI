@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Check, ChevronLeft } from "lucide-react";
+import { Check, ChevronLeft, X } from "lucide-react";
 import type { Screen, PengadaanItem } from "@/types";
 import { PR_MAIN_STEPS } from "@/constants/steps";
 import { Breadcrumb } from "@/components/user/layout/Breadcrumb";
@@ -11,22 +11,48 @@ import { getVerifRecords, addVerifRecord, generateId, getPengujianList, savePeng
 import { useAuth } from "@/store/authStore";
 
 
-export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item: PengadaanItem; fromScreen?: string; onBack: () => void; onNavigate: (s: Screen) => void }) {
-  const { currentUser } = useAuth();
-
-  let steps: any[] = [];
-  if (fromScreen && fromScreen.includes("pengujian")) {
-    steps = [{ id: "pengujian", label: "Pengujian", subSteps: [{ id: "request-pengujian", label: "Request Pengujian" }, { id: "hasil-pengujian", label: "Hasil Pengujian" }] }];
-  } else if (fromScreen && fromScreen.includes("pembayaran")) {
-    steps = [{ id: "pembayaran", label: "Pembayaran", subSteps: [{ id: "pelunasan", label: "Pelunasan" }, { id: "payment-request", label: "Payment Request" }] }];
-  } else {
-    steps = [...PR_MAIN_STEPS];
+export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectItem }: { 
+  item: PengadaanItem; 
+  fromScreen?: string; 
+  onBack: () => void; 
+  onNavigate: (s: Screen) => void;
+  onSelectItem?: (item: PengadaanItem, s: Screen, back?: Screen) => void;
+}) {
+  if (!item || !item.id) {
+    return (
+      <div className="p-8 text-center text-gray-500">
+        <p className="text-sm font-semibold">Data Pengadaan (PR) tidak ditemukan.</p>
+        <button onClick={() => onNavigate("purchase-requisition")} className="mt-4 px-4 py-2 bg-[#252271] text-white text-xs rounded-xl font-bold">
+          Kembali ke Purchase Requisition
+        </button>
+      </div>
+    );
   }
 
+  const { currentUser } = useAuth();
 
-  // Find first uncompleted step
-  const initialStepIdx = steps.findIndex(s => !(item.completedSteps || []).includes(s.id as any));
-  const defaultStepIdx = initialStepIdx === -1 ? 0 : initialStepIdx;
+  const steps = [...PR_MAIN_STEPS];
+
+  let defaultStepIdx = 0;
+  if (fromScreen && (fromScreen.includes("pengujian") || fromScreen === "daftar-pengujian")) {
+    const idx = steps.findIndex(s => s.id === "pengujian");
+    if (idx !== -1) defaultStepIdx = idx;
+  } else if (fromScreen && (fromScreen.includes("pembayaran") || fromScreen.startsWith("pembayaran-"))) {
+    const idx = steps.findIndex(s => s.id === "pembayaran");
+    if (idx !== -1) defaultStepIdx = idx;
+  } else if (item.currentStep === "pengujian") {
+    const idx = steps.findIndex(s => s.id === "pengujian");
+    if (idx !== -1) defaultStepIdx = idx;
+  } else if (item.currentStep === "pembayaran") {
+    const idx = steps.findIndex(s => s.id === "pembayaran");
+    if (idx !== -1) defaultStepIdx = idx;
+  } else {
+    const uncompIdx = steps.findIndex(s => !(item.completedSteps || []).includes(s.id as any));
+    defaultStepIdx = uncompIdx === -1 ? 0 : uncompIdx;
+  }
+
+  const [showPrPaymentModal, setShowPrPaymentModal] = useState(false);
+  const [selectedPaymentType, setSelectedPaymentType] = useState<"Outsource" | "Non-outsource">("Outsource");
 
   // Load initial sub-step completions from item state or meta
   const [completedSubs, setCompletedSubs] = useState<Set<string>>(() => {
@@ -47,42 +73,17 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
   });
 
   const [activeStepIdx, setActiveStepIdx] = useState(defaultStepIdx);
-  const [activeSubIdx, setActiveSubIdx] = useState(() => {
-    const step = steps[defaultStepIdx];
-    if (!step || !step.subSteps) return 0;
+  const [activeSubIdx, setActiveSubIdx] = useState(0);
 
-    let firstUncompleted = 0;
-    // We can't access completedSubs state directly here since it's just initialized, 
-    // but we can compute the initial set
-    const s = new Set<string>();
-    if (item.formData && item.formData["__meta"] && item.formData["__meta"]["completedSubs"]) {
-      try { JSON.parse(item.formData["__meta"]["completedSubs"]).forEach((x: string) => s.add(x)); } catch (e) { }
-    }
-    if (item.completedSteps) {
-      item.completedSteps.forEach(cs => {
-        const pStep = steps.find(x => x.id === cs);
-        pStep?.subSteps?.forEach(sub => s.add(`${cs}.${sub.id}`));
-      });
-    }
-
-    for (let i = 0; i < step.subSteps.length; i++) {
-      if (!s.has(`${step.id}.${step.subSteps[i].id}`)) {
-        firstUncompleted = i;
-        break;
-      }
-    }
-    return firstUncompleted;
-  });
-  const [completedStepIds, setCompletedStepIds] = useState<Set<string>>(new Set(item.completedSteps || []));
-
-  const [verifStatus, setVerifStatus] = useState<"not_submitted" | "pending" | "approved" | "revisi" | "rejected">("not_submitted");
+  const [allFd, setAllFd] = useState<Record<string, Record<string, string>>>(() => item.formData ?? {});
+  const [completedStepIds, setCompletedStepIds] = useState<Set<string>>(() => new Set(item.completedSteps ?? []));
+  const [verifStatus, setVerifStatus] = useState<string>("not_submitted");
+  const [catatanAdmin, setCatatanAdmin] = useState<string | null>(null);
   const [verifId, setVerifId] = useState<number | null>(null);
   const [pengujianId, setPengujianId] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
-  const [allFd, setAllFd] = useState<Record<string, Record<string, string>>>(item.formData || {});
 
-
-  // Fetch latest item data on mount to avoid stale localStorage data
+  // Fetch latest item data on mount
   useEffect(() => {
     api.get(`/pengadaan/${item.id}`).then(res => {
       const fresh = res.data;
@@ -101,12 +102,23 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
       }
       setCompletedSubs(s);
 
-      // Auto-update active steps based on fresh data
-      const initialStepIdx = steps.findIndex(st => !(fresh.completedSteps || []).includes(st.id as any));
-      const newStepIdx = initialStepIdx === -1 ? 0 : initialStepIdx;
-      setActiveStepIdx(newStepIdx);
+      let targetIdx = defaultStepIdx;
+      if (fromScreen && (fromScreen.includes("pengujian") || fromScreen === "daftar-pengujian")) {
+        const pIdx = steps.findIndex(st => st.id === "pengujian");
+        if (pIdx !== -1) targetIdx = pIdx;
+      } else if (fromScreen && (fromScreen.includes("pembayaran") || fromScreen.startsWith("pembayaran-"))) {
+        const pIdx = steps.findIndex(st => st.id === "pembayaran");
+        if (pIdx !== -1) targetIdx = pIdx;
+      } else if (fresh.currentStep === "pengujian") {
+        const pIdx = steps.findIndex(st => st.id === "pengujian");
+        if (pIdx !== -1) targetIdx = pIdx;
+      } else if (fresh.currentStep === "pembayaran") {
+        const pIdx = steps.findIndex(st => st.id === "pembayaran");
+        if (pIdx !== -1) targetIdx = pIdx;
+      }
+      setActiveStepIdx(targetIdx);
 
-      const step = steps[newStepIdx];
+      const step = steps[targetIdx];
       if (step && step.subSteps) {
         let firstUncompleted = 0;
         for (let i = 0; i < step.subSteps.length; i++) {
@@ -120,28 +132,31 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
     }).catch(console.error);
   }, [item.id]);
 
-  const activeStep = steps[activeStepIdx];
-  const hasSubSteps = activeStep.subSteps.length > 0;
-  const activeSubStep = hasSubSteps ? activeStep.subSteps[activeSubIdx] : null;
-  const subId = activeSubStep?.id ?? activeStep.id;
+  const activeStep = steps[activeStepIdx] || steps[0];
+  const hasSubSteps = activeStep?.subSteps ? activeStep.subSteps.length > 0 : false;
+  const activeSubStep = hasSubSteps ? (activeStep.subSteps[activeSubIdx] || activeStep.subSteps[0]) : null;
+  const subId = activeSubStep?.id ?? activeStep?.id ?? "buat-pr";
 
   // Check verification status from backend & local
   useEffect(() => {
-    // Only check verification if this step requires it (npp, sp3, contract, dll)
     const verifTypes = ["npp", "pengajuan-dana", "sp3", "pbj", "timeline", "pembayaran"];
     if (verifTypes.includes(activeStep.id)) {
-      api.get("/verifikasi").then(res => {
-        // Find if there's a verification record for this pengadaan and step
-        // For pembayaran, check if there's any record with tipe umd/outsource/non-outsource
-        const record = res.data.find((r: any) => r.pengadaan_id === item.id && (r.tipe === activeStep.id || (activeStep.id === "pembayaran" && ["umd", "outsource", "non-outsource"].includes(r.tipe))));
-        if (record) {
-          setVerifStatus(record.status);
-          setVerifId(record.id);
+      api.get(`/pengadaan/${item.id}/step-status?stepId=${activeStep.id}`).then(res => {
+        setVerifStatus(res.data.status);
+        setCatatanAdmin(res.data.catatanAdmin || null);
+        if (res.data.verifikasi?.id) {
+          setVerifId(res.data.verifikasi.id);
         } else {
-          setVerifStatus("not_submitted");
           setVerifId(null);
         }
-      }).catch(() => { setVerifStatus("not_submitted"); setVerifId(null); });
+        if (res.data.status === "approved") {
+          setCompletedStepIds(prev => new Set([...prev, activeStep.id]));
+        }
+      }).catch(() => {
+        setVerifStatus("not_submitted");
+        setCatatanAdmin(null);
+        setVerifId(null);
+      });
     } else if (activeStep.id === "pengujian") {
       const updatePengujian = (p: any) => {
         if (p) {
@@ -158,18 +173,15 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
 
           setCompletedSubs(prev => {
             const next = new Set(prev);
-            // If admin has approved the request, mark request-pengujian as done
             if (statusLower === "diproses" || statusLower === "approved" || statusLower === "selesai") {
               next.add("pengujian.request-pengujian");
             }
-            // If admin has finished the process (selesai), mark hasil-pengujian as done
             if (statusLower === "selesai") {
               next.add("pengujian.hasil-pengujian");
             }
             return next;
           });
 
-          // Auto advance activeSubIdx if possible
           if (statusLower === "diproses" || statusLower === "approved" || statusLower === "selesai") {
             setActiveSubIdx(1);
           }
@@ -185,7 +197,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
         updatePengujian(getPengujianList().find(x => x.nama === item.nama));
       });
     } else {
-      setVerifStatus("not_submitted"); // No verification needed
+      setVerifStatus("not_submitted");
     }
   }, [activeStep.id, item.id]);
 
@@ -216,10 +228,12 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
   const goNext = () => {
     const verifTypes = ["npp", "pengajuan-dana", "sp3", "pbj", "timeline", "pembayaran"];
 
-    if (verifTypes.includes(activeStep.id) && isSubmitPoint && verifStatus === "not_submitted") {
+    if (verifTypes.includes(activeStep.id) && isSubmitPoint && (verifStatus === "not_submitted" || verifStatus === "revisi")) {
       const paymentType = allFd["pelunasan"]?.jenis?.toLowerCase() || "outsource";
       const tipeToSubmit = activeStep.id === "pembayaran" ? paymentType : activeStep.id;
-      const nominalToSubmit = activeStep.id === "pembayaran" ? (allFd["pelunasan"]?.nilai || item.nominal || "") : (item.nominal || "");
+
+      // Save form data before submitting
+      flashSave();
 
       // Submit to Verifikasi Queue!
       api.post(`/pengadaan/${item.id}/submit-step`, {
@@ -227,11 +241,11 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
         tipe: tipeToSubmit
       }).then(() => {
         setVerifStatus("pending");
+        setCatatanAdmin(null);
         setCompletedSubs(p => {
           if (!activeSubStep) return p;
           return new Set([...p, `${activeStep.id}.${activeSubStep.id}`]);
         });
-        flashSave();
       }).catch((err) => {
         console.error("Gagal mengirim verifikasi:", err);
         alert(err.response?.data?.message || "Gagal mengirim verifikasi.");
@@ -253,7 +267,8 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
         api.post("/pengujian", p).catch(() => { });
         savePengujianList([...getPengujianList(), p]);
         setVerifStatus("pending");
-        setCompletedSubs(p => new Set([...p, `${activeStep.id}.${activeSubStep!.id}`]));
+        const curSubId = activeSubStep?.id ?? activeStep.id;
+        setCompletedSubs(p => new Set([...p, `${activeStep.id}.${curSubId}`]));
         flashSave();
         return;
       }
@@ -263,7 +278,8 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
     }
 
     if (hasSubSteps && activeSubIdx < activeStep.subSteps.length - 1) {
-      const nextSubs = new Set([...completedSubs, `${activeStep.id}.${activeSubStep!.id}`]);
+      const curSubId = activeSubStep?.id ?? activeStep.id;
+      const nextSubs = new Set([...completedSubs, `${activeStep.id}.${curSubId}`]);
       setCompletedSubs(nextSubs);
       setActiveSubIdx(activeSubIdx + 1);
       flashSave(nextSubs);
@@ -278,11 +294,15 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
           currentStep: steps[activeStepIdx + 1].id,
           completedStepId: activeStep.id
         }).catch(() => { });
-        updatePengadaanItem({ ...item, completedSteps: Array.from(next), currentStep: steps[activeStepIdx + 1].id });
+        updatePengadaanItem({ ...item, completedSteps: Array.from(next) as any, currentStep: steps[activeStepIdx + 1].id });
         return next;
       });
       const nextSubs = new Set(completedSubs);
-      activeStep.subSteps.forEach(s => nextSubs.add(`${activeStep.id}.${s.id}`));
+      if (activeStep.subSteps && activeStep.subSteps.length > 0) {
+        activeStep.subSteps.forEach(s => nextSubs.add(`${activeStep.id}.${s.id}`));
+      } else {
+        nextSubs.add(activeStep.id);
+      }
       setCompletedSubs(nextSubs);
       setActiveStepIdx(activeStepIdx + 1);
       setActiveSubIdx(0);
@@ -303,7 +323,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
   const getNextLabel = () => {
     if (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian") {
       if (verifStatus === "not_submitted") return "Kirim Request";
-      if (verifStatus === "pending" || verifStatus === "proses") return "Menunggu Pengujian";
+      if (verifStatus === "pending") return "Menunggu Pengujian";
       return "Lanjut";
     }
     if (activeStep.id === "pengujian" && activeSubStep?.id === "hasil-pengujian") {
@@ -323,6 +343,45 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
     return activeStep.label;
   };
 
+  const handleStepSelect = (idx: number) => {
+    const targetStep = steps[idx];
+    if (targetStep?.id === "pengujian") {
+      setActiveStepIdx(idx);
+      setActiveSubIdx(0);
+      if (onSelectItem) {
+        onSelectItem(item, "pr-detail", "daftar-pengujian");
+      }
+    } else if (targetStep?.id === "pembayaran") {
+      const existingJenis = allFd["pelunasan"]?.jenis;
+      const backTarget = existingJenis?.toLowerCase().includes("non") ? "pembayaran-non-outsource" : "pembayaran-outsource";
+      setActiveStepIdx(idx);
+      setActiveSubIdx(0);
+      if (onSelectItem) {
+        onSelectItem(item, "pr-detail", backTarget as any);
+      }
+    } else {
+      setActiveStepIdx(idx);
+      setActiveSubIdx(0);
+    }
+  };
+
+  const handleConfirmPrPayment = () => {
+    upd("jenis", selectedPaymentType);
+    flashSave();
+    setShowPrPaymentModal(false);
+    const targetBack = selectedPaymentType === "Outsource" ? "pembayaran-outsource" : "pembayaran-non-outsource";
+    const pIdx = steps.findIndex(s => s.id === "pembayaran");
+    if (pIdx !== -1) {
+      setActiveStepIdx(pIdx);
+      setActiveSubIdx(0);
+    }
+    if (onSelectItem) {
+      onSelectItem(item, "pr-detail", targetBack as any);
+    } else {
+      onNavigate(targetBack as any);
+    }
+  };
+
   return (
     <div>
       <Breadcrumb segments={[{ label: "Daftar Pengadaan", screen: "daftar-pengadaan" }, { label: "Pengajuan Dana", screen: "purchase-requisition" }, { label: item.nama }]} onNavigate={onNavigate} />
@@ -333,7 +392,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
         <StepTracker
           steps={steps} activeStepIdx={activeStepIdx} activeSubIdx={activeSubIdx}
           completedStepIds={completedStepIds} submittedSubs={completedSubs}
-          onSelectStep={(idx) => { setActiveStepIdx(idx); setActiveSubIdx(0); }}
+          onSelectStep={handleStepSelect}
           onSelectSub={(sIdx) => setActiveSubIdx(sIdx)}
           canAccessStep={canAccessStep}
           canAccessSub={canAccessSub}
@@ -341,11 +400,49 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
         <div className="flex-1 min-w-0">
           <div className="rounded-[10px] border border-[#e2e2e2] bg-white overflow-hidden shadow-sm">
             <div className="bg-[#252271] px-4 py-2.5"><p className="text-white font-semibold text-[11.5px]">{cardHeader()}</p></div>
-            <div className="p-4"><PrStepContent step={activeStep.id} subStepId={subId} allFd={allFd} upd={upd} status={verifStatus} item={item} /></div>
+            <div className="p-4">
+              {verifStatus === "revisi" && (
+                <div className="mb-4 bg-purple-50 border border-purple-200 rounded-xl p-3.5 flex items-start gap-3">
+                  <FileWarning className="text-purple-600 shrink-0 mt-0.5" size={16} />
+                  <div>
+                    <p className="text-[12px] font-bold text-purple-900">Perlu Revisi dari Admin</p>
+                    <p className="text-[11.5px] text-purple-700 mt-0.5">{catatanAdmin || "Silakan perbaiki data yang diajukan, lalu klik Kirim/Submit kembali."}</p>
+                  </div>
+                </div>
+              )}
+              {verifStatus === "rejected" && (
+                <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3.5 flex items-start gap-3">
+                  <XCircle className="text-red-600 shrink-0 mt-0.5" size={16} />
+                  <div>
+                    <p className="text-[12px] font-bold text-red-900">Ditolak oleh Admin</p>
+                    <p className="text-[11.5px] text-red-700 mt-0.5">{catatanAdmin || "Pengajuan Anda ditolak oleh Admin."}</p>
+                  </div>
+                </div>
+              )}
+              {verifStatus === "pending" && (
+                <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-start gap-3">
+                  <Clock className="text-amber-600 shrink-0 mt-0.5" size={16} />
+                  <div>
+                    <p className="text-[12px] font-bold text-amber-900">Menunggu Verifikasi Admin</p>
+                    <p className="text-[11.5px] text-amber-700 mt-0.5">Pengajuan telah dikirim dan sedang dalam verifikasi oleh Admin.</p>
+                  </div>
+                </div>
+              )}
+              {verifStatus === "approved" && (
+                <div className="mb-4 bg-green-50 border border-green-200 rounded-xl p-3.5 flex items-start gap-3">
+                  <CheckCircle2 className="text-green-600 shrink-0 mt-0.5" size={16} />
+                  <div>
+                    <p className="text-[12px] font-bold text-green-900">Disetujui oleh Admin</p>
+                    <p className="text-[11.5px] text-green-700 mt-0.5">Tahap ini telah disetujui Admin. Anda dapat melanjutkan ke tahap berikutnya.</p>
+                  </div>
+                </div>
+              )}
+              <PrStepContent step={activeStep.id} subStepId={subId} allFd={allFd} upd={upd} status={verifStatus} item={item} />
+            </div>
             <div className="px-4 pb-3.5 pt-3.5 border-t border-[#e2e2e2] flex items-center justify-between">
               <button onClick={goPrev} disabled={isFirst} className="flex items-center gap-1.5 px-4 h-[30px] rounded border border-gray-200 text-[11.5px] text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"><ChevronLeft size={12} /> Kembali</button>
               <div className="flex gap-2">
-                <button onClick={flashSave} className="px-4 h-[30px] rounded border border-[#252271] text-[11.5px] text-[#252271] font-medium hover:bg-[#252271]/5">Simpan</button>
+                <button onClick={() => flashSave()} className="px-4 h-[30px] rounded border border-[#252271] text-[11.5px] text-[#252271] font-medium hover:bg-[#252271]/5">Simpan</button>
 
                 {!isLast ? (
                   <button onClick={goNext} disabled={(verifStatus === "pending" && isSubmitPoint) || (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian" && verifStatus !== "not_submitted" && verifStatus !== "approved")} className="px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-[#252271] hover:bg-[#1a1860] disabled:bg-gray-400 disabled:cursor-not-allowed">
@@ -358,11 +455,20 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
                     </button>
                     <button onClick={() => {
                       if (activeStep.id === "pengujian") {
-                        onNavigate("pembayaran-non-outsource");
+                        handleStepSelect(steps.findIndex(s => s.id === "pembayaran"));
                       } else if (activeStep.id === "pembayaran") {
                         onNavigate("dashboard");
                       } else {
-                        onNavigate("daftar-pengujian");
+                        const pIdx = steps.findIndex(s => s.id === "pengujian");
+                        if (pIdx !== -1) {
+                          setActiveStepIdx(pIdx);
+                          setActiveSubIdx(0);
+                        }
+                        if (onSelectItem) {
+                          onSelectItem(item, "pr-detail", "daftar-pengujian");
+                        } else {
+                          onNavigate("daftar-pengujian");
+                        }
                       }
                     }} className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-blue-600 hover:bg-blue-700">
                       <Check size={12} /> {activeStep.id === "pengujian" ? "Lanjut Pembayaran" : activeStep.id === "pembayaran" ? "Pembayaran Selesai!" : "Lanjut ke Pengujian"}
@@ -382,12 +488,12 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
                         nextStatus = "Proses Pembayaran";
                       }
 
-                      updatePengadaanItem({ ...item, completedSteps: Array.from(next), currentStep: nextStep, status: nextStatus });
+                      updatePengadaanItem({ ...item, completedSteps: Array.from(next) as any, currentStep: nextStep, status: nextStatus });
                       return next;
                     });
                     flashSave();
                     if (activeStep.id === "pengujian") {
-                      onNavigate("pembayaran-non-outsource");
+                      handleStepSelect(steps.findIndex(s => s.id === "pembayaran"));
                     }
                   }} className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-green-600 hover:bg-green-700">
                     <Check size={12} /> Selesai
@@ -398,6 +504,80 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
           </div>
         </div>
       </div>
+
+      {showPrPaymentModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[#252271] text-base font-bold">Lanjut ke Menu Pembayaran</h3>
+              <button onClick={() => setShowPrPaymentModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-[12px] text-gray-600 mb-4">
+              Silakan pilih jenis pembayaran yang akan digunakan:
+            </p>
+            <div className="space-y-3 mb-6">
+              <label
+                onClick={() => setSelectedPaymentType("Outsource")}
+                className={`flex items-center p-3 rounded-xl border cursor-pointer transition-all ${
+                  selectedPaymentType === "Outsource"
+                    ? "border-[#252271] bg-[#252271]/5 ring-1 ring-[#252271]"
+                    : "border-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="prPaymentType"
+                  checked={selectedPaymentType === "Outsource"}
+                  onChange={() => setSelectedPaymentType("Outsource")}
+                  className="w-4 h-4 text-[#252271]"
+                />
+                <div className="ml-3">
+                  <p className="text-[12.5px] font-bold text-gray-800">Outsource</p>
+                  <p className="text-[10.5px] text-gray-500">Pembayaran untuk jasa outsource</p>
+                </div>
+              </label>
+
+              <label
+                onClick={() => setSelectedPaymentType("Non-outsource")}
+                className={`flex items-center p-3 rounded-xl border cursor-pointer transition-all ${
+                  selectedPaymentType === "Non-outsource"
+                    ? "border-[#252271] bg-[#252271]/5 ring-1 ring-[#252271]"
+                    : "border-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="prPaymentType"
+                  checked={selectedPaymentType === "Non-outsource"}
+                  onChange={() => setSelectedPaymentType("Non-outsource")}
+                  className="w-4 h-4 text-[#252271]"
+                />
+                <div className="ml-3">
+                  <p className="text-[12.5px] font-bold text-gray-800">Non Outsource</p>
+                  <p className="text-[10.5px] text-gray-500">Pembayaran pengadaan barang / jasa non-outsource</p>
+                </div>
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowPrPaymentModal(false)}
+                className="px-4 py-2 rounded-xl text-[11.5px] font-medium border border-gray-200 text-gray-600 hover:bg-gray-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleConfirmPrPayment}
+                className="px-5 py-2 rounded-xl text-[11.5px] font-bold text-white bg-[#252271] hover:bg-[#1a1860] shadow-sm"
+              >
+                Lanjut ke Pembayaran
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

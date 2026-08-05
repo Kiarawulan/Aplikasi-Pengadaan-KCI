@@ -27,11 +27,11 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
       const pembayaranItems = res.data.filter((item: PengadaanItem) => {
         const completed = item.completedSteps || [];
         const isReadyForPembayaran =
-          item.currentStep === "pembayaran" ||
+          (item.currentStep as any) === "pembayaran" ||
           item.status === "Proses Pembayaran" ||
-          (item.id.startsWith("PR-") && (completed.includes("contract") || item.currentStep === "pembayaran")) ||
+          (item.id.startsWith("PR-") && (completed.includes("contract") || (item.currentStep as any) === "pembayaran")) ||
           (item.id.startsWith("PD-") && (completed.includes("pengajuan-dana") || item.status === "approved" || item.status === "Selesai" || item.status === "Menunggu Verifikasi Admin"));
-        const isPembayaran = isReadyForPembayaran && !completed.includes("pembayaran");
+        const isPembayaran = isReadyForPembayaran || completed.includes("pembayaran");
         if (!isPembayaran) return false;
 
         const isPrFlow = item.id.startsWith("PR-");
@@ -40,7 +40,7 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
         } else {
           // PRs go to payment-request, outsource, or non-outsource
           if (!isPrFlow) return false;
-          const allFd = item.formData || JSON.parse(item.formData || '{}');
+          const allFd = typeof item.formData === 'string' ? JSON.parse(item.formData) : (item.formData || {});
           const paymentType = allFd["pelunasan"]?.jenis?.toLowerCase() || (item.nama.toLowerCase().includes("payment request") ? "payment-request" : (item.nama.toLowerCase().includes("non") ? "non-outsource" : "outsource"));
           return paymentType === type;
         }
@@ -136,9 +136,14 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
           <BuatPembayaranPopup
             paymentType={type}
             onClose={() => setShowPopup(false)}
-            onSuccess={() => {
+            onSuccess={(item) => {
               setShowPopup(false);
-              fetchItems();
+              if (type === "umd" && item) {
+                // Navigate directly to the PD detail form for UMD
+                onSelectItem(item as PengadaanItem);
+              } else {
+                fetchItems();
+              }
             }}
           />
         )}

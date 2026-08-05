@@ -202,7 +202,7 @@ export function RupListScreen() {
   const handleEditClick = (item: RupItem) => {
     const verif = getVerifRecords().find(r => r.pengadaanId === item.id);
     const note = item.catatanAdmin || verif?.catatanAdmin || null;
-    const d = item.details || item;
+    const d = (item as any).details || item;
     setForm({
       ...d,
       judul: item.nama,

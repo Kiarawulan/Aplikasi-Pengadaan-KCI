@@ -3,14 +3,20 @@ import { Package, ChevronRight } from "lucide-react";
 import type { Screen } from "@/types";
 
 
-export function DaftarPengadaanNavItem({ screen, onNavigate, collapsed }: {
-  screen: Screen; onNavigate: (s: Screen) => void; collapsed: boolean;
+export function DaftarPengadaanNavItem({ screen, backScreen, onNavigate, collapsed }: {
+  screen: Screen; backScreen?: Screen; onNavigate: (s: Screen) => void; collapsed: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isActive = ["daftar-pengadaan", "pd-detail", "purchase-requisition", "pr-detail"].includes(screen);
-  const isPd = screen === "daftar-pengadaan" || screen === "pd-detail";
-  const isPr = screen === "purchase-requisition" || screen === "pr-detail";
+
+  const isDetailScreen = ["pd-detail", "pr-detail"].includes(screen);
+  const isOtherMenu = isDetailScreen && backScreen && ["pembayaran-outsource", "pembayaran-non-outsource", "pembayaran-umd", "daftar-pengujian"].includes(backScreen);
+
+  const isActive = (["daftar-pengadaan", "purchase-requisition"].includes(screen) || (isDetailScreen && !isOtherMenu));
+  const activeSubScreen = isDetailScreen && backScreen ? backScreen : screen;
+
+  const isPd = (activeSubScreen === "daftar-pengadaan" || screen === "pd-detail") && !isOtherMenu;
+  const isPr = (activeSubScreen === "purchase-requisition" || screen === "pr-detail") && !isOtherMenu;
   const showInlineMenu = !collapsed && (open || isActive);
 
   const open_ = () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); setOpen(true); };

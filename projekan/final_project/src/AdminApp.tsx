@@ -2890,7 +2890,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
               <thead>
                 <tr className="bg-[#252271] text-white text-[10.5px] font-medium tracking-[0.3px]">
                   <th className="text-left px-[14px] py-[10px] whitespace-nowrap">No. SP3</th>
-                  <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Procurement Title</th>
+                  <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Judul Pengadaan</th>
                   <th className="text-left px-[14px] py-[10px] whitespace-nowrap">RKAP Value</th>
                   <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Departement</th>
                   <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Tax Value</th>
@@ -3495,7 +3495,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
                 <thead>
                   <tr className="bg-[#252271] text-white text-[10.5px] font-bold">
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">No. SP3 &#8645;</th>
-                    <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Nama Paket Pengadaan &#8645;</th>
+                    <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Judul Pengadaan &#8645;</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Nilai PR (NPEI) &#8645;</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Nilai PO &#8645;</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Nilai Efisiensi &#8645;</th>
@@ -3542,7 +3542,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
                 <thead>
                   <tr className="bg-[#252271] text-white text-[10.5px] font-bold">
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">No. SP3 &#8645;</th>
-                    <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Nama Paket Pengadaan &#8645;</th>
+                    <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Judul Pengadaan &#8645;</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Nilai Kontrak &#8645;</th>
                     <th className="text-center px-[14px] py-[10px] whitespace-nowrap">Status &#8645;</th>
                     <th className="text-center px-[14px] py-[10px] whitespace-nowrap">Aksi</th>
@@ -4022,7 +4022,7 @@ function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" 
                 <thead>
                   <tr className="bg-[#252271] text-white text-[10.5px] font-bold">
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">No. SP3 &#8645;</th>
-                    <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Nama Paket Pengadaan &#8645;</th>
+                    <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Judul Pengadaan &#8645;</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Nilai Kontrak &#8645;</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Departement &#8645;</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">PBJ &#8645;</th>
@@ -4064,7 +4064,7 @@ function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" 
                 <thead>
                   <tr className="bg-[#252271] text-white text-[10.5px] font-bold">
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">No. SP3 &#8645;</th>
-                    <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Nama Paket Pengadaan &#8645;</th>
+                    <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Judul Pengadaan &#8645;</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Nilai Kontrak &#8645;</th>
                     <th className="text-center px-[14px] py-[10px] whitespace-nowrap">Status &#8645;</th>
                     <th className="text-center px-[14px] py-[10px] whitespace-nowrap">Aksi</th>
@@ -4426,7 +4426,7 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
                   <tr className="bg-[#252271] text-white text-[10.5px] font-medium tracking-[0.3px]">
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">ID NPP</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">ID RUP</th>
-                    <th className="text-left px-[14px] py-[10px] whitespace-nowrap">No.</th>
+                    <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Judul Pengadaan</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Divisi</th>
                     <th className="text-center px-[14px] py-[10px] whitespace-nowrap">OPEX/<br />CAPEX</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Kategori</th>
@@ -4442,7 +4442,9 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
                     <tr key={i} className="border-b border-[#f3f4f6] hover:bg-[#fafafa] transition-colors">
                       <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px] whitespace-nowrap">{row.idNpp}</td>
                       <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px] whitespace-nowrap">{row.idRup}</td>
-                      <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px] text-center">{row.noCont}</td>
+                      <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">
+                        <span className="font-semibold text-gray-800 max-w-[220px] block truncate">{row.nama || row.judul || row.pengadaanNama || "Judul Pengadaan"}</span>
+                      </td>
                       <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.divisi}</td>
                       <td className="px-[14px] py-[14px] text-center">
                         <span className="inline-flex items-center bg-[#f0f9ff] text-[#0069a8] text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px]">
@@ -4625,7 +4627,6 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
 
           {/* Submission Form */}
           <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">SUBMISSION FORM</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-semibold text-gray-600 mb-1">No Dokumen *</label>
@@ -4736,11 +4737,6 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
                 <button onClick={() => alert("Membuka file")} className="px-3 py-1 border border-gray-200 rounded-lg text-[11.5px] font-semibold hover:bg-gray-50">View</button>
               </div>
             </div>
-          </div>
-
-          <div className="flex gap-3 justify-end pt-4 border-t border-gray-100">
-            <button onClick={onBack} className="px-5 py-2 rounded-xl text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-100">Back</button>
-            <button onClick={onBack} className="px-5 py-2 rounded-xl text-[12px] font-semibold bg-[#252271] text-white hover:bg-[#1a1753] shadow-md">Submit</button>
           </div>
         </div>
       </div>
@@ -4879,12 +4875,6 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
           )}
         </div>
 
-        {/* Footer Actions */}
-        <div className="flex gap-3 justify-end pt-4 border-t border-gray-100">
-          <button onClick={onBack} className="px-5 py-2 rounded-xl text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-100">Back</button>
-          <button onClick={onBack} className="px-5 py-2 rounded-xl text-[12px] font-semibold border border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100">Direvisi</button>
-          <button onClick={onBack} className="px-5 py-2 rounded-xl text-[12px] font-semibold bg-[#252271] text-white hover:bg-[#1a1753] shadow-md">Diterima</button>
-        </div>
       </div>
     </div>
   );
@@ -5116,7 +5106,7 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
                 <tr className="bg-[#252271] text-white text-[10.5px] font-medium tracking-[0.3px]">
                   <th className="text-left px-[14px] py-[10px] whitespace-nowrap">ID NPP</th>
                   <th className="text-left px-[14px] py-[10px] whitespace-nowrap">ID RUP</th>
-                  <th className="text-left px-[14px] py-[10px] whitespace-nowrap">No.</th>
+                  <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Judul Pengadaan</th>
                   <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Divisi</th>
                   <th className="text-center px-[14px] py-[10px] whitespace-nowrap">OPEX/<br />CAPEX</th>
                   <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Kategori</th>
@@ -5132,7 +5122,7 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
                   <tr key={i} className="border-b border-[#f3f4f6] hover:bg-[#fafafa] transition-colors">
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px] whitespace-nowrap">{row.idNpp}</td>
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px] whitespace-nowrap">{row.idRup}</td>
-                    <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px] text-center">{row.noCont}</td>
+                    <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px] font-semibold text-gray-800">{row.nama || row.judul || row.pengadaanNama || "Judul Pengadaan"}</td>
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.divisi}</td>
                     <td className="px-[14px] py-[14px] text-center">
                       <span className="inline-flex items-center bg-[#f0f9ff] text-[#0069a8] text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px]">

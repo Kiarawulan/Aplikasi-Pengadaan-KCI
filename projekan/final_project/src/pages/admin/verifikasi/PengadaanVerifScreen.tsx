@@ -10,7 +10,7 @@ import { RupDetailView } from "../../../components/admin/verifikasi/RupDetailVie
 
 import { NppDetailView } from "../../../components/admin/verifikasi/NppDetailView";
 import { PengujianDetailView } from "../../../components/admin/verifikasi/PengujianDetailView";
-import { getVerifRecords, getRupList } from "../../../store/dataStore";
+import { getVerifRecords, getRupList, updateRup, updateVerifRecord } from "../../../store/dataStore";
 
 type ScreenProps = {
   activeSubItem: string;
@@ -63,8 +63,6 @@ const INITIAL_VENDORS = [
 // ─── Component ───────────────────────────────────────────────────────────────
 export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
   const [pengadaanList, setPengadaanList] = useState<any[]>([]);
-  const [rupList, setRupList] = useState<any[]>([]);
-  const [nppList, setNppList] = useState<any[]>([]);
   const [verifTasks, setVerifTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -131,29 +129,42 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
       });
 
       const uniqueVerifMap = new Map();
+      const pengDataList = resPeng.data || [];
       allVerif.forEach(item => {
+        const pId = item.pengadaan_id || item.id;
+        const matchingPeng = pengDataList.find((p: any) => p.id === pId);
+        const fd = matchingPeng ? (typeof matchingPeng.formData === 'string' ? JSON.parse(matchingPeng.formData) : (matchingPeng.formData || {})) : {};
+        const buatNpp = fd['buat-npp'] || fd['npp'] || {};
+        const buatPd = fd['buat-pd'] || fd['buat-pr'] || {};
+
         const key = item.id || item.pengadaan_id;
         if (key && !uniqueVerifMap.has(key)) {
           uniqueVerifMap.set(key, {
-            id: item.pengadaan_id || item.id,
+            id: pId,
             verif_id: item.id,
-            judul: item.pengadaan_nama || item.judul || "Pengadaan Baru",
-            title: item.pengadaan_nama || item.judul || "Pengadaan Baru",
-            nama: item.pengadaan_nama || item.judul || "Pengadaan Baru",
+            judul: buatNpp.judulPermohonan || buatPd.judulPermohonan || matchingPeng?.nama || item.pengadaan_nama || item.judul || "Pengadaan Baru",
+            title: buatNpp.judulPermohonan || buatPd.judulPermohonan || matchingPeng?.nama || item.pengadaan_nama || item.judul || "Pengadaan Baru",
+            nama: buatNpp.judulPermohonan || buatPd.judulPermohonan || matchingPeng?.nama || item.pengadaan_nama || item.judul || "Pengadaan Baru",
             tipe: item.tipe || "rup",
-            dept: item.departemen || "Umum",
-            vpDept: item.departemen || "Umum",
-            bebanBiaya: item.departemen || "Umum",
-            rkap: item.nominal || "N/A",
-            nilaiRkap: item.nominal || "N/A",
-            prVal: item.nominal || "N/A",
-            pdVal: item.nominal || "N/A",
-            vendor: "N/A",
+            dept: buatNpp.subUnit || buatNpp.divisi || buatPd.subUnit || buatPd.divisi || matchingPeng?.departemen || item.departemen || "Umum",
+            vpDept: matchingPeng?.departemen || item.departemen || "Umum",
+            bebanBiaya: matchingPeng?.departemen || item.departemen || "Umum",
+            rkap: buatNpp.nilaiPr ? `Rp ${buatNpp.nilaiPr}` : (matchingPeng?.nominal || item.nominal || "N/A"),
+            nilaiRkap: buatNpp.nilaiPr ? `Rp ${buatNpp.nilaiPr}` : (matchingPeng?.nominal || item.nominal || "N/A"),
+            prVal: buatNpp.nilaiPr ? `Rp ${buatNpp.nilaiPr}` : (matchingPeng?.nominal || item.nominal || "N/A"),
+            pdVal: matchingPeng?.nominal || item.nominal || "N/A",
+            vendor: buatNpp.vendor || "N/A",
+            coa: buatNpp.coa || "5211101",
+            jenisBarang: buatNpp.jenisBarang || "Barang",
+            kurs: buatNpp.kurs || "IDR",
+            realisasi: buatNpp.realisasi === "true" ? "Timeline" : "Diluar Timeline",
+            keterangan: buatNpp.keterangan || "",
             pengadaanNama: item.pengadaan_nama || item.judul || "Pengadaan Baru",
             status: item.status || "pending",
-            jenisKontrak: "Barang",
+            jenisKontrak: buatPd.jenisPermohonan || "Barang",
             capexOpex: "Capex",
-            tahunRkap: "2024"
+            tahunRkap: buatPd.tahun || "2024",
+            formData: fd
           });
         }
       });
@@ -269,12 +280,16 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
   ];
 
   const nppColumns = [
-    { key: "id", label: "ID NPP", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id}</span> },
-    { key: "sp3", label: "No. SP3", render: (r: any) => <span className="font-mono text-gray-500 text-[11px]">{r.sp3}</span> },
-    { key: "judul", label: "Procurement Title", render: (r: any) => <div><p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.judul}</p><p className="text-gray-400 text-[10px]">{r.vendor}</p></div> },
-    { key: "rkap", label: "RKAP Value", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.rkap}</span> },
-    { key: "dept", label: "Dept", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.dept}</span> },
-    { key: "tax", label: "Tax Value", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.tax}</span> },
+    { key: "judul", label: "Judul Pengadaan", render: (r: any) => (
+      <div>
+        <p className="font-semibold text-gray-800 text-[11.5px] max-w-[240px] truncate">{r.judul || r.nama || r.pengadaanNama || r.title || "Judul Pengadaan"}</p>
+        <p className="text-gray-400 text-[10px]">{r.id} • {r.vendor || "N/A"}</p>
+      </div>
+    )},
+    { key: "sp3", label: "No. SP3", render: (r: any) => <span className="font-mono text-gray-500 text-[11px]">{r.sp3 || "—"}</span> },
+    { key: "rkap", label: "RKAP Value", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.rkap || r.nilaiRkap || "—"}</span> },
+    { key: "dept", label: "Dept", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.dept || r.departemen || "—"}</span> },
+    { key: "tax", label: "Tax Value", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.tax || "—"}</span> },
   ];
 
   const sp3Columns = [
@@ -351,9 +366,9 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                   await api.post(`/verifikasi/${r.verif_id}/approve`).catch(() => {});
                 }
                 await api.put(`/rup/${r.id}`, { status: "Approved" }).catch(() => {});
-                updateRup(r.id, { status: "Approved" });
+                updateRup(r.id, { status: "approved" as any });
                 if (r.verif_id) {
-                  updateVerifRecord(r.verif_id, { status: "Approved" });
+                  updateVerifRecord(r.verif_id, { status: "approved" as any });
                 }
                 fetchData();
                 alert(`RUP ${r.nama || r.id} berhasil disetujui.`);
@@ -398,6 +413,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
 
         {mode.startsWith("npp") && (
           <VerifTable
+            hideIndexColumn={true}
             columns={nppColumns} data={nppList} searchKeys={["judul", "sp3", "vendor"]}
             onView={(r) => setShowDetail({ type: "npp", item: r })}
             onApprove={async (r) => {

@@ -54,6 +54,7 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
           nama: newItem.nama,
           departemen: newItem.departemen,
           nominal: newItem.nominal,
+          flow: 'pd',
           form_data: newItem.formData
         });
         // Refresh list

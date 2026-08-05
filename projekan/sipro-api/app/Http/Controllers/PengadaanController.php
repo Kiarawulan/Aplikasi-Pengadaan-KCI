@@ -147,20 +147,29 @@ class PengadaanController extends Controller
         $stepId = $request->stepId;
         $tipe = $request->tipe ?? $stepId;
 
-        // Check existing pending verif for this step
+        // Check existing verif record for this step
         $existing = Verifikasi::where('pengadaan_id', $pengadaan->id)
             ->where('tipe', $tipe)
-            ->where('status', 'pending')
+            ->latest()
             ->first();
 
         if ($existing) {
+            $existing->status = 'pending';
+            $existing->catatan_admin = null;
+            $existing->submit_by = $request->user()->name;
+            $existing->submit_at = now();
+            $existing->save();
+
+            $pengadaan->status = 'Menunggu Verifikasi Admin';
+            $pengadaan->save();
+
             return response()->json([
-                'message' => 'Sudah ada pengajuan verifikasi yang masih pending untuk tahap ini.',
+                'message' => 'Pengajuan verifikasi berhasil diperbarui.',
                 'verifikasi' => $existing,
-            ], 422);
+            ]);
         }
 
-        // Create new verif record
+        // Create new verif record if no existing record
         $lastVerif = Verifikasi::where('id', 'regexp', '^VR-[0-9]+$')->orderBy('id', 'desc')->first();
         $nextVerif = $lastVerif ? intval(substr($lastVerif->id, 3)) + 1 : Verifikasi::count() + 1;
         $verifId = 'VR-' . str_pad($nextVerif, 3, '0', STR_PAD_LEFT);
@@ -204,6 +213,7 @@ class PengadaanController extends Controller
             'npp'            => ['npp'],
             'sp3'            => ['sp3'],
             'rup'            => ['rup'],
+            'pembayaran'     => ['pembayaran', 'umd', 'outsource', 'non-outsource', 'payment-request'],
         ];
         $tipes = $tipeMap[$stepId] ?? [$stepId];
 

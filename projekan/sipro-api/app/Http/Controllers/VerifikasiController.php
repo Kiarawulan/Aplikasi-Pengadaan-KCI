@@ -107,13 +107,30 @@ class VerifikasiController extends Controller
                 // Set a user-readable status
                 $pengadaan->status = 'Sudah Diverifikasi';
 
+                // Map verifikasi tipe to actual pengadaan step_id
+                $tipeToStepMap = [
+                    'park-dokumen'         => 'pengajuan-dana',
+                    'purchase-requisition' => 'pengajuan-dana',
+                    'umd'                  => 'pembayaran',
+                    'outsource'            => 'pembayaran',
+                    'non-outsource'        => 'pembayaran',
+                    'payment-request'      => 'pembayaran',
+                ];
+                $stepId = $tipeToStepMap[$verifikasi->tipe] ?? $verifikasi->tipe;
+
                 // Mark current step completed
                 PengadaanCompletedStep::firstOrCreate([
                     'pengadaan_id' => $pengadaan->id,
-                    'step_id'      => $verifikasi->tipe,
+                    'step_id'      => $stepId,
                 ], [
                     'completed_at' => now(),
                 ]);
+
+                // If UMD approved, update current_step to next step or selesai
+                if (in_array($verifikasi->tipe, ['umd', 'pembayaran'])) {
+                    $pengadaan->status = 'Selesai';
+                    $pengadaan->current_step = 'selesai';
+                }
 
                 $pengadaan->save();
             }
