@@ -7,6 +7,7 @@ import { ApprovedBadge } from "@/components/common/ApprovedBadge";
 import { getPengujianList } from "@/store/dataStore";
 import { useAuth } from "@/store/authStore";
 import { Sp3DetailView } from "./Sp3DetailView";
+import { InternalProcessView } from "./InternalProcessView";
 
 export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
   step: ParkStep; subStepId: string;
@@ -114,46 +115,8 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
       <Sp3DetailView item={item} />
     </div>
   );
-  if (step === "pbj") {
-    let pbjStatus = <StatusDisplay />;
-    if (status === "pending") pbjStatus = <span className="bg-yellow-100 text-yellow-700 text-[10px] font-semibold px-2 py-0.5 rounded">Menunggu Verifikasi</span>;
-    else if (status === "revisi") pbjStatus = <span className="bg-blue-100 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded">Dalam Proses</span>;
-    else if (status === "approved") pbjStatus = <span className="bg-green-100 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded">Proses Selesai</span>;
-
-    return (
-      <div>
-        <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">PBJ Details</p>{pbjStatus}</div>
-        <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
-          <SummaryRow label="Nomor PBJ" value={fdFrom("pbj").noPbj || "PBJ-2024-001"} />
-          <SummaryRow label="Tanggal PBJ" value={fdFrom("pbj").tglPbj || "12 Okt 2024"} />
-          <SummaryRow label="Pemenang Tender" value={fdFrom("pbj").pemenang || "PT Vendor IT Sukses"} />
-          <SummaryRow label="Nilai Kontrak" value={fdFrom("pbj").nilaiKontrak || "Rp 95.000.000"} />
-        </div>
-      </div>
-    );
-  }
-  if (step === "contract") {
-    let contractStatus = <StatusDisplay />;
-    if (status === "pending") contractStatus = <span className="bg-blue-100 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded">Dalam Proses</span>;
-    else if (status === "approved") contractStatus = <span className="bg-green-100 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded">Proses Selesai</span>;
-
-    return (
-      <div>
-        <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p>{contractStatus}</div>
-        <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
-          <SummaryRow label="Judul Pengadaan" value={item?.nama || "Judul Pengadaan"} />
-          <SummaryRow label="Email PIC" value={fdFrom("buat-pr").emailPic || userEmail} />
-          <SummaryRow label="Nominal" value={fdFrom("pbj").nilaiKontrak || item?.nominal || fdFrom("buat-npp").nilaiPr || "Nominal"} />
-          <SummaryRow label="Vendor" value={fdFrom("pbj").pemenang || fdFrom("buat-npp").vendor || "Vendor"} />
-          <SummaryRow label="COA" value={fdFrom("buat-npp").coa || "-"} />
-          <SummaryRow label="Kurs" value={fdFrom("buat-npp").kurs || "IDR"} />
-        </div>
-        {status === "approved" && (
-          <div className="mt-4 pt-4 border-t border-[#e2e2e2]"><button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><FileText size={13} /> Dokumen Contract Final.pdf (Download)</button></div>
-        )}
-      </div>
-    );
-  }
+  if (step === "pbj") return <InternalProcessView kind="pbj" item={item} />;
+  if (step === "contract") return <InternalProcessView kind="contract" item={item} />;
   if (step === "pengujian") {
     const pengujianItem = getPengujianList().find(x => x.nama === item?.nama);
     let statusLabel = "Belum Diajukan";

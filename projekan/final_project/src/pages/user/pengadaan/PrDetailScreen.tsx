@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Check, CheckCircle2, ChevronLeft, Clock, FileWarning, X, XCircle } from "lucide-react";
+import { Check, CheckCircle2, ChevronLeft, Clock, Edit2, FileWarning, X, XCircle } from "lucide-react";
 import type { Screen, PengadaanItem } from "@/types";
 import { PR_MAIN_STEPS } from "@/constants/steps";
 import { Breadcrumb } from "@/components/user/layout/Breadcrumb";
 import { DetailHeaderCard } from "@/components/user/pengadaan/DetailHeaderCard";
 import { StepTracker } from "@/components/user/pengadaan/StepTracker";
 import { PrStepContent } from "@/components/user/pengadaan/PrStepContent";
+import { PembelianBaruPopup } from "@/components/user/pengadaan/PembelianBaruPopup";
 import { api } from "@/services/api";
 import { getVerifRecords, addVerifRecord, generateId, getPengujianList, savePengujianList, updatePengadaanItem } from "@/store/dataStore";
 import { useAuth } from "@/store/authStore";
@@ -52,6 +53,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   }
 
   const [showPrPaymentModal, setShowPrPaymentModal] = useState(false);
+  const [showEditPopup, setShowEditPopup] = useState(false);
   const [selectedPaymentType, setSelectedPaymentType] = useState<"Outsource" | "Non-outsource">("Outsource");
 
   // Load initial sub-step completions from item state or meta
@@ -231,7 +233,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     const userSubmitSteps = ["npp", "pengajuan-dana"];
     const adminOnlySteps = ["sp3", "pbj", "contract"];
 
-    if (userSubmitSteps.includes(activeStep.id) && isSubmitPoint && (verifStatus === "not_submitted" || verifStatus === "revisi")) {
+    if (userSubmitSteps.includes(activeStep.id) && isSubmitPoint && (verifStatus === "not_submitted" || verifStatus === "revisi" || verifStatus === "rejected")) {
       // Save form data before submitting
       flashSave();
 
@@ -334,6 +336,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     }
     if (!isSubmitPoint) return "Next";
     if (verifStatus === "not_submitted") return "Submit";
+    if (verifStatus === "revisi" || verifStatus === "rejected") return "Kirim Ulang Revisi";
     if (verifStatus === "pending") return "Menunggu Verifikasi";
     return "Lanjut";
   };
@@ -385,6 +388,49 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     }
   };
 
+  const openEdit = () => {
+    if (activeStep.id === "pengajuan-dana") {
+      setShowEditPopup(true);
+      return;
+    }
+    // NPP diedit langsung dari formulir tahap pertama.
+    setActiveSubIdx(0);
+  };
+
+  const handleRevisionSubmit = async (newItem: any) => {
+    try {
+      const formData = {
+        ...allFd,
+        ...(newItem.formData || {}),
+        "buat-pr": {
+          ...(allFd["buat-pr"] || {}),
+          ...(newItem.formData || {}),
+        },
+      };
+
+      await api.put(`/pengadaan/${item.id}`, {
+        nama: newItem.nama,
+        departemen: newItem.departemen,
+        nominal: newItem.nominal,
+        form_data: formData,
+      });
+      await api.post(`/pengadaan/${item.id}/submit-step`, {
+        stepId: "pengajuan-dana",
+        form_data: formData,
+      });
+
+      setAllFd(formData);
+      setVerifStatus("pending");
+      setCatatanAdmin(null);
+      setShowEditPopup(false);
+      setFlash(true);
+      setTimeout(() => setFlash(false), 3000);
+    } catch (err: any) {
+      console.error("Gagal mengirim ulang revisi PR:", err);
+      alert(err.response?.data?.message || "Gagal menyimpan revisi.");
+    }
+  };
+
   return (
     <div>
       <Breadcrumb segments={[{ label: "Daftar Pengadaan", screen: "daftar-pengadaan" }, { label: "Pengajuan Dana", screen: "purchase-requisition" }, { label: item.nama }]} onNavigate={onNavigate} />
@@ -405,21 +451,27 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             <div className="bg-[#252271] px-4 py-2.5"><p className="text-white font-semibold text-[11.5px]">{cardHeader()}</p></div>
             <div className="p-4">
               {verifStatus === "revisi" && (
-                <div className="mb-4 bg-purple-50 border border-purple-200 rounded-xl p-3.5 flex items-start gap-3">
+                <div className="mb-4 bg-purple-50 border border-purple-200 rounded-xl p-3.5 flex items-start justify-between gap-3">
                   <FileWarning className="text-purple-600 shrink-0 mt-0.5" size={16} />
-                  <div>
+                  <div className="flex-1">
                     <p className="text-[12px] font-bold text-purple-900">Perlu Revisi dari Admin</p>
                     <p className="text-[11.5px] text-purple-700 mt-0.5">{catatanAdmin || "Silakan perbaiki data yang diajukan, lalu klik Kirim/Submit kembali."}</p>
                   </div>
+                  <button onClick={openEdit} className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-[11px] font-bold hover:bg-purple-700 transition-colors shrink-0">
+                    <Edit2 size={12} /> Edit
+                  </button>
                 </div>
               )}
               {verifStatus === "rejected" && (
-                <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3.5 flex items-start gap-3">
+                <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3.5 flex items-start justify-between gap-3">
                   <XCircle className="text-red-600 shrink-0 mt-0.5" size={16} />
-                  <div>
+                  <div className="flex-1">
                     <p className="text-[12px] font-bold text-red-900">Ditolak oleh Admin</p>
                     <p className="text-[11.5px] text-red-700 mt-0.5">{catatanAdmin || "Pengajuan Anda ditolak oleh Admin."}</p>
                   </div>
+                  <button onClick={openEdit} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-[11px] font-bold hover:bg-red-700 transition-colors shrink-0">
+                    <Edit2 size={12} /> Edit
+                  </button>
                 </div>
               )}
               {verifStatus === "pending" && (
@@ -580,6 +632,26 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             </div>
           </div>
         </div>
+      )}
+
+      {showEditPopup && (
+        <PembelianBaruPopup
+          title="Edit & Kirim Revisi Purchase Requisition"
+          submitLabel="Kirim Ulang Revisi →"
+          initialData={{
+            ...(allFd["buat-pr"] || {}),
+            ...(item.formData || {}),
+            emailPic: allFd["buat-pr"]?.emailPic || item.formData?.emailPic || currentUser?.email || "",
+            divisi: allFd["buat-pr"]?.subUnit || allFd["buat-pr"]?.divisi || item.formData?.subUnit || item.departemen || "",
+            judulPermohonan: allFd["buat-pr"]?.judulPermohonan || item.nama || "",
+            nominalPermohonan: allFd["buat-pr"]?.nominalPermohonan || item.nominal || "",
+            jenisPermohonan: allFd["buat-pr"]?.jenisPermohonan || item.formData?.jenisPermohonan || "",
+            detailPermohonan: allFd["buat-pr"]?.detailPermohonan || item.formData?.detailPermohonan || "",
+          }}
+          initialStep="pengajuan-dana"
+          onClose={() => setShowEditPopup(false)}
+          onSubmit={handleRevisionSubmit}
+        />
       )}
     </div>
   );

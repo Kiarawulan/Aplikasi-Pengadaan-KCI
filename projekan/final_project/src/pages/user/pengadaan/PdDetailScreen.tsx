@@ -616,6 +616,12 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           <div>
             <p className="text-[12px] font-semibold text-red-800">❌ Pengajuan Ditolak Admin</p>
             <p className="text-[11px] text-red-700 font-medium mt-0.5">Alasan: "{verifState.catatanAdmin}"</p>
+            <button
+              onClick={() => setShowEditPopup(true)}
+              className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-[11px] font-bold hover:bg-red-700 transition-colors shadow-xs"
+            >
+              <Edit2 size={12} /> Edit & Kirim Ulang
+            </button>
           </div>
         </div>
       )}
@@ -726,6 +732,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             detailPermohonan: allFd["buat-pd"]?.detailPermohonan || item.formData?.detailPermohonan || ""
           }}
           initialStep="pengajuan-dana"
+          requiresRup={false}
           onClose={() => setShowEditPopup(false)}
           onSubmit={handleRevisionSubmit}
         />

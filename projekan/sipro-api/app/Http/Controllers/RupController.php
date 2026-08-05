@@ -12,14 +12,13 @@ class RupController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Rup::query();
-        if (! $request->user()->is_admin) $query->where('created_by', $request->user()->id);
-        return response()->json($query->latest()->get());
+        // RUP adalah referensi bersama. User berhak membaca RUP yang dibuat
+        // Admin maupun user lain, tetapi perubahan tetap dibatasi pemilik/admin.
+        return response()->json(Rup::query()->latest()->get());
     }
 
     public function show(Request $request, Rup $rup)
     {
-        $this->assertOwner($request, $rup);
         return response()->json($rup);
     }
 

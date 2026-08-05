@@ -25,6 +25,11 @@ class PengadaanController extends Controller
         $user = $request->user();
         $query = Pengadaan::with(['completedSteps', 'verifikasiRecords']);
 
+        if ($request->filled('flow')) {
+            abort_unless(in_array($request->query('flow'), ['pr', 'pd'], true), 422, 'Jenis alur pengadaan tidak valid.');
+            $query->where('flow_type', $request->query('flow'));
+        }
+
         // User hanya boleh membaca record yang dibuatnya sendiri.
         if (! $user->is_admin) {
             $query->where('created_by', $user->id);
@@ -53,6 +58,7 @@ class PengadaanController extends Controller
             $next = $last ? intval(substr($last->id, 3)) + 1 : 1;
             $id = $prefix . str_pad($next, 3, '0', STR_PAD_LEFT);
 
+            $formData = $this->normalizeFormData($flow, $request->form_data);
             $pengadaan = Pengadaan::create([
                 'id'           => $id,
                 'nama'         => $request->nama,
@@ -64,7 +70,7 @@ class PengadaanController extends Controller
                 'current_step' => $flow === 'pr' ? 'npp' : 'pengajuan-dana',
                 'created_by'   => $request->user()->id,
                 'updated_by'   => $request->user()->id,
-                'form_data'    => $request->form_data,
+                'form_data'    => $formData,
             ]);
 
             return response()->json($this->present($pengadaan), 201);
@@ -116,10 +122,10 @@ class PengadaanController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (! $user->is_admin && ! in_array($pengadaan->status, ['draft', 'revision_required'], true)) {
+        if (! $user->is_admin && ! in_array($pengadaan->status, ['draft', 'revision_required', 'rejected'], true)) {
             return response()->json(['message' => 'Pengadaan tidak dapat diubah pada status saat ini.'], 422);
         }
-        $pengadaan->form_data = $request->input('form_data', $request->all());
+        $pengadaan->form_data = $this->normalizeFormData($pengadaan->flow_type, $request->input('form_data', $request->all()));
         $pengadaan->updated_by = $user->id;
         $pengadaan->save();
 
@@ -157,7 +163,7 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
         // Simpan payload yang sama sebelum membuat antrean verifikasi. Dengan
         // begitu admin selalu membaca detail yang identik dengan input user.
         if ($request->has('form_data')) {
-            $pengadaan->form_data = $request->form_data;
+            $pengadaan->form_data = $this->normalizeFormData($pengadaan->flow_type, $request->form_data);
             $pengadaan->save();
         }
 
@@ -283,7 +289,7 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
             'status'      => 'sometimes|string',
         ]);
 
-        if (! $user->is_admin && ! in_array($pengadaan->status, ['draft', 'revision_required'], true)) return response()->json(['message' => 'Pengadaan tidak dapat diubah pada status saat ini.'], 422);
+        if (! $user->is_admin && ! in_array($pengadaan->status, ['draft', 'revision_required', 'rejected'], true)) return response()->json(['message' => 'Pengadaan tidak dapat diubah pada status saat ini.'], 422);
         if ($request->has('nama')) $pengadaan->nama = $request->nama;
         if ($request->has('departemen')) $pengadaan->departemen = $request->departemen;
         if ($request->has('nominal')) $pengadaan->nominal = $request->nominal;
@@ -299,7 +305,7 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
                 'completed_at' => now(),
             ]);
         }
-        if ($request->has('form_data')) $pengadaan->form_data = $request->form_data;
+        if ($request->has('form_data')) $pengadaan->form_data = $this->normalizeFormData($pengadaan->flow_type, $request->form_data);
         if ($user->is_admin && $request->has('status')) $pengadaan->status = $request->status;
         $pengadaan->updated_by = $user->id;
 
@@ -362,7 +368,7 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
             return; // bukan tahapan yang punya tabel khusus
         }
 
-        $formData = $request->form_data ?? $request->all();
+        $formData = $this->normalizeFormData($pengadaan->flow_type, $request->form_data ?? $request->all());
         // Ambil data form yang relevan dari form_data pengadaan bila dikirim terpisah
         if (empty($formData) && $pengadaan->form_data) {
             $formData = $pengadaan->form_data;
@@ -486,5 +492,23 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
             'from_status'   => $fromStatus,
             'to_status'     => $toStatus,
         ]);
+    }
+
+    /** Park Document berdiri sendiri dan tidak menyimpan referensi RUP. */
+    private function normalizeFormData(string $flowType, mixed $formData): mixed
+    {
+        if ($flowType !== 'pd' || ! is_array($formData)) {
+            return $formData;
+        }
+
+        $rupKeys = ['rupids', 'rupid', 'rup_ids', 'rup_id', 'idrup'];
+        $normalized = [];
+        foreach ($formData as $key => $value) {
+            if (in_array(strtolower((string) $key), $rupKeys, true)) {
+                continue;
+            }
+            $normalized[$key] = is_array($value) ? $this->normalizeFormData('pd', $value) : $value;
+        }
+        return $normalized;
     }
 }

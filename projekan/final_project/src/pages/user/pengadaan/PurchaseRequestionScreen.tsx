@@ -20,9 +20,8 @@ export function PurchaseRequestionScreen({ onSelectItem }: {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/pengadaan');
-      const prItems = res.data.filter((item: any) => item.id.startsWith('PR-'));
-      setItems(prItems);
+      const res = await api.get('/pengadaan?flow=pr');
+      setItems(res.data);
     } catch (err) {
       console.error("Gagal mengambil data PR:", err);
     } finally {

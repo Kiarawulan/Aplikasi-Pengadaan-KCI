@@ -1,261 +1,46 @@
-import React, { useState } from 'react';
-import { DetailDocumentView, DetailDocumentField, DetailDocumentFile } from './DetailDocumentView';
+import { useEffect, useState } from "react";
+import { Download, Eye, FileText } from "lucide-react";
+import { api } from "@/services/api";
 
-interface Sp3DetailViewProps {
-  item?: any;
-  onClose?: () => void;
-  onApprove?: () => void;
-  onRevisi?: (catatan?: string) => void;
-  onReject?: (catatan?: string) => void;
-  onBack?: () => void;
-  showActions?: boolean;
-}
+export function Sp3DetailView({ item }: { item?: any }) {
+  const [sp3, setSp3] = useState<any>(null);
+  const [files, setFiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-export const Sp3DetailView: React.FC<Sp3DetailViewProps> = ({
-  item,
-  onApprove,
-  onRevisi,
-  onReject,
-  onBack,
-  showActions = true,
-}) => {
-  const [activeTab, setActiveTab] = useState<'information' | 'evaluasi'>('information');
+  useEffect(() => {
+    if (!item?.id) return;
+    let active = true;
+    Promise.all([
+      api.get("/step-documents/sp3"),
+      api.get(`/pengadaan/${item.id}/documents`),
+    ]).then(([sp3Response, documentResponse]) => {
+      if (!active) return;
+      setSp3((sp3Response.data || []).find((entry: any) => entry.pengadaan_id === item.id) || null);
+      setFiles((documentResponse.data?.data || []).filter((entry: any) => String(entry.stage || "").toLowerCase().startsWith("sp3")));
+    }).catch(() => active && setFiles([])).finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, [item?.id]);
 
-  // Interactive state for Evaluasi table
-  const [evaluasiRows, setEvaluasiRows] = useState([
-    {
-      no: 1,
-      uraian: 'MI Permohonan Pengadaan dari User',
-      nomor: item?.miNo || '8/MI/CUGP/KCI/XI/2022',
-      tanggal: item?.miDate || '2023-09-18',
-      pemenuhan: 'ya',
-      keterangan: '',
-    },
-    {
-      no: 2,
-      uraian: 'NPD',
-      nomor: item?.prNo || '210000002',
-      tanggal: item?.prDate || '',
-      pemenuhan: null,
-      keterangan: '',
-    },
-    {
-      no: 3,
-      uraian: 'Permohonan Dana dari User (NPD)',
-      nomor: item?.prNo || '210000002',
-      tanggal: item?.prDate || '',
-      pemenuhan: null,
-      keterangan: '',
-    },
-    {
-      no: 4,
-      uraian: 'No RAB, Tanggal RAB dan Judul Pengadaan di RAB',
-      nomor: item?.rabNo || '105/RAB/COTC/KCI/X/2022',
-      tanggal: item?.rabDate || '2023-09-01',
-      pemenuhan: null,
-      keterangan: '',
-    },
-    {
-      no: 5,
-      uraian: 'No Justifikasi, Tanggal Justifikasi dan Judul Pengadaan di Justifikasi',
-      nomor: item?.justifikasiNo || '95/JUST/COTC/KCI/X/2022',
-      tanggal: item?.justifikasiDate || '2023-09-11',
-      pemenuhan: null,
-      keterangan: '',
-    },
-    {
-      no: 6,
-      uraian: 'No KAK/TOR, Tanggal KAK/TOR dan Judul Pengadaan di KAK/TOR',
-      nomor: item?.kakNo || '020/TOR/COTC/KCI/X/2022',
-      tanggal: item?.kakDate || '2022-11-14',
-      pemenuhan: null,
-      keterangan: '',
-    },
-  ]);
-
-  const handlePemenuhanChange = (index: number, val: 'ya' | 'tidak') => {
-    setEvaluasiRows((prev) =>
-      prev.map((r, i) => (i === index ? { ...r, pemenuhan: val } : r))
-    );
+  const download = async (file: any) => {
+    const response = await api.get(`/documents/${file.id}/download`, { responseType: "blob" });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = window.document.createElement("a");
+    link.href = url;
+    link.download = file.original_name;
+    link.click();
+    window.URL.revokeObjectURL(url);
   };
 
-  const handleKeteranganChange = (index: number, text: string) => {
-    setEvaluasiRows((prev) =>
-      prev.map((r, i) => (i === index ? { ...r, keterangan: text } : r))
-    );
-  };
-
-  const infoData = {
-    nppNo: item?.nppNo || item?.sp3 || item?.id || '6/REN-LOG/KCI/XI/2022',
-    title: item?.title || item?.judul || item?.nama || 'Rapat Kinerja dan Evaluasi ASP Semester II',
-    rkapValue: item?.rkap || item?.nilaiRkap || 'Rp. 648.303.240,00',
-    vendorName: item?.vendor || 'PT Software Nusantara',
-    department: item?.dept || item?.departemen || 'COTC',
-    division: item?.division || 'COT',
-    status: item?.status || 'Submitted SP3',
-    taxType: item?.taxType || 'Pajak Dipungut',
-    taxValue: item?.tax || item?.nilaiTax || 'Rp. 713.133.564,00',
-    tipePemilihan: item?.tipePemilihan || 'Lelang Terbuka',
-    rabNo: item?.rabNo || '105/RAB/COTC/KCI/X/2022',
-    rabDate: item?.rabDate || '01 Sep 2023',
-    kakNo: item?.kakNo || '020/TOR/COTC/KCI/X/2022',
-    kakDate: item?.kakDate || '14 Nov 2022',
-
-    prNo: item?.prNo || '210000002',
-    prDate: item?.prDate || '2023-09-01',
-    justifikasiBrgNo: item?.justifikasiBrgNo || '95/JUST/COTC/KCI/X/2022',
-    justifikasiBrgDate: item?.justifikasiBrgDate || '11 Sep 2023',
-    miNo: item?.miNo || '8/MI/CUGP/KCI/XI/2022',
-    miDate: item?.miDate || '18 Sep 2023',
-    miPerihal: item?.miPerihal || 'MI Permohonan Proses Lelang',
-
-    // Files
-    filePr: item?.filePr || 'PR-DOC-2022-11-14-04-22-30.pdf',
-    fileRab: item?.fileRab || 'PR-RAB-2022-11-14-04-22-30.pdf',
-    fileJustifikasiBrg: item?.fileJustifikasiBrg || 'PR-JUSTIFIKASI-BRG-2022.pdf',
-    fileKak: item?.fileKak || 'DOC-KAK-2022-11-14-04-22-30.pdf',
-    fileMi: item?.fileMi || 'DOC-MI-2022-11-14-04-22-30.pdf',
-  };
-
-  const infoFields: DetailDocumentField[] = [
-    { label: "No. NPP", value: infoData.nppNo },
-    { label: "Procurement Title", value: infoData.title },
-    { label: "RKAP Value", value: infoData.rkapValue },
-    { label: "Vendor Name", value: infoData.vendorName },
-    { label: "Department", value: infoData.department },
-    { label: "Division", value: infoData.division },
-    { label: "Tax Type", value: infoData.taxType },
-    { label: "Tax Value", value: infoData.taxValue },
-    { label: "Tipe Pemilihan", value: infoData.tipePemilihan },
-    { label: "No. RAB", value: infoData.rabNo },
-    { label: "RAB Date", value: infoData.rabDate },
-    { label: "No KAK", value: infoData.kakNo },
-    { label: "Tanggal KAK", value: infoData.kakDate },
-    { label: "No PR", value: infoData.prNo },
-    { label: "Tanggal PR", value: infoData.prDate },
-    { label: "No Justifikasi Kebutuhan Barang", value: infoData.justifikasiBrgNo },
-    { label: "Tanggal Justifikasi Kebutuhan Barang", value: infoData.justifikasiBrgDate },
-    { label: "No Memo Internal (MI)", value: infoData.miNo },
-    { label: "Tanggal MI", value: infoData.miDate },
-    { label: "Perihal MI", value: infoData.miPerihal },
-  ];
-
-  const files: DetailDocumentFile[] = [
-    { label: "Checklist PR / SP3", fileName: infoData.filePr, size: "1.2 MB", isMandatory: true, status: "Selesai" },
-    { label: "Dokumen RAB", fileName: infoData.fileRab, size: "2.5 MB", isMandatory: true, status: "Selesai" },
-    { label: "Justifikasi Kebutuhan Barang", fileName: infoData.fileJustifikasiBrg, size: "1.9 MB", isMandatory: true, status: "Selesai" },
-    { label: "Dokumen KAK / TOR", fileName: infoData.fileKak, size: "1.5 MB", isMandatory: true, status: "Selesai" },
-    { label: "Memo Internal (MI)", fileName: infoData.fileMi, size: "1.1 MB", isMandatory: true, status: "Selesai" },
-  ];
-
-  const tabsNav = (
-    <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
-      <button
-        type="button"
-        onClick={() => setActiveTab('information')}
-        className={`px-4 py-2 text-[12.5px] font-bold rounded-lg transition-all cursor-pointer ${
-          activeTab === 'information'
-            ? 'bg-[#252271] text-white shadow-xs'
-            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-        }`}
-      >
-        Information
-      </button>
-      <button
-        type="button"
-        onClick={() => setActiveTab('evaluasi')}
-        className={`px-4 py-2 text-[12.5px] font-bold rounded-lg transition-all cursor-pointer ${
-          activeTab === 'evaluasi'
-            ? 'bg-[#252271] text-white shadow-xs'
-            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-        }`}
-      >
-        Evaluasi
-      </button>
-    </div>
-  );
-
-  if (activeTab === 'evaluasi') {
-    return (
-      <div className="w-full bg-[#f8fafc] min-h-screen p-6 font-sans">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[#252271] text-[18px] font-bold">Detail Berkas Permohonan SP3 - Evaluasi</h2>
-        </div>
-        {tabsNav}
-        <div className="mt-4 bg-white rounded-xl border border-gray-200 p-5 shadow-2xs">
-          <table className="w-full text-[11.5px]">
-            <thead>
-              <tr className="bg-[#252271] text-white font-bold text-left">
-                <th className="p-3 w-10 text-center">NO</th>
-                <th className="p-3">URAIAN DOKUMEN</th>
-                <th className="p-3">NOMOR DOKUMEN</th>
-                <th className="p-3 w-28">TANGGAL</th>
-                <th className="p-3 w-28 text-center">PEMENUHAN</th>
-                <th className="p-3">KETERANGAN</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
-              {evaluasiRows.map((row, idx) => (
-                <tr key={row.no} className="hover:bg-gray-50/70 transition-colors">
-                  <td className="p-3 text-center font-semibold text-gray-600">{row.no}</td>
-                  <td className="p-3 font-medium text-gray-800">{row.uraian}</td>
-                  <td className="p-3 font-mono text-gray-700">{row.nomor || '-'}</td>
-                  <td className="p-3 text-gray-600">{row.tanggal || '-'}</td>
-                  <td className="p-3">
-                    <div className="flex items-center justify-center gap-3">
-                      <label className="flex items-center gap-1 cursor-pointer font-medium text-[11px]">
-                        <input
-                          type="radio"
-                          name={`pemenuhan-${idx}`}
-                          checked={row.pemenuhan === 'ya'}
-                          onChange={() => handlePemenuhanChange(idx, 'ya')}
-                          className="accent-green-600"
-                        />
-                        <span>Ya</span>
-                      </label>
-                      <label className="flex items-center gap-1 cursor-pointer font-medium text-[11px]">
-                        <input
-                          type="radio"
-                          name={`pemenuhan-${idx}`}
-                          checked={row.pemenuhan === 'tidak'}
-                          onChange={() => handlePemenuhanChange(idx, 'tidak')}
-                          className="accent-[#cc0000]"
-                        />
-                        <span>Tidak</span>
-                      </label>
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <input
-                      type="text"
-                      value={row.keterangan}
-                      onChange={(e) => handleKeteranganChange(idx, e.target.value)}
-                      placeholder="Catatan..."
-                      className="w-full bg-gray-50 border border-gray-200 rounded-md px-2 py-1 text-[11px] focus:bg-white focus:border-[#252271] outline-none"
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  }
+  const title = sp3?.judul || item?.nama || "Surat SP3";
+  const number = sp3?.no_sp3 || sp3?.id || "SP3 sedang diproses";
 
   return (
-    <DetailDocumentView
-      title="Detail SP3 (Surat Permohonan Proses Pengadaan)"
-      subtitle={`SP3 - ${infoData.nppNo}`}
-      status={infoData.status}
-      infoFields={infoFields}
-      files={files}
-      extraTabs={tabsNav}
-      onBack={onBack}
-      onApprove={onApprove}
-      onRevisi={onRevisi}
-      onReject={onReject}
-      showActions={showActions}
-    />
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div><p className="text-[12px] font-bold text-[#252271]">Surat SP3</p><p className="text-[10.5px] text-slate-500">{number}</p></div>
+        <span className="px-2.5 py-1 rounded-full bg-indigo-50 text-[#252271] text-[10px] font-bold">View Only</span>
+      </div>
+      {loading ? <p className="text-[11.5px] text-slate-500">Memuat surat SP3...</p> : files.length === 0 ? <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-5 text-center"><FileText size={22} className="mx-auto text-slate-400 mb-2" /><p className="text-[11.5px] font-semibold text-slate-600">Surat SP3 belum diunggah oleh Admin.</p><p className="text-[10.5px] text-slate-500 mt-1">Saat tersedia, file surat SP3 akan muncul di sini untuk dilihat atau diunduh.</p></div> : <div className="space-y-2">{files.map((file: any) => <div key={file.id} className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5"><div className="flex items-center min-w-0 gap-2"><FileText size={17} className="text-[#252271] shrink-0" /><div className="min-w-0"><p className="text-[11.5px] font-bold text-slate-800 truncate">{file.original_name}</p><p className="text-[10px] text-slate-500">{title}</p></div></div><button onClick={() => download(file)} className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#252271] text-white text-[10.5px] font-bold hover:bg-[#1a1753]"><Eye size={11} /> View File <Download size={11} /></button></div>)}</div>}
+    </div>
   );
-};
+}

@@ -19,9 +19,8 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/pengadaan');
-      const pdItems = res.data.filter((item: any) => item.id.startsWith('PD-'));
-      setItems(pdItems);
+      const res = await api.get('/pengadaan?flow=pd');
+      setItems(res.data);
     } catch (err) {
       console.error("Gagal mengambil data pengadaan:", err);
     } finally {
@@ -172,6 +171,7 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
           submitLabel={editingItem ? "Simpan Perubahan" : "Buat Park Document →"}
           initialData={editingItem?.formData}
           initialStep={editingItem ? "pengajuan-dana" : "pengajuan-dana"}
+          requiresRup={false}
           onClose={() => { setShowPopup(false); setEditingItem(null); }}
           onSubmit={handleCreate}
         />

@@ -7,10 +7,10 @@ import { api } from "@/services/api";
 
 import { useAuth } from "@/store/authStore";
 
-export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Pengadaan Baru", submitLabel = "Submit", initialStep = "npp" as ParkStep, initialData, isViewOnly }: {
+export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Pengadaan Baru", submitLabel = "Submit", initialStep = "npp" as ParkStep, initialData, isViewOnly, requiresRup = true }: {
   onClose: () => void; onSubmit: (item: any) => void;
   title?: string; submitLabel?: string; initialStep?: ParkStep;
-  initialData?: any; isViewOnly?: boolean;
+  initialData?: any; isViewOnly?: boolean; requiresRup?: boolean;
 }) {
   const { currentUser } = useAuth();
   const today = new Date().toISOString().split("T")[0];
@@ -18,6 +18,10 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
   const [dropdownOpen, setDropdownOpen] = useState(false);
   
   useEffect(() => {
+    if (!requiresRup) {
+      setRupList([]);
+      return;
+    }
     api.get("/rup")
       .then((res) => {
         const backendItems = res.data.map((r: any) => ({
@@ -40,7 +44,7 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
       .catch(() => {
         setRupList(getRupList().filter(r => r.status?.toLowerCase() === "approved"));
       });
-  }, []);
+  }, [requiresRup]);
 
   const [form, setForm] = useState({
     rupIds: initialData?.rupIds || ([] as string[]),
@@ -142,7 +146,7 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
     const required: (keyof typeof form)[] = ["emailPic", "tahun", "divisi", "judulPermohonan", "jenisPermohonan", "nominalPermohonan"];
     const errs: Record<string, boolean> = {};
     required.forEach((k) => { if (!form[k as keyof typeof form]?.toString().trim()) errs[k] = true; });
-    if (form.rupIds.length === 0) errs.rupIds = true;
+    if (requiresRup && form.rupIds.length === 0) errs.rupIds = true;
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
     const formattedNominal = form.kurs === 'IDR' 
@@ -160,7 +164,7 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
       completedSteps: [],
       verificationStatus: { [initialStep]: "pending" },
       formData: {
-        rupIds: form.rupIds,
+        ...(requiresRup ? { rupIds: form.rupIds } : {}),
         emailPic: form.emailPic,
         tahun: form.tahun,
         subUnit: form.divisi,
@@ -183,7 +187,7 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
         </div>
 
         <fieldset disabled={isViewOnly} className="space-y-4 border-none p-0 m-0">
-          <div>
+          {requiresRup && <div>
             <label className="block text-[11.5px] font-medium text-[#0a0a0a] mb-2">Pilih RUP (Bisa lebih dari satu)</label>
             <div className="relative">
               <button onClick={() => setDropdownOpen(!dropdownOpen)} className={`w-full border rounded-xl px-4 py-2.5 text-[11.5px] text-left bg-white flex justify-between items-center ${errors.rupIds ? "border-red-400" : "border-gray-200"}`}>
@@ -208,7 +212,7 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
                 </div>
               )}
             </div>
-          </div>
+          </div>}
 
           <div className="grid grid-cols-2 gap-4">
             <div>

@@ -15,7 +15,7 @@ import { TambahRupModal } from "./components/admin/verifikasi/TambahRupModal";
 import { NppDetailView } from "./components/admin/verifikasi/NppDetailView";
 import { PengujianDetailView } from "./components/admin/verifikasi/PengujianDetailView";
 import { api } from "./services/api";
-import { getRupList, getVerifRecords, updateRup, updateVerifRecord } from "./store/dataStore";
+import { getRupList, updateRup, updateVerifRecord } from "./store/dataStore";
 import { PengadaanVerifScreen } from "./pages/admin/verifikasi/PengadaanVerifScreen";
 import { PengujianVerifScreen } from "./pages/admin/verifikasi/PengujianVerifScreen";
 import { PembayaranVerifScreen } from "./pages/admin/verifikasi/PembayaranVerifScreen";
@@ -1480,11 +1480,14 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
   const fetchDanaData = async () => {
     try {
       // Primary source: real Verifikasi records from DB (tipe = park-dokumen / purchase-requisition)
-      const resVerif = await api.get('/verifikasi?tipe=park-dokumen,purchase-requisition,pengajuan-dana').catch(() => ({ data: [] }));
+      const allowedTypes = doc === "park-document"
+        ? "park-dokumen,park-document"
+        : "purchase-requisition,pengajuan-dana";
+      const resVerif = await api.get(`/verifikasi?tipe=${allowedTypes}`).catch(() => ({ data: [] }));
       const dbVerif: any[] = resVerif.data || [];
 
       // Also merge local store records (may have items not yet synced to DB)
-      const storeVerif = getVerifRecords();
+      const storeVerif: any[] = [];
 
       const map = new Map<string, any>();
 
@@ -1498,6 +1501,8 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
 
       // 1. Load from DB Verifikasi records (highest priority — real IDs)
       dbVerif.forEach((v: any) => {
+        const expectedPrefix = doc === "park-document" ? "PD-" : "PR-";
+        if (!(v.pengadaan_id || "").startsWith(expectedPrefix)) return;
         const key = v.id; // use verif ID as map key to avoid duplicates
         map.set(key, {
           verif_id: v.id,                          // REAL verif ID — used for approve API
@@ -2714,8 +2719,10 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const [showDelete, setShowDelete] = useState(false);
   const [showApprove, setShowApprove] = useState(false);
+  const [showRevisi, setShowRevisi] = useState(false);
   const [showReject, setShowReject] = useState(false);
   const [actionNote, setActionNote] = useState("");
+  const [uploadingSp3, setUploadingSp3] = useState(false);
   const [activeTab, setActiveTab] = useState<"informasi" | "evaluasi">("evaluasi");
   const { items: verificationItems, process: processVerification } = useAdminVerificationQueue("sp3");
 
@@ -2723,16 +2730,35 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
     (r) => r.noSp3.toLowerCase().includes(search.toLowerCase()) || r.procTitle.toLowerCase().includes(search.toLowerCase())
   );
 
-  const submitAction = async (action: "approve" | "reject") => {
+  const submitAction = async (action: "approve" | "revisi" | "reject") => {
     if (!selectedRow?.verif_id) return;
     try {
       await processVerification(selectedRow.verif_id, action, actionNote);
       setActionNote("");
       setShowApprove(false);
+      setShowRevisi(false);
       setShowReject(false);
       setView("list");
     } catch (error: any) {
       alert(error?.response?.data?.message || "Proses SP3 gagal disimpan.");
+    }
+  };
+
+  const uploadSp3File = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedRow?.pengadaan_id) return;
+    try {
+      setUploadingSp3(true);
+      const payload = new FormData();
+      payload.append("file", file);
+      payload.append("stage", "sp3");
+      await api.post(`/pengadaan/${selectedRow.pengadaan_id}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
+      alert("Surat SP3 berhasil diunggah. User sekarang dapat melihat dan mengunduhnya.");
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Surat SP3 gagal diunggah.");
+    } finally {
+      setUploadingSp3(false);
+      event.target.value = "";
     }
   };
 
@@ -2897,8 +2923,13 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
           </div>
 
           <div className="flex gap-[10px] justify-end">
-            <button onClick={() => setShowApprove(true)} className="h-[36px] px-[20px] bg-[#252271] text-white text-[13px] font-bold rounded-[8px] hover:brightness-110 active:scale-95 transition-all duration-150 shadow-sm">Approve</button>
-            <button onClick={() => setShowReject(true)} className="h-[36px] px-[20px] border border-[#d1d5dc] text-[#4a5565] text-[13px] font-bold rounded-[8px] hover:bg-[#f1f5f9] active:scale-95 transition-all duration-150">Reject</button>
+            <label className="h-[36px] px-[16px] border border-[#252271] text-[#252271] text-[13px] font-bold rounded-[8px] hover:bg-[#eef2ff] active:scale-95 transition-all duration-150 flex items-center cursor-pointer">
+              {uploadingSp3 ? "Mengunggah..." : "Unggah Surat SP3"}
+              <input type="file" accept=".pdf,.doc,.docx" className="hidden" disabled={uploadingSp3} onChange={uploadSp3File} />
+            </label>
+            <button onClick={() => { setActionNote(""); setShowReject(true); }} className="h-[36px] px-[16px] border border-red-300 bg-red-50 text-red-600 text-[13px] font-bold rounded-[8px] hover:bg-red-100 active:scale-95 transition-all duration-150">Tolak</button>
+            <button onClick={() => { setActionNote(""); setShowRevisi(true); }} className="h-[36px] px-[16px] border border-amber-400 bg-amber-50 text-amber-700 text-[13px] font-bold rounded-[8px] hover:bg-amber-100 active:scale-95 transition-all duration-150">Revisi</button>
+            <button onClick={() => setShowApprove(true)} className="h-[36px] px-[20px] bg-green-600 text-white text-[13px] font-bold rounded-[8px] hover:bg-green-700 active:scale-95 transition-all duration-150 shadow-sm">Verifikasi &amp; Setujui</button>
           </div>
         </div>
 
@@ -2909,8 +2940,23 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
               <div className="p-[32px] flex flex-col gap-[16px]">
                 <p className="text-[#0f172a] text-[14px] text-center">Apakah kamu yakin ingin menyetujui SP3 ini?</p>
                 <div className="flex gap-[12px] justify-center">
-                  <button onClick={() => setShowApprove(false)} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Cancel</button>
-                  <button onClick={() => submitAction("approve")} className="px-[24px] py-[8px] rounded-[8px] bg-[#252271] text-white text-[13px] font-medium hover:brightness-110 transition-colors active:scale-95">Approve</button>
+                  <button onClick={() => setShowApprove(false)} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
+                  <button onClick={() => submitAction("approve")} className="px-[24px] py-[8px] rounded-[8px] bg-green-600 text-white text-[13px] font-medium hover:bg-green-700 transition-colors active:scale-95">Setujui</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {showRevisi && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-[15px] w-[450px] overflow-hidden shadow-2xl">
+              <div className="bg-amber-500 px-[24px] py-[12px]"><p className="text-white text-[14px] font-bold">Revisi SP3</p></div>
+              <div className="p-[32px] flex flex-col gap-[16px]">
+                <p className="text-[#0f172a] text-[14px] text-center">Tuliskan catatan revisi untuk User:</p>
+                <textarea value={actionNote} onChange={(event) => setActionNote(event.target.value)} className="w-full h-[90px] border border-amber-300 rounded-[8px] px-[12px] py-[8px] text-[13px] outline-none focus:border-amber-500 resize-none transition-colors" placeholder="Catatan revisi..." />
+                <div className="flex gap-[12px] justify-center">
+                  <button onClick={() => { setShowRevisi(false); setActionNote(""); }} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
+                  <button disabled={!actionNote.trim()} onClick={() => submitAction("revisi")} className="px-[24px] py-[8px] rounded-[8px] bg-amber-500 text-white text-[13px] font-medium hover:bg-amber-600 disabled:bg-amber-200 disabled:cursor-not-allowed transition-colors active:scale-95">Kirim Revisi</button>
                 </div>
               </div>
             </div>
@@ -2924,8 +2970,8 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
                 <p className="text-[#0f172a] text-[14px] text-center">Masukkan alasan penolakan:</p>
                 <textarea value={actionNote} onChange={(event) => setActionNote(event.target.value)} className="w-full h-[90px] border border-[#d1d5dc] rounded-[8px] px-[12px] py-[8px] text-[13px] outline-none focus:border-[#252271] resize-none transition-colors" placeholder="Alasan reject..." />
                 <div className="flex gap-[12px] justify-center">
-                  <button onClick={() => setShowReject(false)} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Cancel</button>
-                  <button onClick={() => submitAction("reject")} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] transition-colors active:scale-95">Reject</button>
+                  <button onClick={() => { setShowReject(false); setActionNote(""); }} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
+                  <button disabled={!actionNote.trim()} onClick={() => submitAction("reject")} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] disabled:bg-red-200 disabled:cursor-not-allowed transition-colors active:scale-95">Tolak</button>
                 </div>
               </div>
             </div>
