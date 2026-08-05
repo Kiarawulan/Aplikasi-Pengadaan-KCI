@@ -156,6 +156,25 @@ export interface RupItem {
   departemen: string;
   createdBy: string;
   createdAt: string;
+  pilihanRup?: string;
+  namaPaket?: string;
+  opexCapex?: string;
+  uraian?: string;
+  kategoriAnggaran?: string;
+  tahunAnggaran?: string;
+  tahunRup?: string;
+  tipeKontrak?: string;
+  pbj?: string;
+  nilaiSebelumPajak?: string;
+  rkip?: string;
+  tipePajak?: string;
+  nilaiTax?: string;
+  targetLogistik?: string;
+  perkiraanWaktu?: string;
+  lokasi?: string;
+  volume?: string;
+  penyesuaian?: string;
+  catatanAdmin?: string;
 }
 
 // ─── Verification Records ─────────────────────────────────────────────────────

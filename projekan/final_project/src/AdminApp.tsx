@@ -1971,14 +1971,18 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
       dbRup.forEach((r: any) => {
         const st = r.status === "approved" || r.status === "Approved" || r.status === "Final" ? "Final" : (r.status || "Draft");
         map.set(r.id, {
+          ...r,
+          ...(r.details || {}),
           idRup: r.id,
           id: r.id,
           nama: r.nama,
+          departemen: r.departemen,
           vpDept: r.departemen ? (r.departemen.startsWith("VP") ? r.departemen : `VP ${r.departemen}`) : "VP CTIT",
           status: st,
           tahun: r.createdAt ? new Date(r.createdAt).getFullYear().toString() : "2024",
-          opex: r.opexCapex || "CAPEX",
-          verif_id: `VR-${r.id}`
+          opex: r.opexCapex || r.cost || "CAPEX",
+          verif_id: `VR-${r.id}`,
+          catatanAdmin: r.catatan_admin || r.catatanAdmin,
         });
       });
 
@@ -1986,15 +1990,21 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
         const storeV = storeVerif.find(v => v.pengadaanId === r.id);
         const rawStatus = storeV ? storeV.status : r.status;
         const st = rawStatus === "approved" || rawStatus === "Approved" || rawStatus === "Final" ? "Final" : (rawStatus === "pending" ? "Draft" : rawStatus);
+        const existing = map.get(r.id) || {};
         map.set(r.id, {
+          ...existing,
+          ...r,
+          ...(r.details || {}),
           idRup: r.id,
           id: r.id,
-          nama: r.nama,
-          vpDept: r.departemen ? (r.departemen.startsWith("VP") ? r.departemen : `VP ${r.departemen}`) : "VP CTIT",
+          nama: r.nama || existing.nama,
+          departemen: r.departemen || existing.departemen,
+          vpDept: r.departemen ? (r.departemen.startsWith("VP") ? r.departemen : `VP ${r.departemen}`) : (existing.vpDept || "VP CTIT"),
           status: st,
           tahun: r.createdAt ? new Date(r.createdAt).getFullYear().toString() : "2024",
-          opex: r.opexCapex || "CAPEX",
-          verif_id: storeV ? storeV.id : `VR-${r.id}`
+          opex: r.opexCapex || r.cost || existing.opex || "CAPEX",
+          verif_id: storeV ? storeV.id : `VR-${r.id}`,
+          catatanAdmin: storeV?.catatanAdmin || r.catatanAdmin || existing.catatanAdmin,
         });
       });
 
@@ -2011,7 +2021,8 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
             status: st,
             tahun: "2024",
             opex: existing.opex || "CAPEX",
-            verif_id: v.id
+            verif_id: v.id,
+            catatanAdmin: v.catatan_admin || v.catatanAdmin || existing.catatanAdmin,
           });
         }
       });
@@ -2049,19 +2060,40 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
 
   const rupRows = items.filter((r) => {
     if (isTaskApproval) {
-      const isDraft = r.status === "Draft" || r.status === "pending" || r.status === "Pending" || r.status === "Submitted";
+      const isDraft = r.status === "Draft" || r.status === "pending" || r.status === "Pending" || r.status === "Submitted" || r.status === "draft";
       if (!isDraft) return false;
     }
 
-    const matchSearch =
+    const matchSearch = !search ||
       r.idRup.toLowerCase().includes(search.toLowerCase()) ||
       r.vpDept.toLowerCase().includes(search.toLowerCase()) ||
+      (r.departemen && r.departemen.toLowerCase().includes(search.toLowerCase())) ||
       (r.nama && r.nama.toLowerCase().includes(search.toLowerCase()));
 
-    const matchUnit = unitFilter === "Semua Unit" || r.vpDept.toLowerCase().includes(unitFilter.toLowerCase());
-    const matchStatus = statusFilter === "Semua Status" || r.status.toLowerCase() === statusFilter.toLowerCase();
+    const matchUnit = unitFilter === "Semua Unit" || 
+      r.vpDept.toLowerCase().includes(unitFilter.toLowerCase()) || 
+      (r.departemen && r.departemen.toLowerCase().includes(unitFilter.toLowerCase()));
 
-    return matchSearch && matchUnit && matchStatus;
+    let matchStatus = true;
+    if (statusFilter !== "Semua Status") {
+      const sf = statusFilter.toLowerCase();
+      const rs = (r.status || "").toLowerCase();
+      if (sf === "draft") matchStatus = rs === "draft" || rs === "pending";
+      else if (sf === "final") matchStatus = rs === "final" || rs === "approved";
+      else matchStatus = rs === sf;
+    }
+
+    let matchDate = true;
+    if (startDate) {
+      const itemDate = r.createdAt || r.startDate || r.targetLogistik;
+      if (itemDate && itemDate < startDate) matchDate = false;
+    }
+    if (endDate) {
+      const itemDate = r.createdAt || r.endDate || r.perkiraanWaktu;
+      if (itemDate && itemDate > endDate) matchDate = false;
+    }
+
+    return matchSearch && matchUnit && matchStatus && matchDate;
   });
 
   if (view === "detail") {
@@ -2079,28 +2111,42 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
             <RupDetailView
               item={selectedRow}
               onApprove={() => handleApprove(selectedRow)}
-              onRevisi={async () => {
-                const notes = prompt("Masukkan catatan revisi:");
-                if (notes === null) return;
-                if (selectedRow?.verif_id) {
-                  await api.post(`/verifikasi/${selectedRow.verif_id}/revisi`, { catatan: notes }).catch(() => {});
-                  updateVerifRecord(selectedRow.verif_id, { status: "revisi", catatanAdmin: notes });
-                }
-                await api.put(`/rup/${selectedRow.idRup}`, { status: "revisi" }).catch(() => {});
-                updateRup(selectedRow.idRup, { status: "revisi" });
+              onRevisi={async (notes?: string) => {
+                const revisionNotes = notes || "Mohon lakukan revisi.";
+                try {
+                  const resVerif = await api.get('/verifikasi').catch(() => ({ data: [] }));
+                  const verifList = resVerif.data || [];
+                  const matchedVerif = verifList.find((v: any) => v.pengadaan_id === selectedRow?.idRup || v.id === selectedRow?.verif_id);
+                  if (matchedVerif) {
+                    await api.post(`/verifikasi/${matchedVerif.id}/revisi`, { catatan: revisionNotes }).catch(() => {});
+                  } else if (selectedRow?.verif_id) {
+                    await api.post(`/verifikasi/${selectedRow.verif_id}/revisi`, { catatan: revisionNotes }).catch(() => {});
+                  }
+                } catch (e) {}
+
+                updateVerifRecord(selectedRow?.verif_id, { status: "revisi", catatanAdmin: revisionNotes });
+                await api.put(`/rup/${selectedRow.idRup}`, { status: "revisi", catatan_admin: revisionNotes }).catch(() => {});
+                updateRup(selectedRow.idRup, { status: "revisi", catatanAdmin: revisionNotes });
                 fetchData();
-                alert("Catatan revisi telah dikirim!");
                 setView("list");
               }}
               onReject={async () => {
-                const notes = prompt("Masukkan alasan penolakan:");
+                const notes = prompt("Masukkan alasan penolakan:") || "RUP ditolak oleh admin";
                 if (notes === null) return;
-                if (selectedRow?.verif_id) {
-                  await api.post(`/verifikasi/${selectedRow.verif_id}/reject`, { catatan: notes }).catch(() => {});
-                  updateVerifRecord(selectedRow.verif_id, { status: "rejected", catatanAdmin: notes });
-                }
-                await api.put(`/rup/${selectedRow.idRup}`, { status: "rejected" }).catch(() => {});
-                updateRup(selectedRow.idRup, { status: "rejected" });
+                try {
+                  const resVerif = await api.get('/verifikasi').catch(() => ({ data: [] }));
+                  const verifList = resVerif.data || [];
+                  const matchedVerif = verifList.find((v: any) => v.pengadaan_id === selectedRow?.idRup || v.id === selectedRow?.verif_id);
+                  if (matchedVerif) {
+                    await api.post(`/verifikasi/${matchedVerif.id}/reject`, { catatan: notes }).catch(() => {});
+                  } else if (selectedRow?.verif_id) {
+                    await api.post(`/verifikasi/${selectedRow.verif_id}/reject`, { catatan: notes }).catch(() => {});
+                  }
+                } catch (e) {}
+
+                updateVerifRecord(selectedRow?.verif_id, { status: "rejected", catatanAdmin: notes });
+                await api.put(`/rup/${selectedRow.idRup}`, { status: "rejected", catatan_admin: notes }).catch(() => {});
+                updateRup(selectedRow.idRup, { status: "rejected", catatanAdmin: notes });
                 fetchData();
                 alert("RUP berhasil ditolak.");
                 setView("list");

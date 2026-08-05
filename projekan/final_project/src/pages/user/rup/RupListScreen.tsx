@@ -12,7 +12,7 @@ import { RupDetailView } from "@/components/user/pengadaan/RupDetailView";
 
 
 export function RupListScreen() {
-  const { currentUser } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isViewOnly, setIsViewOnly] = useState(false);
@@ -21,29 +21,69 @@ export function RupListScreen() {
   const [revisionNote, setRevisionNote] = useState<string | null>(null);
   const [items, setItems] = useState<RupItem[]>(getRupList());
 
-  const fetchRup = () => {
-    api.get("/rup")
-      .then((res) => {
-        const backendItems = res.data.map((r: any) => ({
+  const fetchRup = async () => {
+    try {
+      const [resRup, resVerif] = await Promise.all([
+        api.get("/rup").catch(() => ({ data: [] })),
+        api.get("/verifikasi").catch(() => ({ data: [] }))
+      ]);
+
+      const dbRups = resRup.data || [];
+      const dbVerifs = resVerif.data || [];
+      const storeVerifs = getVerifRecords();
+      const localRups = getRupList();
+
+      const mergedMap = new Map<string, RupItem>();
+
+      localRups.forEach((item) => {
+        const verif = storeVerifs.find(v => v.pengadaanId === item.id);
+        mergedMap.set(item.id, {
+          ...item,
+          status: (verif?.status || item.status) as any,
+          catatanAdmin: verif?.catatanAdmin || item.catatanAdmin,
+        });
+      });
+
+      dbRups.forEach((r: any) => {
+        const existing = mergedMap.get(r.id) || ({} as any);
+        const verif = dbVerifs.find((v: any) => v.pengadaan_id === r.id);
+        const storeV = storeVerifs.find(v => v.pengadaanId === r.id);
+
+        const finalStatus = verif?.status || r.status || storeV?.status || existing.status || "pending";
+        const finalCatatan = verif?.catatan_admin || r.catatan_admin || storeV?.catatanAdmin || r.catatanAdmin || existing.catatanAdmin;
+
+        mergedMap.set(r.id, {
+          ...existing,
+          ...r,
+          ...(r.details || {}),
           id: r.id,
-          nama: r.nama,
-          jenis: r.jenis,
-          metode: r.metode,
-          nilai: r.nilai,
-          status: r.status,
-          progress: r.progress || "0/14",
-          departemen: r.departemen,
-          createdBy: r.created_by,
-          createdAt: r.created_at,
-        }));
+          nama: r.nama || existing.nama,
+          jenis: r.jenis || existing.jenis,
+          metode: r.metode || existing.metode,
+          nilai: r.nilai || existing.nilai,
+          status: finalStatus,
+          catatanAdmin: finalCatatan,
+          departemen: r.departemen || existing.departemen,
+        });
+      });
 
-        const mergedMap = new Map<string, RupItem>();
-        getRupList().forEach((item) => mergedMap.set(item.id, item));
-        backendItems.forEach((item: RupItem) => mergedMap.set(item.id, item));
+      dbVerifs.forEach((v: any) => {
+        if (v.tipe === "rup" || v.pengadaan_id?.startsWith("RUP")) {
+          const existing = mergedMap.get(v.pengadaan_id);
+          if (existing) {
+            mergedMap.set(v.pengadaan_id, {
+              ...existing,
+              status: v.status || existing.status,
+              catatanAdmin: v.catatan_admin || existing.catatanAdmin,
+            });
+          }
+        }
+      });
 
-        setItems(Array.from(mergedMap.values()));
-      })
-      .catch(console.error);
+      setItems(Array.from(mergedMap.values()));
+    } catch (err) {
+      console.error("Error fetching RUP data:", err);
+    }
   };
 
   useEffect(() => {
@@ -160,31 +200,37 @@ export function RupListScreen() {
   };
 
   const handleEditClick = (item: RupItem) => {
+    const verif = getVerifRecords().find(r => r.pengadaanId === item.id);
+    const note = item.catatanAdmin || verif?.catatanAdmin || null;
+    const d = item.details || item;
     setForm({
+      ...d,
       judul: item.nama,
-      bebanBiaya: "",
-      pbj: "",
-      sumberDana: "",
-      jenisKontrak: item.jenis,
-      nilaiRkap: item.nilai.replace(/[^0-9]/g, ''),
-      tahunRkap: new Date(item.createdAt).getFullYear().toString(),
-      typeTax: "PPN 11%",
-      nilaiTax: "",
-      startDate: "",
-      endDate: "",
-      keterangan: "",
+      namaPaket: d.namaPaket || item.nama,
+      jenisPengadaan: d.jenisPengadaan || item.jenis,
+      nilaiSebelumPajak: d.nilaiSebelumPajak || item.nilai,
+      catatanAdmin: note,
     });
-    const verif = getVerifRecords().find(r => r.pengadaanId === item.id && (item.status === 'revisi' || item.status === 'rejected'));
-    setRevisionNote(verif?.catatanAdmin || null);
+    setRevisionNote(note);
     setEditingId(item.id);
     setShowModal(true);
   };
-  const filteredItems = items.filter(
-    (item) =>
+
+  const userDept = (currentUser?.departemen || "").trim().toLowerCase();
+  const userHasDeptLimit = !isAdmin && userDept && userDept !== "admin" && userDept !== "management" && userDept !== "semua";
+
+  const filteredItems = items.filter((item) => {
+    if (userHasDeptLimit) {
+      const itemDept = (item.departemen || "").trim().toLowerCase();
+      const matchDept = itemDept.includes(userDept) || userDept.includes(itemDept);
+      if (!matchDept) return false;
+    }
+    return (
       item.nama.toLowerCase().includes(search.toLowerCase()) ||
       item.id.toLowerCase().includes(search.toLowerCase()) ||
       item.departemen.toLowerCase().includes(search.toLowerCase())
-  );
+    );
+  });
 
   return (
     <div>
@@ -313,18 +359,36 @@ export function RupListScreen() {
           onSubmit={(formData) => {
             const formattedNilai = formData.nilaiSebelumPajak
               ? (formData.nilaiSebelumPajak.startsWith("Rp") ? formData.nilaiSebelumPajak : `Rp ${formData.nilaiSebelumPajak}`)
-              : "Rp 800.000.000";
+              : "Rp 0";
 
             if (editingId) {
-              updateRup(editingId, {
-                nama: formData.namaPaket,
+              const updatedData: Partial<RupItem> = {
+                ...formData,
+                nama: formData.namaPaket || form.judul,
                 jenis: formData.jenisPengadaan || "Barang",
                 nilai: formattedNilai,
-                status: "pending"
-              });
+                status: "pending",
+                catatanAdmin: "",
+                details: formData,
+              };
+              updateRup(editingId, updatedData);
+              const existingVerif = getVerifRecords().find(r => r.pengadaanId === editingId);
+              if (existingVerif) {
+                updateVerifRecord(existingVerif.id, { status: "pending", catatanAdmin: "" });
+                api.put(`/verifikasi/${existingVerif.id}`, { status: "pending", catatan_admin: "" }).catch(() => {});
+              }
+              api.put(`/rup/${editingId}`, {
+                nama: formData.namaPaket || form.judul,
+                jenis: formData.jenisPengadaan || "Barang",
+                nilai: formattedNilai,
+                status: "pending",
+                catatan_admin: "",
+                details: formData,
+              }).catch(() => {});
             } else {
               const id = generateId("RUP");
-              addRup({
+              const newRup: RupItem = {
+                ...formData,
                 id,
                 nama: formData.namaPaket || "Pengadaan RUP Baru",
                 jenis: formData.jenisPengadaan || "Barang",
@@ -333,11 +397,25 @@ export function RupListScreen() {
                 status: "pending",
                 progress: "0/14",
                 departemen: currentUser?.departemen || "Umum",
-                createdBy: currentUser?.id || "unknown",
+                createdBy: currentUser?.name || currentUser?.id || "User",
                 createdAt: new Date().toISOString().split("T")[0],
+                details: formData,
+              };
+              addRup(newRup);
+              addVerifRecord({
+                id: generateId("VR"),
+                pengadaanId: id,
+                pengadaanNama: newRup.nama,
+                departemen: newRup.departemen,
+                nominal: newRup.nilai,
+                tipe: "rup",
+                submitBy: currentUser?.name || "User",
+                submitAt: new Date().toISOString(),
+                status: "pending",
               });
+              api.post('/rup', newRup).catch(console.error);
             }
-            setItems(getRupList());
+            fetchRup();
             setShowModal(false);
             setEditingId(null);
           }}

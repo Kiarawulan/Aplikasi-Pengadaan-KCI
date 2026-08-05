@@ -235,6 +235,18 @@ export function addRup(item: RupItem) {
 export function updateRup(id: string, patch: Partial<RupItem>) {
   api.put(`/rup/${id}`, patch).catch(err => console.error('Error updating RUP:', err));
   saveRupList(getRupList().map(r => r.id === id ? { ...r, ...patch } : r));
+  const records = getVerifRecords();
+  const updatedRecords = records.map(v => {
+    if (v.pengadaanId === id) {
+      return {
+        ...v,
+        status: (patch.status ? patch.status : v.status) as VerifStatus,
+        catatanAdmin: patch.catatanAdmin !== undefined ? patch.catatanAdmin : v.catatanAdmin,
+      };
+    }
+    return v;
+  });
+  saveVerifRecords(updatedRecords);
 }
 
 export function isStepVerified(pengadaanId: string, step: string): boolean {

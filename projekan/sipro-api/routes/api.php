@@ -29,8 +29,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // RUP
     Route::get('/rup', [RupController::class, 'index']);
     Route::post('/rup', [RupController::class, 'store']);
+    Route::get('/rup/{rup}', [RupController::class, 'show']);
     Route::put('/rup/{rup}', [RupController::class, 'update']);
     Route::delete('/rup/{rup}', [RupController::class, 'destroy']);
+
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index']);
 
     // Users
     Route::get('/users', [UserController::class, 'index']);

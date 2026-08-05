@@ -143,6 +143,7 @@ class VerifikasiController extends Controller
             $rup = Rup::find($verifikasi->pengadaan_id);
             if ($rup) {
                 $rup->status = 'revisi';
+                $rup->catatan_admin = $request->catatan;
                 $rup->save();
             }
         } else {
@@ -177,6 +178,7 @@ class VerifikasiController extends Controller
             $rup = Rup::find($verifikasi->pengadaan_id);
             if ($rup) {
                 $rup->status = 'rejected';
+                $rup->catatan_admin = $request->catatan;
                 $rup->save();
             }
         } else {

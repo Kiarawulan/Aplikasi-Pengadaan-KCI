@@ -4,7 +4,7 @@ import { DetailDocumentView, DetailDocumentField } from '@/components/user/penga
 interface RupDetailViewProps {
   item?: any;
   onApprove?: () => void;
-  onRevisi?: () => void;
+  onRevisi?: (catatan?: string) => void;
   onReject?: () => void;
   onBack?: () => void;
   showActions?: boolean;
@@ -18,35 +18,44 @@ export const RupDetailView: React.FC<RupDetailViewProps> = ({
   onBack,
   showActions = true,
 }) => {
-  // Original authentic RUP Information fields
+  const d = item?.details || item || {};
+
   const infoFields: DetailDocumentField[] = [
-    { label: "No. Timeline", value: item?.noTimeline || item?.id || 'OPICTI/2022/23' },
-    { label: "Procurement Title", value: item?.procurementTitle || item?.judul || item?.nama || 'Pengadaan Outsource IT Helpdesk' },
-    { label: "RKAP Value", value: item?.rkapValue || item?.nilaiRkap || item?.nilai || 'Rp. 800.000.000,00' },
-    { label: "Department", value: item?.dept || item?.departemen || 'CTIO' },
-    { label: "PBJ", value: item?.pbj || 'Non Sarana' },
-    { label: "Cost", value: item?.cost || item?.capexOpex || 'OPEX' },
-    { label: "Directorate", value: item?.directorate || 'CT' },
-    { label: "Division", value: item?.division || 'CTI' },
-    { label: "Source of funds :", value: item?.sumberDana || item?.sourceOfFunds || 'RKAP 2023' },
-    { label: "Tax type", value: item?.taxType || item?.typeTax || 'Pajak Tidak Dipungut' },
-    { label: "Tax Value", value: item?.taxValue || item?.nilaiTax || 'Rp. 0,00' },
-    { label: "Start Date Procurement :", value: item?.startDate || item?.targetLogistik || '20 Nov 2023' },
-    { label: "End Date Procurement :", value: item?.endDate || item?.perkiraanWaktu || '31 Dec 2023' },
+    { label: "No. Timeline", value: item?.noTimeline || item?.id || '-' },
+    { label: "Procurement Title", value: d.namaPaket || item?.procurementTitle || item?.judul || item?.nama || '-' },
+    { label: "RKAP Value", value: d.nilaiSebelumPajak || item?.rkapValue || item?.nilaiRkap || item?.nilai || '-' },
+    { label: "Department", value: d.departemen || item?.dept || item?.departemen || '-' },
+    { label: "PBJ", value: d.pbj || item?.pbj || '-' },
+    { label: "Cost", value: d.opexCapex || item?.cost || item?.capexOpex || item?.opex || '-' },
+    { label: "Directorate", value: item?.directorate || item?.direktorat || '-' },
+    { label: "Division", value: item?.division || item?.divisi || item?.departemen || '-' },
+    { label: "Source of funds :", value: d.sumberDana || d.kategoriAnggaran || item?.sumberDana || item?.sourceOfFunds || '-' },
+    { label: "Tax type", value: d.tipePajak || item?.taxType || item?.typeTax || '-' },
+    { label: "Tax Value", value: d.nilaiTax || item?.taxValue || item?.nilaiTax || '-' },
+    { label: "Start Date Procurement :", value: d.targetLogistik || item?.startDate || item?.targetLogistik || '-' },
+    { label: "End Date Procurement :", value: d.perkiraanWaktu || item?.endDate || item?.perkiraanWaktu || '-' },
   ];
 
   return (
-    <DetailDocumentView
-      title="Detail RUP (Rencana Umum Pengadaan)"
-      subtitle={`RUP - ${item?.noTimeline || item?.id || 'OPICTI/2022/23'}`}
-      status={item?.status || "Submitted Timeline"}
-      infoFields={infoFields}
-      files={[]} // RUP does not have file attachments, so no Berkas Pendukung section rendered!
-      onBack={onBack}
-      onApprove={onApprove}
-      onRevisi={onRevisi}
-      onReject={onReject}
-      showActions={showActions}
-    />
+    <div>
+      {(item?.catatanAdmin || item?.catatan_admin) && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-lg">
+          <p className="text-[12px] font-bold text-amber-800">Catatan Admin:</p>
+          <p className="text-[12px] text-amber-900">{item.catatanAdmin || item.catatan_admin}</p>
+        </div>
+      )}
+      <DetailDocumentView
+        title="Detail RUP (Rencana Umum Pengadaan)"
+        subtitle={`RUP - ${item?.id || item?.noTimeline || ''}`}
+        status={item?.status || "Submitted Timeline"}
+        infoFields={infoFields}
+        files={[]}
+        onBack={onBack}
+        onApprove={onApprove}
+        onRevisi={onRevisi}
+        onReject={onReject}
+        showActions={showActions}
+      />
+    </div>
   );
 };

@@ -12,9 +12,16 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
   onSubmit,
   initialData,
 }) => {
+  const formatRupiah = (val: string) => {
+    if (!val) return '';
+    const digits = val.replace(/\D/g, '');
+    if (!digits) return '';
+    return 'Rp ' + Number(digits).toLocaleString('id-ID');
+  };
+
   const [form, setForm] = useState({
     pilihanRup: initialData?.pilihanRup || 'Lebih 500 Juta',
-    namaPaket: initialData?.namaPaket || initialData?.judul || '',
+    namaPaket: initialData?.namaPaket || initialData?.judul || initialData?.nama || '',
     opexCapex: initialData?.opexCapex || initialData?.capexOpex || '',
     uraian: initialData?.uraian || '',
     metode: initialData?.metode || 'Penunjukan Langsung',
@@ -24,10 +31,10 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
     tahunRup: initialData?.tahunRup || new Date().getFullYear().toString(),
     tipeKontrak: initialData?.tipeKontrak || 'Single Year',
     pbj: initialData?.pbj || '',
-    nilaiSebelumPajak: initialData?.nilaiSebelumPajak || initialData?.nilaiRkap || '',
+    nilaiSebelumPajak: initialData?.nilaiSebelumPajak ? formatRupiah(initialData.nilaiSebelumPajak) : (initialData?.nilaiRkap ? formatRupiah(initialData.nilaiRkap) : (initialData?.nilai ? formatRupiah(initialData.nilai) : '')),
     rkip: initialData?.rkip || 'No',
     tipePajak: initialData?.tipePajak || initialData?.typeTax || '',
-    nilaiTax: initialData?.nilaiTax || '',
+    nilaiTax: initialData?.nilaiTax ? formatRupiah(initialData.nilaiTax) : '',
     targetLogistik: initialData?.targetLogistik || initialData?.startDate || '',
     perkiraanWaktu: initialData?.perkiraanWaktu || initialData?.mppl || '',
     lokasi: initialData?.lokasi || '',
@@ -43,6 +50,8 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
     e.preventDefault();
     onSubmit(form);
   };
+
+  const catatanNote = initialData?.catatanAdmin || initialData?.catatanRevisi || initialData?.catatan_admin;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-3 overflow-y-auto">
@@ -74,6 +83,15 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
           onSubmit={handleSubmit}
           className="p-3.5 space-y-3.5 text-[10.5px] max-h-[78vh] overflow-y-auto bg-gray-50/50"
         >
+          {catatanNote && (
+            <div className="bg-amber-50 border-2 border-amber-400 rounded-lg p-3 text-amber-900 shadow-2xs">
+              <p className="font-bold text-[11px] text-amber-800 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse" />
+                Catatan Revisi / Penolakan Admin:
+              </p>
+              <p className="text-[11px] mt-1 bg-white/80 p-2 rounded border border-amber-200 font-medium">"{catatanNote}"</p>
+            </div>
+          )}
           {/* Top Segmented Radio Button: Pilihan RUP */}
           <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-2xs">
             <label className="block font-bold text-gray-800 text-[10.5px] mb-1.5">
@@ -309,8 +327,8 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
                 <input
                   type="text"
                   value={form.nilaiSebelumPajak}
-                  onChange={(e) => handleChange('nilaiSebelumPajak', e.target.value)}
-                  placeholder="Masukkan nominal sebelum pajak..."
+                  onChange={(e) => handleChange('nilaiSebelumPajak', formatRupiah(e.target.value))}
+                  placeholder="Contoh: Rp 100.000"
                   required
                   className="w-full h-[34px] border border-gray-200 rounded-md px-2.5 text-[10.5px] outline-none focus:border-[#252271] focus:ring-1 focus:ring-[#252271]/20 transition-all bg-white font-medium"
                 />
@@ -364,8 +382,8 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
                 <input
                   type="text"
                   value={form.nilaiTax}
-                  onChange={(e) => handleChange('nilaiTax', e.target.value)}
-                  placeholder="Estimasi nominal pajak..."
+                  onChange={(e) => handleChange('nilaiTax', formatRupiah(e.target.value))}
+                  placeholder="Contoh: Rp 10.000"
                   className="w-full h-[34px] border border-gray-200 rounded-md px-2.5 text-[10.5px] outline-none focus:border-[#252271] focus:ring-1 focus:ring-[#252271]/20 transition-all bg-white font-medium"
                 />
               </div>

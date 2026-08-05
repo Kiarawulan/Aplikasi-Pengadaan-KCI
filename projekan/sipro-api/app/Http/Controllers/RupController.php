@@ -12,32 +12,38 @@ class RupController extends Controller
         return response()->json(Rup::latest()->get());
     }
 
+    public function show(Rup $rup)
+    {
+        return response()->json($rup);
+    }
+
     public function store(Request $request)
     {
         $request->validate([
             'id' => 'required|string',
             'nama' => 'required|string',
-            'jenis' => 'required|string',
-            'metode' => 'required|string',
-            'nilai' => 'required|string',
-            'departemen' => 'required|string',
-            'createdBy' => 'required|string',
-            'status' => 'required|string',
-            'progress' => 'required|string',
-            'createdAt' => 'required|string',
+            'jenis' => 'nullable|string',
+            'metode' => 'nullable|string',
+            'nilai' => 'nullable|string',
+            'departemen' => 'nullable|string',
+            'createdBy' => 'nullable|string',
+            'status' => 'nullable|string',
+            'progress' => 'nullable|string',
         ]);
 
         $rup = Rup::create([
             'id' => $request->id,
             'nama' => $request->nama,
-            'jenis' => $request->jenis,
-            'metode' => $request->metode,
-            'nilai' => $request->nilai,
-            'departemen' => $request->departemen,
-            'created_by' => $request->createdBy,
-            'status' => $request->status,
-            'progress' => $request->progress,
-            'created_at' => $request->createdAt,
+            'jenis' => $request->jenis ?? 'Barang',
+            'metode' => $request->metode ?? 'Tender',
+            'nilai' => $request->nilai ?? 'Rp 0',
+            'departemen' => $request->departemen ?? 'Umum',
+            'created_by' => $request->createdBy ?? 'user',
+            'status' => $request->status ?? 'pending',
+            'progress' => $request->progress ?? '0/14',
+            'details' => $request->details ?? $request->all(),
+            'catatan_admin' => $request->catatan_admin ?? null,
+            'created_at' => $request->createdAt ?? now(),
         ]);
 
         return response()->json($rup, 201);
@@ -45,28 +51,27 @@ class RupController extends Controller
 
     public function update(Request $request, Rup $rup)
     {
-        $request->validate([
-            'nama' => 'sometimes|string',
-            'jenis' => 'sometimes|string',
-            'metode' => 'sometimes|string',
-            'nilai' => 'sometimes|string',
-            'departemen' => 'sometimes|string',
-            'status' => 'sometimes|string',
-            'progress' => 'sometimes|string',
-        ]);
+        if ($request->has('nama')) $rup->nama = $request->nama;
+        if ($request->has('jenis')) $rup->jenis = $request->jenis;
+        if ($request->has('metode')) $rup->metode = $request->metode;
+        if ($request->has('nilai')) $rup->nilai = $request->nilai;
+        if ($request->has('departemen')) $rup->departemen = $request->departemen;
+        if ($request->has('status')) $rup->status = $request->status;
+        if ($request->has('progress')) $rup->progress = $request->progress;
+        if ($request->has('catatan_admin')) $rup->catatan_admin = $request->catatan_admin;
+        if ($request->has('details')) {
+            $rup->details = array_merge((array)$rup->details, (array)$request->details);
+        } else {
+            $rup->details = array_merge((array)$rup->details, $request->except(['_method', '_token']));
+        }
 
-        $rup->fill($request->only([
-            'nama', 'jenis', 'metode', 'nilai', 'departemen', 'status', 'progress',
-        ]));
         $rup->save();
-
         return response()->json($rup);
     }
 
     public function destroy(Rup $rup)
     {
         $rup->delete();
-
         return response()->json(['message' => 'RUP berhasil dihapus']);
     }
 }

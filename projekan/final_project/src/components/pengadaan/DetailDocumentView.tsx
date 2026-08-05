@@ -30,7 +30,7 @@ export interface DetailDocumentViewProps {
   tracking?: DetailDocumentTracking[];
   onBack?: () => void;
   onApprove?: () => void;
-  onRevisi?: () => void;
+  onRevisi?: (catatan?: string) => void;
   onReject?: () => void;
   showActions?: boolean;
   extraTabs?: React.ReactNode;
@@ -148,7 +148,7 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
             <button
               onClick={() => {
                 if (!revisionNote.trim()) { alert("Harap isi catatan revisi."); return; }
-                if (onRevisi) onRevisi();
+                if (onRevisi) onRevisi(revisionNote);
                 alert("Catatan revisi berhasil dikirim!");
                 setShowRevisionBox(false);
                 setRevisionNote("");
