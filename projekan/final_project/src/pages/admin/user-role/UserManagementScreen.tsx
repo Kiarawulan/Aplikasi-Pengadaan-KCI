@@ -3,7 +3,7 @@ import { Plus, Eye, Trash2, Edit2, Search } from "lucide-react";
 import { AdminModal, ConfirmModal, ModalField, ModalInput, ModalSelect } from "@/components/admin/shared/AdminModal";
 import { api } from "@/services/api";
 import type { AppUser, AppRole } from "@/types";
-import { useAuth, getUsers as getLocalUsers, getRoles as getLocalRoles, saveUsers } from "@/store/authStore";
+import { useAuth } from "@/store/authStore";
 
 
 
@@ -26,7 +26,7 @@ const DEPARTEMEN_OPTIONS = [
 ];
 
 export function UserManagementScreen() {
-  const { currentUser } = useAuth();
+  const { hasPermission } = useAuth();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,9 +55,9 @@ export function UserManagementScreen() {
       setUsers(usersRes.data);
       setRoles(rolesRes.data);
     } catch (e) {
-      console.warn("API unavailable, using local store data:", e);
-      setUsers(getLocalUsers());
-      setRoles(getLocalRoles());
+      console.warn("Gagal memuat user atau role dari API:", e);
+      setUsers([]);
+      setRoles([]);
     } finally {
       setLoading(false);
     }
@@ -68,14 +68,14 @@ export function UserManagementScreen() {
   }, []);
 
   const handleAddSubmit = async () => {
-    if (!form.email || !form.name) {
-      alert("Harap isi Nama Lengkap dan Email user.");
+    if (!form.email || !form.name || !form.username || !form.password || !form.roleId) {
+      alert("Harap isi Nama Lengkap, Username, Email, Password, dan Role user.");
       return;
     }
-    const selectedRole = form.roleId || (roles.length > 0 ? roles[0].id : "role-admin");
-    const userPassword = form.password || "Password123!";
+    const selectedRole = form.roleId;
+    const userPassword = form.password;
     try {
-      const res = await api.post("/users", {
+      await api.post("/users", {
         name: form.name,
         email: form.email,
         username: form.username || form.email.split("@")[0],
@@ -84,24 +84,9 @@ export function UserManagementScreen() {
         departemen: form.departemen || "CUG - LOGISTIC",
       });
 
-      const apiUser = res.data?.user || res.data;
-      const newUser: AppUser = {
-        id: apiUser?.id || `user-${Date.now()}`,
-        name: form.name,
-        email: form.email,
-        password: userPassword,
-        roleId: selectedRole,
-        departemen: form.departemen || "CUG - LOGISTIC",
-        isActive: true,
-        isAdmin: selectedRole === 'role-admin',
-        createdAt: new Date().toISOString()
-      };
-      const currentUsers = getLocalUsers();
-      saveUsers([newUser, ...currentUsers.filter(u => u.email.toLowerCase() !== form.email.toLowerCase())]);
-
       setShowAdd(false);
       setForm({ name: "", username: "", email: "", password: "", roleId: "", departemen: "CUG - LOGISTIC", division: "Operational", directorate: "Direktorat Operasi & Pemasaran", kodeUser: "" });
-      alert(`User berhasil dibuat di Database!\nEmail: ${form.email}\nPassword: ${userPassword}`);
+      alert(`User berhasil dibuat di Database!\nEmail: ${form.email}`);
       fetchData();
     } catch (e: any) {
       let errMsg = "Gagal menyimpan user ke database.";
@@ -190,13 +175,13 @@ export function UserManagementScreen() {
                 {depts.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
-            <button
+            {hasPermission("userManagement", "editor") && <button
               onClick={() => setShowAdd(true)}
               className="w-full sm:w-auto bg-gradient-to-b from-[#e6251c] to-[#c20f06] rounded-[10px] px-4 py-2 flex items-center justify-center gap-1.5 text-white text-[12px] font-medium hover:brightness-110 active:scale-95 transition-all duration-150 shrink-0 shadow-md"
             >
               <Plus size={15} />
               Tambah User
-            </button>
+            </button>}
           </div>
 
           {/* Table Container */}
@@ -267,20 +252,20 @@ export function UserManagementScreen() {
                             >
                               <Eye size={15} />
                             </button>
-                            <button
+                            {hasPermission("userManagement", "editor") && <button
                               onClick={() => { setEditForm(user); setShowEdit(user); }}
                               className="p-1.5 rounded-[6px] hover:bg-[#f1f5f9] text-gray-500 transition-colors"
                               title="Edit User"
                             >
                               <Edit2 size={15} />
-                            </button>
-                            <button
+                            </button>}
+                            {hasPermission("userManagement", "editor") && <button
                               onClick={() => setShowConfirmDelete(user)}
                               className="p-1.5 rounded-[6px] hover:bg-[#fef2f2] text-[#cc0000] transition-colors"
                               title="Hapus User"
                             >
                               <Trash2 size={15} />
-                            </button>
+                            </button>}
                           </div>
                         </td>
                       </tr>

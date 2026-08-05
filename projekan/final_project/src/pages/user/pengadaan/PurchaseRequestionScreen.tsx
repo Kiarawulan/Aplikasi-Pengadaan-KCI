@@ -84,7 +84,7 @@ export function PurchaseRequestionScreen({ onSelectItem }: {
 
   return (
     <div>
-      <TopBar title="Purchase Requisition" subtitle="Daftar Pengadaan" />
+      <TopBar title="Purchase Requisition" subtitle="Daftar Pengadaan" /> 
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
         <div className="px-5 py-4 flex items-center justify-between border-b border-gray-50">
           <div>

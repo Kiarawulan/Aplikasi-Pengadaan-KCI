@@ -54,28 +54,7 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-3 overflow-y-auto">
       <div className="bg-white rounded-xl w-full max-w-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-150 my-3 border border-gray-100">
-        {/* Header Bar */}
-        <div className="bg-[#252271] text-white px-4 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Building2 size={16} className="text-red-400 shrink-0" />
-            <div>
-              <h3 className="text-[13px] font-bold tracking-wide">
-                Form Tambah RUP (Rencana Umum Pengadaan)
-              </h3>
-              <p className="text-[9.5px] text-white/70">
-                Lengkapi data RUP dengan tepat sesuai pedoman pengadaan KCI
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-          >
-            <X size={15} />
-          </button>
-        </div>
-
+    
         {/* Form Content */}
         <form
           onSubmit={handleSubmit}

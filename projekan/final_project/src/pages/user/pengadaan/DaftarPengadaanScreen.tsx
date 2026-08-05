@@ -91,9 +91,9 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
     <div>
       <TopBar title="Park Dokumen" subtitle="Daftar Pengadaan" />
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-        <div className="px-5 py-4 flex items-center justify-between border-b border-gray-50">
+        <div className="px-5 py-4 flex items-center justify-between border-b border-gray-50 bg-[#1e1c56] text-white">
           <div>
-            <p className="text-[#1e2939] font-semibold text-[13px]">Daftar Park Dokumen</p>
+            <p className="text-[#f3f4f6] font-semibold text-[13px]">Daftar Park Dokumen</p>
             <p className="text-[#99a1af] text-[10.5px]">{filteredItems.length} pengadaan terdata</p>
           </div>
           <div className="flex items-center gap-3">

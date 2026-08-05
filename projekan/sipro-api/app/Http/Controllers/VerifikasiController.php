@@ -15,6 +15,7 @@ use App\Models\PurchaseRequisition;
 use App\Models\ProcessHistory;
 use App\Models\Payment;
 use App\Models\Pengujian;
+use App\Http\Middleware\EnsureModulePermission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -26,7 +27,13 @@ class VerifikasiController extends Controller
 
         if ($request->has('tipe')) {
             $types = explode(',', $request->tipe);
+            foreach ($types as $type) $this->authorizeType($request, $type, 'viewer');
             $query->whereIn('tipe', $types);
+        } else {
+            $allowedTypes = collect($this->typeModules())
+                ->filter(fn (string $module) => EnsureModulePermission::allows($request->user(), $module, 'viewer'))
+                ->keys()->all();
+            $query->whereIn('tipe', $allowedTypes ?: ['__no_access__']);
         }
 
         if ($request->has('status')) {
@@ -67,6 +74,7 @@ class VerifikasiController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeType($request, (string) $request->input('tipe'), 'editor');
         \Log::info('Verifikasi store request', $request->all());
         try {
             $request->validate([
@@ -103,11 +111,13 @@ class VerifikasiController extends Controller
 
     public function show(Verifikasi $verifikasi)
     {
+        $this->authorizeType(request(), $verifikasi->tipe, 'viewer');
         return response()->json($verifikasi);
     }
 
     public function update(Request $request, Verifikasi $verifikasi)
     {
+        $this->authorizeType($request, $verifikasi->tipe, 'editor');
         $request->validate([
             'status' => 'sometimes|in:pending,approved,revisi,rejected',
             'catatan_admin' => 'nullable|string',
@@ -121,9 +131,7 @@ class VerifikasiController extends Controller
 
     public function destroy(Request $request, Verifikasi $verifikasi)
     {
-        if (! $request->user()->is_admin) {
-            return response()->json(['message' => 'Hanya admin yang dapat menghapus data verifikasi.'], 403);
-        }
+        $this->authorizeType($request, $verifikasi->tipe, 'editor');
 
         if ($verifikasi->tipe === 'rup') {
             Rup::where('id', $verifikasi->pengadaan_id)->delete();
@@ -139,9 +147,7 @@ class VerifikasiController extends Controller
 
     public function approve(Request $request, Verifikasi $verifikasi)
     {
-        if (! $request->user()->is_admin) {
-            return response()->json(['message' => 'Hanya admin yang dapat melakukan verifikasi.'], 403);
-        }
+        $this->authorizeType($request, $verifikasi->tipe, 'editor');
         $admin = $request->user();
         $oldStatus = $verifikasi->status;
 
@@ -261,9 +267,7 @@ class VerifikasiController extends Controller
             'catatan' => 'required|string',
         ]);
 
-        if (! $request->user()->is_admin) {
-            return response()->json(['message' => 'Hanya admin yang dapat melakukan verifikasi.'], 403);
-        }
+        $this->authorizeType($request, $verifikasi->tipe, 'editor');
         $admin = $request->user();
         $oldStatus = $verifikasi->status;
 
@@ -303,9 +307,7 @@ class VerifikasiController extends Controller
             'catatan' => 'required|string',
         ]);
 
-        if (! $request->user()->is_admin) {
-            return response()->json(['message' => 'Hanya admin yang dapat melakukan verifikasi.'], 403);
-        }
+        $this->authorizeType($request, $verifikasi->tipe, 'editor');
         $admin = $request->user();
         $oldStatus = $verifikasi->status;
 
@@ -453,5 +455,34 @@ class VerifikasiController extends Controller
             'to_status' => $toStatus,
             'note' => $note,
         ]);
+    }
+
+    private function authorizeType(Request $request, string $type, string $level): void
+    {
+        $module = $this->typeModules()[$type] ?? 'pengadaan';
+        abort_unless(
+            EnsureModulePermission::allows($request->user(), $module, $level),
+            403,
+            'Anda tidak memiliki izin untuk mengakses verifikasi ini.'
+        );
+    }
+
+    private function typeModules(): array
+    {
+        return [
+            'rup' => 'pengadaan',
+            'park-dokumen' => 'pengajuanDana',
+            'purchase-requisition' => 'pengajuanDana',
+            'pengajuan-dana' => 'pengajuanDana',
+            'npp' => 'pengadaan',
+            'sp3' => 'pengadaan',
+            'pbj' => 'pengadaan',
+            'contract' => 'pengadaan',
+            'pengujian' => 'pengujian',
+            'umd' => 'pembayaran',
+            'outsource' => 'pembayaran',
+            'non-outsource' => 'pembayaran',
+            'payment-request' => 'pembayaran',
+        ];
     }
 }

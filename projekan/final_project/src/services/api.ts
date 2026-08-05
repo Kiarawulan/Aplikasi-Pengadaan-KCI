@@ -28,6 +28,7 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('sipro_token');
       localStorage.removeItem('sipro_current_user');
+      window.dispatchEvent(new Event('sipro-auth-expired'));
     }
     return Promise.reject(error);
   }

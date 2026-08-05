@@ -119,11 +119,101 @@ function DataTable({ columns, data }: { columns: { key: string; label: string; r
 }
 
 // ─── UNIT & TAHUN FILTERS ──────────────────────────────────────────────────────
-const UNITS = ["Pilih Unit", "CTI", "CUS", "CAA", "Semua Unit"];
-const YEARS_LIST = ["2023", "2024", "2025", "2026"];
+const DEFAULT_UNITS = ["Pilih Unit", "Semua Unit"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
-function UnitYearFilter({ unit, setUnit, tahun, setTahun }: {
-  unit: string; setUnit: (v: string) => void; tahun: string; setTahun: (v: string) => void;
+type ApiRow = Record<string, any>;
+
+function isDone(status?: string) {
+  return ["completed", "approved", "selesai", "done"].includes(String(status || "").toLowerCase());
+}
+
+function isInProgress(status?: string) {
+  return !isDone(status) && !["rejected", "revision_required", "draft"].includes(String(status || "").toLowerCase());
+}
+
+function recordDate(row: ApiRow) {
+  return String(row.tanggal || row.created_at || row.submit_at || "");
+}
+
+function dateLabel(value?: string) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("id-ID");
+}
+
+function nominalValue(value: unknown) {
+  if (typeof value === "number") return value;
+  const digits = String(value || "").replace(/[^0-9]/g, "");
+  return digits ? Number(digits) : 0;
+}
+
+function currency(value: unknown) {
+  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(nominalValue(value));
+}
+
+function filterRecords(rows: ApiRow[], unit: string, year: string) {
+  return rows.filter((row) => {
+    const matchesUnit = !unit || unit === "Pilih Unit" || unit === "Semua Unit" || row.departemen === unit;
+    const date = recordDate(row);
+    const matchesYear = !year || !date || date.startsWith(year);
+    return matchesUnit && matchesYear;
+  });
+}
+
+function monthlyRows(rows: ApiRow[], getValues: (row: ApiRow) => number[]) {
+  return MONTHS.map((label, index) => {
+    const values = rows
+      .filter((row) => new Date(recordDate(row)).getMonth() === index)
+      .reduce((total, row) => total.map((value, itemIndex) => value + (getValues(row)[itemIndex] || 0)), [0, 0, 0]);
+    return { label, values, colors: ["#252271", "#e6251c", "#ff7676"] };
+  });
+}
+
+function rowsByDepartment(rows: ApiRow[], color = "#252271") {
+  const totals = rows.reduce<Record<string, number>>((acc, row) => {
+    const department = row.departemen || "Tanpa Unit";
+    acc[department] = (acc[department] || 0) + 1;
+    return acc;
+  }, {});
+  return Object.entries(totals).map(([label, total]) => ({ label, values: [total], colors: [color] }));
+}
+
+function getVendor(row: ApiRow) {
+  const formData = row.formData || row.form_data || {};
+  const nested = formData["buat-npp"] || formData.npp || formData.sp3 || formData.contract || formData;
+  return nested?.vendor || "—";
+}
+
+function useAdminDashboardData() {
+  const [data, setData] = useState<{ pengadaan: ApiRow[]; pengujian: ApiRow[]; pembayaran: ApiRow[]; verifikasi: ApiRow[] }>({ pengadaan: [], pengujian: [], pembayaran: [], verifikasi: [] });
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      api.get("/pengadaan"),
+      api.get("/pengujian"),
+      api.get("/payments"),
+      api.get("/verifikasi"),
+    ]).then(([pengadaan, pengujian, pembayaran, verifikasi]) => {
+      if (active) setData({
+        pengadaan: Array.isArray(pengadaan.data) ? pengadaan.data : [],
+        pengujian: Array.isArray(pengujian.data) ? pengujian.data : [],
+        pembayaran: Array.isArray(pembayaran.data) ? pembayaran.data : [],
+        verifikasi: Array.isArray(verifikasi.data) ? verifikasi.data : [],
+      });
+    }).catch(() => {
+      if (active) setData({ pengadaan: [], pengujian: [], pembayaran: [], verifikasi: [] });
+    });
+    return () => { active = false; };
+  }, []);
+
+  const units = useMemo(() => [...DEFAULT_UNITS, ...Array.from(new Set(data.pengadaan.map((row) => row.departemen).filter(Boolean)))], [data.pengadaan]);
+  return { ...data, units };
+}
+
+function UnitYearFilter({ unit, setUnit, tahun, setTahun, units = DEFAULT_UNITS }: {
+  unit: string; setUnit: (v: string) => void; tahun: string; setTahun: (v: string) => void; units?: string[];
 }) {
   return (
     <div className="flex items-center gap-3 mb-5">
@@ -131,7 +221,7 @@ function UnitYearFilter({ unit, setUnit, tahun, setTahun }: {
         <label className="text-[11px] font-semibold text-gray-500 uppercase">Unit</label>
         <select value={unit} onChange={e => setUnit(e.target.value)}
           className="h-8 px-3 rounded-lg border border-gray-200 text-[11.5px] text-gray-700 font-medium bg-white outline-none cursor-pointer">
-          {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+          {units.map(u => <option key={u} value={u}>{u}</option>)}
         </select>
       </div>
       <div className="flex items-center gap-2">
@@ -151,47 +241,51 @@ function UnitYearFilter({ unit, setUnit, tahun, setTahun }: {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. PENGAJUAN DANA DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
-const MOCK_PD_STATUS = [
-  { unit: "CTI", onProgress: 5, selesai: 30 },
-  { unit: "CUS", onProgress: 2, selesai: 8 },
-  { unit: "CAA", onProgress: 1, selesai: 3 },
-];
-
-const MOCK_PR_STATUS = [
-  { unit: "CTI", submit: 3, onGoing: 5, done: 2 },
-  { unit: "CUS", submit: 1, onGoing: 2, done: 0 },
-  { unit: "CAA", submit: 0, onGoing: 1, done: 1 },
-];
-
-const MOCK_PENDING_MATTERS = [
-  { tanggal: "2026-01-13", noDokumen: "121312123", jenis: "KURA DOCUMENT", uraian: "test update", nominal: "Rp. 130.000.000", dept: "CTI", statuses: "USER INPUT DATA" },
-  { tanggal: "2023-11-16", noDokumen: "111111", jenis: "PARK DOCUMENT", uraian: "pengadaan aplikasi", nominal: "Rp. 220.000.000", dept: "CTI", statuses: "USER INPUT DATA" },
-  { tanggal: "2021-11-15", noDokumen: "ASDAIM231", jenis: "KURA DOCUMENT", uraian: "TEST PERMOHONAN", nominal: "Rp. 130.000.000", dept: "CTI", statuses: "USER INPUT DATA" },
-  { tanggal: "2022-06-12", noDokumen: "121251121", jenis: "KURA DOCUMENT", uraian: "UAT CUS 2", nominal: "Rp. 310.000.000", dept: "CUS", statuses: "DIREKTUR EKSEKUSIF REVIEW" },
-  { tanggal: "2023-11-16", noDokumen: "22222222", jenis: "PARK DOCUMENT", uraian: "test1", nominal: "Rp. 100.000.000", dept: "CTI", statuses: "USER INPUT DATA" },
-  { tanggal: "2024-07-24", noDokumen: "1900051234", jenis: "KURA DOCUMENT", uraian: "revisi", nominal: "Rp. 100.000.000", dept: "CAA", statuses: "USER INPUT DATA" },
-  { tanggal: "2023-06-29", noDokumen: "121251213", jenis: "PARK DOCUMENT", uraian: "Testing Revisi PD", nominal: "Rp. 256.000.000", dept: "CUS", statuses: "MANAJEMEN TERAS REVIEW" },
-  { tanggal: "2020-02-09", noDokumen: "123456", jenis: "BIAYA", uraian: "Test di atas 200 juta", nominal: "Rp. 270.000.000", dept: "CTI", statuses: "USER INPUT DATA" },
-  { tanggal: "2023-06-13", noDokumen: "1230873", jenis: "BIAYA", uraian: "UAT CTI PR BIAYA < 200", nominal: "Rp. 100.000.000", dept: "CTI", statuses: "USER INPUT DATA" },
-  { tanggal: "2023-06-13", noDokumen: "1230873", jenis: "BIAYA", uraian: "UAT CTI BIAYA > 200-500", nominal: "Rp. 231.000.000", dept: "CTI", statuses: "USER INPUT DATA" },
-];
-
 function PengajuanDanaDashboard() {
   const [unit, setUnit] = useState("Pilih Unit");
-  const [tahun, setTahun] = useState("2025");
+  const [tahun, setTahun] = useState(() => String(new Date().getFullYear()));
   const [search, setSearch] = useState("");
+  const { pengadaan, verifikasi, units } = useAdminDashboardData();
+  const scopedPengadaan = useMemo(() => filterRecords(pengadaan, unit, tahun), [pengadaan, unit, tahun]);
+  const pengadaanById = useMemo(() => new Map(pengadaan.map((row) => [row.id, row])), [pengadaan]);
+  const pdStatus = useMemo(() => rowsByDepartment(scopedPengadaan.filter((row) => row.flowType === "pd")).map((row) => ({
+    unit: row.label,
+    onProgress: scopedPengadaan.filter((item) => item.flowType === "pd" && (item.departemen || "Tanpa Unit") === row.label && isInProgress(item.status)).length,
+    selesai: scopedPengadaan.filter((item) => item.flowType === "pd" && (item.departemen || "Tanpa Unit") === row.label && isDone(item.status)).length,
+  })), [scopedPengadaan]);
+  const prStatus = useMemo(() => rowsByDepartment(scopedPengadaan.filter((row) => row.flowType === "pr")).map((row) => ({
+    unit: row.label,
+    submit: scopedPengadaan.filter((item) => item.flowType === "pr" && (item.departemen || "Tanpa Unit") === row.label && item.status === "draft").length,
+    onGoing: scopedPengadaan.filter((item) => item.flowType === "pr" && (item.departemen || "Tanpa Unit") === row.label && isInProgress(item.status)).length,
+    done: scopedPengadaan.filter((item) => item.flowType === "pr" && (item.departemen || "Tanpa Unit") === row.label && isDone(item.status)).length,
+  })), [scopedPengadaan]);
+  const pendingMatters = useMemo(() => filterRecords(verifikasi, unit, tahun)
+    .filter((row) => row.status === "pending")
+    .map((row) => {
+      const parent = pengadaanById.get(row.pengadaan_id) || {};
+      const isPd = parent.flowType === "pd" || row.tipe === "park-dokumen";
+      return {
+        tanggal: dateLabel(row.submit_at),
+        noDokumen: parent.id || row.pengadaan_id || "—",
+        jenis: isPd ? "PARK DOCUMENT" : "PURCHASE REQUISITION",
+        uraian: row.pengadaan_nama || parent.nama || "—",
+        nominal: currency(row.nominal || parent.nominal),
+        dept: row.departemen || parent.departemen || "—",
+        statuses: String(row.tipe || "verifikasi").replaceAll("-", " ").toUpperCase(),
+      };
+    }), [verifikasi, unit, tahun, pengadaanById]);
 
   const filteredPending = useMemo(() => {
-    if (!search) return MOCK_PENDING_MATTERS;
+    if (!search) return pendingMatters;
     const q = search.toLowerCase();
-    return MOCK_PENDING_MATTERS.filter(r =>
+    return pendingMatters.filter(r =>
       r.uraian.toLowerCase().includes(q) || r.noDokumen.includes(q) || r.jenis.toLowerCase().includes(q)
     );
-  }, [search]);
+  }, [search, pendingMatters]);
 
   return (
     <div className="space-y-6">
-      <UnitYearFilter unit={unit} setUnit={setUnit} tahun={tahun} setTahun={setTahun} />
+      <UnitYearFilter unit={unit} setUnit={setUnit} tahun={tahun} setTahun={setTahun} units={units} />
 
       {/* Charts Row */}
       <div className="grid grid-cols-2 gap-5">
@@ -200,7 +294,7 @@ function PengajuanDanaDashboard() {
           <SectionTitle icon={BarChart3}>Summary Status PD Per Unit</SectionTitle>
           <p className="text-[10px] text-gray-400 mb-2">Status PD per Unit</p>
           <SimpleBarChart
-            data={MOCK_PD_STATUS.map(s => ({
+            data={pdStatus.map(s => ({
               label: s.unit,
               values: [s.onProgress, s.selesai],
               colors: ["#252271", "#e6251c"],
@@ -215,7 +309,7 @@ function PengajuanDanaDashboard() {
           <SectionTitle icon={BarChart3}>Summary Status PR Per Unit</SectionTitle>
           <p className="text-[10px] text-gray-400 mb-2">Status PR per Unit</p>
           <SimpleBarChart
-            data={MOCK_PR_STATUS.map(s => ({
+            data={prStatus.map(s => ({
               label: s.unit,
               values: [s.submit, s.onGoing, s.done],
               colors: ["#252271", "#e6251c", "#ff7676"],
@@ -276,48 +370,36 @@ function PengajuanDanaDashboard() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 2. PENGUJIAN DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
-const MOCK_PENGUJIAN_STATS = [
-  { label: "Total Request", value: 24, gradient: "from-[#252271] to-[#1a1753]", icon: FileText },
-  { label: "Pelaksanaan", value: 8, gradient: "from-[#e6251c] to-[#b91c3c]", icon: Clock },
-  { label: "Selesai", value: 14, gradient: "from-[#3b3baa] to-[#252271]", icon: CheckCircle2 },
-  { label: "Pending Upload BAHP", value: 2, gradient: "from-[#ff7676] to-[#e6251c]", icon: AlertTriangle },
-];
-
-const MOCK_PENGUJIAN_CHART = [
-  { label: "Jan", values: [2, 1, 3], colors: ["#252271", "#e6251c", "#ff7676"] },
-  { label: "Feb", values: [1, 2, 1], colors: ["#252271", "#e6251c", "#ff7676"] },
-  { label: "Mar", values: [3, 1, 2], colors: ["#252271", "#e6251c", "#ff7676"] },
-  { label: "Apr", values: [2, 3, 4], colors: ["#252271", "#e6251c", "#ff7676"] },
-  { label: "Mei", values: [4, 2, 3], colors: ["#252271", "#e6251c", "#ff7676"] },
-  { label: "Jun", values: [3, 1, 5], colors: ["#252271", "#e6251c", "#ff7676"] },
-];
-
-const MOCK_PENGUJIAN_BY_DEPT = [
-  { label: "CTI", values: [8], colors: ["#252271"] },
-  { label: "LOG", values: [5], colors: ["#252271"] },
-  { label: "OPS", values: [6], colors: ["#252271"] },
-  { label: "KEU", values: [2], colors: ["#252271"] },
-  { label: "SDM", values: [3], colors: ["#252271"] },
-];
-
-const MOCK_JADWAL_PENGUJIAN = [
-  { noRequest: "REQ-2025-001", judul: "Pengujian Server Dell R750", mulai: "2025-10-01", selesai: "2025-10-15", status: "Selesai" },
-  { noRequest: "REQ-2025-002", judul: "Pengujian Switch Cisco 9300", mulai: "2025-10-10", selesai: "2025-10-25", status: "Proses" },
-  { noRequest: "REQ-2025-003", judul: "Pengujian Laptop Lenovo T14", mulai: "", selesai: "", status: "Pending" },
-  { noRequest: "REQ-2025-004", judul: "Pengujian UPS APC 3000VA", mulai: "2025-11-01", selesai: "2025-11-10", status: "Selesai" },
-];
-
 function PengujianDashboard() {
   const [unit, setUnit] = useState("Pilih Unit");
-  const [tahun, setTahun] = useState("2025");
+  const [bulan, setBulan] = useState("");
+  const [tahun, setTahun] = useState(() => String(new Date().getFullYear()));
+  const { pengujian, units } = useAdminDashboardData();
+  const scopedPengujian = useMemo(() => filterRecords(pengujian, unit, tahun)
+    .filter((row) => !bulan || new Date(recordDate(row)).getMonth() === Number(bulan)), [pengujian, unit, bulan, tahun]);
+  const pengujianStats = useMemo(() => [
+    { label: "Total Request", value: scopedPengujian.length, gradient: "from-[#252271] to-[#1a1753]", icon: FileText },
+    { label: "Pelaksanaan", value: scopedPengujian.filter((row) => row.status === "on_progress").length, gradient: "from-[#e6251c] to-[#b91c3c]", icon: Clock },
+    { label: "Selesai", value: scopedPengujian.filter((row) => isDone(row.status)).length, gradient: "from-[#3b3baa] to-[#252271]", icon: CheckCircle2 },
+    { label: "Menunggu Persetujuan", value: scopedPengujian.filter((row) => ["waiting_approval", "pending"].includes(row.status)).length, gradient: "from-[#ff7676] to-[#e6251c]", icon: AlertTriangle },
+  ], [scopedPengujian]);
+  const pengujianChart = useMemo(() => monthlyRows(scopedPengujian, (row) => [1, row.status === "on_progress" ? 1 : 0, isDone(row.status) ? 1 : 0]), [scopedPengujian]);
+  const pengujianByDept = useMemo(() => rowsByDepartment(scopedPengujian), [scopedPengujian]);
+  const jadwalPengujian = useMemo(() => scopedPengujian.map((row) => ({
+    noRequest: row.id || "—",
+    judul: row.nama || "—",
+    mulai: dateLabel(row.scheduled_at || row.tanggal),
+    selesai: isDone(row.status) ? dateLabel(row.updated_at || row.tanggal) : "",
+    status: isDone(row.status) ? "Selesai" : row.status === "on_progress" ? "Proses" : "Pending",
+  })), [scopedPengujian]);
 
   return (
     <div className="space-y-6">
-      <UnitYearFilter unit={unit} setUnit={setUnit} tahun={tahun} setTahun={setTahun} />
+      <UnitYearFilter unit={unit} setUnit={setUnit} tahun={tahun} setTahun={setTahun} units={units} />
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
-        {MOCK_PENGUJIAN_STATS.map(s => (
+        {pengujianStats.map(s => (
           <StatCard key={s.label} {...s} />
         ))}
       </div>
@@ -329,22 +411,24 @@ function PengujianDashboard() {
           <div className="flex items-center justify-between mb-2">
             <SectionTitle icon={BarChart3}>Pengujian Bulanan</SectionTitle>
             <div className="flex gap-1">
-              <select className="h-7 px-2 rounded border border-gray-200 text-[10px] text-gray-500 outline-none">
-                <option>Bulan</option>
+              <select value={bulan} onChange={e => setBulan(e.target.value)} className="h-7 px-2 rounded border border-gray-200 text-[10px] text-gray-500 outline-none">
+                <option value="">Bulan</option>
+                {MONTHS.map((label, index) => <option key={label} value={index}>{label}</option>)}
               </select>
-              <select className="h-7 px-2 rounded border border-gray-200 text-[10px] text-gray-500 outline-none">
-                <option>Tahun</option>
+              <select value={tahun} onChange={e => setTahun(e.target.value)} className="h-7 px-2 rounded border border-gray-200 text-[10px] text-gray-500 outline-none">
+                <option value="">Tahun</option>
+                {Array.from(new Set([tahun, ...pengujian.map((row) => recordDate(row).slice(0, 4)).filter(Boolean)])).sort().map((year) => <option key={year} value={year}>{year}</option>)}
               </select>
             </div>
           </div>
-          <SimpleBarChart data={MOCK_PENGUJIAN_CHART} height={160} />
+          <SimpleBarChart data={pengujianChart} height={160} />
           <ChartLegend items={[{ label: "Request", color: "#252271" }, { label: "Pelaksanaan", color: "#e6251c" }, { label: "Selesai", color: "#ff7676" }]} />
         </div>
 
         {/* Pengujian By Department */}
         <div className="col-span-2 bg-white rounded-[20px] shadow-sm border border-gray-100 p-5">
           <SectionTitle icon={Building2}>Pengujian Per Departemen</SectionTitle>
-          <SimpleBarChart data={MOCK_PENGUJIAN_BY_DEPT} height={160} />
+          <SimpleBarChart data={pengujianByDept} height={160} />
         </div>
       </div>
 
@@ -364,7 +448,7 @@ function PengujianDashboard() {
               }
             },
           ]}
-          data={MOCK_JADWAL_PENGUJIAN}
+          data={jadwalPengujian}
         />
       </div>
     </div>
@@ -374,50 +458,6 @@ function PengujianDashboard() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 3. PENGADAAN DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
-const MOCK_PENGADAAN_STATS = [
-  { label: "Jumlah Kontrak", value: 13, gradient: "from-[#252271] to-[#3b3baa]", icon: FileText },
-  { label: "Jumlah Submitted", value: 18, gradient: "from-[#e6251c] to-[#ff7676]", icon: ClipboardList },
-  { label: "Pengadaan On Going", value: 18, gradient: "from-[#3b3baa] to-[#6664d1]", icon: Clock },
-  { label: "Pengadaan Done", value: 18, gradient: "from-[#c20f06] to-[#e6251c]", icon: CheckCircle2 },
-];
-
-const MOCK_PENGADAAN_CHART = [
-  { label: "Jan", values: [1, 2, 0], colors: ["#252271", "#e6251c", "#ff7676"] },
-  { label: "Feb", values: [0, 1, 1], colors: ["#252271", "#e6251c", "#ff7676"] },
-  { label: "Mar", values: [2, 3, 1], colors: ["#252271", "#e6251c", "#ff7676"] },
-  { label: "Apr", values: [1, 0, 2], colors: ["#252271", "#e6251c", "#ff7676"] },
-  { label: "Mei", values: [3, 4, 1], colors: ["#252271", "#e6251c", "#ff7676"] },
-  { label: "Jun", values: [2, 1, 0], colors: ["#252271", "#e6251c", "#ff7676"] },
-];
-
-const MOCK_TREN_PENGAJUAN = [
-  { bulan: "Jan", nilai: 2 }, { bulan: "Feb", nilai: 3 }, { bulan: "Mar", nilai: 5 },
-  { bulan: "Apr", nilai: 4 }, { bulan: "Mei", nilai: 7 }, { bulan: "Jun", nilai: 6 },
-  { bulan: "Jul", nilai: 8 }, { bulan: "Ags", nilai: 5 }, { bulan: "Sep", nilai: 9 },
-  { bulan: "Okt", nilai: 7 }, { bulan: "Nov", nilai: 10 }, { bulan: "Des", nilai: 8 },
-];
-
-const MOCK_TOP_ASSIGNMENT = [
-  { assignee: "Organization Planning and Development Manager", tipe: "Normal A", lokal: 8, total: 20 },
-  { assignee: "VP Logistik & Pengadaan", tipe: "Normal B", lokal: 5, total: 12 },
-];
-
-const MOCK_PENGADAAN_BY_DEPT = [
-  { label: "CTI", values: [12], colors: ["#e6251c"] },
-  { label: "LOG", values: [8], colors: ["#e6251c"] },
-  { label: "OPS", values: [5], colors: ["#e6251c"] },
-  { label: "KEU", values: [3], colors: ["#e6251c"] },
-  { label: "SDM", values: [2], colors: ["#e6251c"] },
-  { label: "UMUM", values: [4], colors: ["#e6251c"] },
-];
-
-const MOCK_JADWAL_PENGADAAN = [
-  { noKontrak: "GRENU.0GR2018/2025", judul: "PENGADAAN PEKERJAAN CLEANING SERVICE", mulai: "", selesai: "", status: "Expired" },
-  { noKontrak: "GRENU.0GR2018/2025", judul: "PENGADAAN PEKERJAAN CLEANING SERVICE 2", mulai: "", selesai: "", status: "Lunas" },
-  { noKontrak: "GRENU.0GR2018/2025", judul: "PENGADAAN PEKERJAAN CLEANING SERVICE", mulai: "2025-10-11", selesai: "2025-12-30", status: "Lunas" },
-  { noKontrak: "NRENU.0GR2018/2025", judul: "PENGADAAN COLA", mulai: "2025-11-04", selesai: "2025-12-27", status: "Lunas" },
-];
-
 function TrendLineChart({ data }: { data: { bulan: string; nilai: number }[] }) {
   const max = Math.max(...data.map(d => d.nilai), 1);
   return (
@@ -441,14 +481,47 @@ function TrendLineChart({ data }: { data: { bulan: string; nilai: number }[] }) 
 }
 
 function PengadaanDashboard() {
-  const [unit, setUnit] = useState("Pilih Unit");
-  const [tahun, setTahun] = useState("2025");
+  const [bulan, setBulan] = useState("");
+  const [tahun, setTahun] = useState(() => String(new Date().getFullYear()));
+  const { pengadaan } = useAdminDashboardData();
+  const scopedPengadaan = useMemo(() => filterRecords(pengadaan, "Semua Unit", tahun)
+    .filter((row) => !bulan || new Date(recordDate(row)).getMonth() === Number(bulan)), [pengadaan, bulan, tahun]);
+  const pengadaanStats = useMemo(() => [
+    { label: "Jumlah Kontrak", value: scopedPengadaan.filter((row) => ["contract", "completed"].includes(row.currentStep) || isDone(row.status)).length, gradient: "from-[#252271] to-[#3b3baa]", icon: FileText },
+    { label: "Jumlah Submitted", value: scopedPengadaan.length, gradient: "from-[#e6251c] to-[#ff7676]", icon: ClipboardList },
+    { label: "Pengadaan On Going", value: scopedPengadaan.filter((row) => isInProgress(row.status)).length, gradient: "from-[#3b3baa] to-[#6664d1]", icon: Clock },
+    { label: "Pengadaan Done", value: scopedPengadaan.filter((row) => isDone(row.status)).length, gradient: "from-[#c20f06] to-[#e6251c]", icon: CheckCircle2 },
+  ], [scopedPengadaan]);
+  const pengadaanChart = useMemo(() => monthlyRows(scopedPengadaan, (row) => [1, isInProgress(row.status) ? 1 : 0, isDone(row.status) ? 1 : 0]), [scopedPengadaan]);
+  const trenPengajuan = useMemo(() => pengadaanChart.map((row) => ({ bulan: row.label, nilai: row.values[0] })), [pengadaanChart]);
+  const topAssignment = useMemo(() => Object.entries(scopedPengadaan.reduce<Record<string, ApiRow[]>>((groups, row) => {
+    const key = row.departemen || "Tanpa Unit";
+    (groups[key] ||= []).push(row);
+    return groups;
+  }, {})).sort(([, left], [, right]) => right.length - left.length).slice(0, 5).map(([assignee, rows]) => ({
+    assignee,
+    tipe: `${rows.filter((row) => row.flowType === "pr").length} PR / ${rows.filter((row) => row.flowType === "pd").length} PD`,
+    lokal: rows.filter((row) => isInProgress(row.status)).length,
+    total: rows.length,
+  })), [scopedPengadaan]);
+  const maxAssignment = Math.max(...topAssignment.map((row) => row.total), 1);
+  const pengadaanByDept = useMemo(() => rowsByDepartment(scopedPengadaan, "#e6251c"), [scopedPengadaan]);
+  const jadwalPengadaan = useMemo(() => scopedPengadaan.map((row) => ({
+    noKontrak: row.id || "—",
+    judul: row.nama || "—",
+    mulai: dateLabel(row.tanggal),
+    selesai: isDone(row.status) ? dateLabel(row.updated_at || row.tanggal) : "",
+    status: isDone(row.status) ? "Lunas" : ["rejected", "revision_required"].includes(row.status) ? "Revisi" : "Proses",
+  })), [scopedPengadaan]);
+  const totalType = Math.max(scopedPengadaan.length, 1);
+  const prPercent = (scopedPengadaan.filter((row) => row.flowType === "pr").length / totalType) * 100;
+  const pdPercent = 100 - prPercent;
 
   return (
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
-        {MOCK_PENGADAAN_STATS.map(s => (
+        {pengadaanStats.map(s => (
           <StatCard key={s.label} {...s} />
         ))}
       </div>
@@ -460,15 +533,17 @@ function PengadaanDashboard() {
           <div className="flex items-center justify-between mb-2">
             <SectionTitle icon={BarChart3}>Pengajuan Kontrak</SectionTitle>
             <div className="flex gap-1">
-              <select className="h-7 px-2 rounded border border-gray-200 text-[10px] text-gray-500 outline-none">
-                <option>Bulan</option>
+              <select value={bulan} onChange={e => setBulan(e.target.value)} className="h-7 px-2 rounded border border-gray-200 text-[10px] text-gray-500 outline-none">
+                <option value="">Bulan</option>
+                {MONTHS.map((label, index) => <option key={label} value={index}>{label}</option>)}
               </select>
-              <select className="h-7 px-2 rounded border border-gray-200 text-[10px] text-gray-500 outline-none">
-                <option>Tahun</option>
+              <select value={tahun} onChange={e => setTahun(e.target.value)} className="h-7 px-2 rounded border border-gray-200 text-[10px] text-gray-500 outline-none">
+                <option value="">Tahun</option>
+                {Array.from(new Set([tahun, ...pengadaan.map((row) => recordDate(row).slice(0, 4)).filter(Boolean)])).sort().map((year) => <option key={year} value={year}>{year}</option>)}
               </select>
             </div>
           </div>
-          <SimpleBarChart data={MOCK_PENGADAAN_CHART} height={160} />
+          <SimpleBarChart data={pengadaanChart} height={160} />
           <ChartLegend items={[{ label: "Submit", color: "#252271" }, { label: "On Going", color: "#e6251c" }, { label: "Done", color: "#ff7676" }]} />
         </div>
 
@@ -476,7 +551,7 @@ function PengadaanDashboard() {
         <div className="col-span-2 space-y-4">
           <div className="bg-white rounded-[20px] shadow-sm border border-gray-100 p-4">
             <SectionTitle icon={TrendingUp}>Tren Pengajuan (Monthly)</SectionTitle>
-            <TrendLineChart data={MOCK_TREN_PENGAJUAN} />
+            <TrendLineChart data={trenPengajuan} />
           </div>
           <div className="bg-white rounded-[20px] shadow-sm border border-gray-100 p-4">
             <SectionTitle icon={PieChart}>Tipe Pengajuan</SectionTitle>
@@ -484,13 +559,13 @@ function PengadaanDashboard() {
               {/* Simple donut representation */}
               <div className="relative w-20 h-20">
                 <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#252271" strokeWidth="3" strokeDasharray="60 40" />
-                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e6251c" strokeWidth="3" strokeDasharray="40 60" strokeDashoffset="-60" />
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#252271" strokeWidth="3" strokeDasharray={`${prPercent} ${100 - prPercent}`} />
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e6251c" strokeWidth="3" strokeDasharray={`${pdPercent} ${100 - pdPercent}`} strokeDashoffset={-prPercent} />
                 </svg>
               </div>
               <div className="space-y-1">
-                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#252271]" /><span className="text-[10px] text-gray-600">Outsourcing</span></div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#e6251c]" /><span className="text-[10px] text-gray-600">Non Investasi</span></div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#252271]" /><span className="text-[10px] text-gray-600">Purchase Requisition</span></div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#e6251c]" /><span className="text-[10px] text-gray-600">Park Document</span></div>
               </div>
             </div>
           </div>
@@ -511,21 +586,21 @@ function PengadaanDashboard() {
                 key: "total", label: "Total", render: (r) => (
                   <div className="flex items-center gap-2">
                     <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full bg-gradient-to-r from-[#e6251c] to-[#ff7676]" style={{ width: `${(r.total / 25) * 100}%` }} />
+                      <div className="h-full rounded-full bg-gradient-to-r from-[#e6251c] to-[#ff7676]" style={{ width: `${(r.total / maxAssignment) * 100}%` }} />
                     </div>
                     <span className="font-extrabold text-[13px] text-gray-800">{r.total}</span>
                   </div>
                 )
               },
             ]}
-            data={MOCK_TOP_ASSIGNMENT}
+            data={topAssignment}
           />
         </div>
 
         {/* Proses Pengajuan By Department */}
         <div className="bg-white rounded-[20px] shadow-sm border border-gray-100 p-5">
           <SectionTitle icon={Building2}>Proses Pengajuan By Department</SectionTitle>
-          <SimpleBarChart data={MOCK_PENGADAAN_BY_DEPT} height={140} />
+          <SimpleBarChart data={pengadaanByDept} height={140} />
         </div>
       </div>
 
@@ -540,12 +615,12 @@ function PengadaanDashboard() {
             { key: "selesai", label: "Selesai Jadwal", render: (r) => <span>{r.selesai || "—"}</span> },
             {
               key: "status", label: "Status", render: (r) => {
-                const c: Record<string, string> = { Lunas: "text-green-600 bg-green-50", Expired: "text-red-500 bg-red-50" };
+                const c: Record<string, string> = { Lunas: "text-green-600 bg-green-50", Expired: "text-red-500 bg-red-50", Proses: "text-amber-600 bg-amber-50", Revisi: "text-red-500 bg-red-50" };
                 return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c[r.status] || "text-gray-500 bg-gray-50"}`}>{r.status}</span>;
               }
             },
           ]}
-          data={MOCK_JADWAL_PENGADAAN}
+          data={jadwalPengadaan}
         />
       </div>
     </div>
@@ -555,41 +630,10 @@ function PengadaanDashboard() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 4. PEMBAYARAN DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
-interface PaymentRow { label: string; nominal: string; package: number }
-
-const MOCK_OUTSOURCING: PaymentRow[] = [
-  { label: "Belum Verifikasi", nominal: "IDR 10.000.000,00", package: 1 },
-  { label: "Sudah Verifikasi", nominal: "IDR 0,00", package: 2 },
-  { label: "Revisi", nominal: "IDR 0,00", package: 2 },
-  { label: "Siap Bayar", nominal: "IDR 0,00", package: 3 },
-  { label: "Selesai", nominal: "IDR 0,00", package: 3 },
-];
-
-const MOCK_NON_OUTSOURCING: PaymentRow[] = [
-  { label: "Belum Verifikasi", nominal: "IDR 195.299.234,00", package: 1 },
-  { label: "Sudah Verifikasi", nominal: "IDR 0,00", package: 0 },
-  { label: "Revisi", nominal: "IDR 0,00", package: 0 },
-  { label: "Siap Bayar", nominal: "IDR 0,00", package: 0 },
-  { label: "Selesai", nominal: "IDR 0,00", package: 0 },
-];
-
-const MOCK_LAMAN: { label: string; nominal: string }[] = [
-  { label: "OUTSOURCE", nominal: "IDR 11.000.000,00" },
-  { label: "NON OUTSOURCE", nominal: "IDR 1.000.000,00" },
-];
-
-const MOCK_KESELURUHAN: { label: string; nominal: string }[] = [
-  { label: "Belum Verifikasi", nominal: "IDR 195.299.234,00" },
-  { label: "Sudah Verifikasi", nominal: "IDR 0,00" },
-  { label: "Revisi", nominal: "IDR 0,00" },
-  { label: "Siap Bayar", nominal: "IDR 0,00" },
-  { label: "Selesai", nominal: "IDR 0,00" },
-];
-
 function PaymentTable({ title, data, showPackage, gradient }: {
-  title: string; data: { label: string; nominal: string; package?: number }[]; showPackage?: boolean; gradient: string;
+  title: string; data: { label: string; nominal: string; package?: number; amount?: number }[]; showPackage?: boolean; gradient: string;
 }) {
-  const totalNominal = data.length > 0 ? data[data.length - 1]?.nominal || "IDR 0,00" : "IDR 0,00";
+  const totalNominal = currency(data.reduce((total, row) => total + (row.amount || 0), 0));
   const totalPkg = showPackage ? data.reduce((s, r) => s + (r.package || 0), 0) : 0;
   return (
     <div className="rounded-xl overflow-hidden border border-gray-100">
@@ -622,9 +666,52 @@ function PaymentTable({ title, data, showPackage, gradient }: {
 function PembayaranDashboard() {
   const [unit, setUnit] = useState("Pilih Unit");
   const [vendor, setVendor] = useState("Pilih Vendor");
-  const [currency, setCurrency] = useState("IDR");
+  const [currency, setCurrency] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const { pengadaan, pembayaran, units } = useAdminDashboardData();
+  const pengadaanById = useMemo(() => new Map(pengadaan.map((row) => [row.id, row])), [pengadaan]);
+  const vendorOptions = useMemo(() => ["Pilih Vendor", ...Array.from(new Set(pengadaan.map(getVendor).filter((item) => item && item !== "—")))], [pengadaan]);
+  const filteredPayments = useMemo(() => pembayaran.filter((payment) => {
+    const parent = pengadaanById.get(payment.pengadaan_id) || {};
+    const paymentDate = recordDate(payment);
+    const paymentVendor = getVendor(parent);
+    const paymentCurrency = String((parent.formData?.["buat-npp"] || parent.formData?.npp || parent.formData || {}).kurs || "IDR").toUpperCase();
+    return (unit === "Pilih Unit" || unit === "Semua Unit" || parent.departemen === unit)
+      && (vendor === "Pilih Vendor" || paymentVendor === vendor)
+      && (!currency || paymentCurrency === currency)
+      && (!startDate || paymentDate >= startDate)
+      && (!endDate || paymentDate <= endDate);
+  }), [pembayaran, pengadaanById, unit, vendor, currency, startDate, endDate]);
+  const buildPaymentRows = (type: string) => {
+    const selected = filteredPayments.filter((payment) => payment.payment_type === type);
+    const definitions = [
+      { label: "Belum Verifikasi", statuses: ["draft", "waiting_approval"] },
+      { label: "Sudah Verifikasi", statuses: ["verified"] },
+      { label: "Revisi", statuses: ["revision_required", "rejected"] },
+      { label: "Siap Bayar", statuses: ["verified", "ready_to_pay"] },
+      { label: "Selesai", statuses: ["approved", "completed"] },
+    ];
+    return definitions.map((definition) => {
+      const records = selected.filter((payment) => definition.statuses.includes(payment.status));
+      const amount = records.reduce((total, payment) => total + nominalValue(pengadaanById.get(payment.pengadaan_id)?.nominal), 0);
+      return { label: definition.label, nominal: currency(amount), package: records.length, amount };
+    });
+  };
+  const outsourcing = buildPaymentRows("outsource");
+  const nonOutsourcing = buildPaymentRows("non-outsource");
+  const umd = buildPaymentRows("umd");
+  const laman = [
+    { label: "OUTSOURCE", amount: outsourcing.reduce((total, row) => total + (row.amount || 0), 0) },
+    { label: "NON OUTSOURCE", amount: nonOutsourcing.reduce((total, row) => total + (row.amount || 0), 0) },
+    { label: "UMD", amount: umd.reduce((total, row) => total + (row.amount || 0), 0) },
+  ].map((row) => ({ ...row, nominal: currency(row.amount) }));
+  const keseluruhan = ["Belum Verifikasi", "Sudah Verifikasi", "Revisi", "Siap Bayar", "Selesai"].map((label) => {
+    const rows = [...outsourcing, ...nonOutsourcing, ...umd].filter((row) => row.label === label);
+    const amount = rows.reduce((total, row) => total + (row.amount || 0), 0);
+    return { label, amount, nominal: currency(amount) };
+  });
+  const totalKeseluruhan = keseluruhan.reduce((total, row) => total + row.amount, 0);
 
   return (
     <div className="space-y-6">
@@ -637,16 +724,16 @@ function PembayaranDashboard() {
       <div className="flex items-center gap-3 flex-wrap">
         <select value={unit} onChange={e => setUnit(e.target.value)}
           className="h-8 px-3 rounded-lg border border-gray-200 text-[11px] text-gray-600 font-medium outline-none cursor-pointer">
-          <option>SELECT UNIT ▼</option>{UNITS.map(u => <option key={u}>{u}</option>)}
+          <option value="Pilih Unit">SELECT UNIT ▼</option>{units.filter((item) => item !== "Pilih Unit").map(u => <option key={u} value={u}>{u}</option>)}
         </select>
         <select value={vendor} onChange={e => setVendor(e.target.value)}
           className="h-8 px-3 rounded-lg border border-gray-200 text-[11px] text-gray-600 font-medium outline-none cursor-pointer">
-          <option>SELECT VENDOR ▼</option>
-          <option>PT Maju Bersama</option><option>CV Solusi Elektronik</option>
+          <option value="Pilih Vendor">SELECT VENDOR ▼</option>
+          {vendorOptions.filter((item) => item !== "Pilih Vendor").map((item) => <option key={item} value={item}>{item}</option>)}
         </select>
         <select value={currency} onChange={e => setCurrency(e.target.value)}
           className="h-8 px-3 rounded-lg border border-gray-200 text-[11px] text-gray-600 font-medium outline-none cursor-pointer">
-          <option>PILIH MATA UANG ▼</option><option value="IDR">IDR</option><option value="USD">USD</option>
+          <option value="">PILIH MATA UANG ▼</option><option value="IDR">IDR</option><option value="USD">USD</option>
         </select>
         <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
           className="h-8 px-3 rounded-lg border border-gray-200 text-[11px] text-gray-600 outline-none" placeholder="Start Date" />
@@ -659,18 +746,18 @@ function PembayaranDashboard() {
 
       {/* Tables Grid */}
       <div className="grid grid-cols-2 gap-5">
-        <PaymentTable title="Outsourcing" data={MOCK_OUTSOURCING} showPackage gradient="from-[#e6251c] to-[#ff7676]" />
-        <PaymentTable title="Non Outsourcing" data={MOCK_NON_OUTSOURCING} showPackage gradient="from-[#e6251c] to-[#ff7676]" />
+        <PaymentTable title="Outsourcing" data={outsourcing} showPackage gradient="from-[#e6251c] to-[#ff7676]" />
+        <PaymentTable title="Non Outsourcing" data={nonOutsourcing} showPackage gradient="from-[#e6251c] to-[#ff7676]" />
       </div>
 
       <div className="grid grid-cols-2 gap-5">
-        <PaymentTable title="Laman" data={MOCK_LAMAN} gradient="from-[#252271] to-[#3b3baa]" />
+        <PaymentTable title="Laman" data={laman} gradient="from-[#252271] to-[#3b3baa]" />
         <div className="rounded-xl overflow-hidden border border-gray-100">
           <div className="bg-gradient-to-r from-[#b91c3c] to-[#e6251c] px-4 py-2.5">
             <h4 className="text-white text-[12px] font-bold">Keseluruhan</h4>
           </div>
           <div className="divide-y divide-gray-100">
-            {MOCK_KESELURUHAN.map((row, i) => (
+            {keseluruhan.map((row, i) => (
               <div key={i} className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-colors">
                 <span className="text-[11px] text-gray-600">{row.label}</span>
                 <span className="text-[11px] font-semibold text-gray-800">{row.nominal}</span>
@@ -679,7 +766,7 @@ function PembayaranDashboard() {
           </div>
           <div className="flex items-center justify-between px-4 py-2.5 bg-red-50 border-t border-red-100">
             <span className="text-[11px] font-bold text-red-600">Total</span>
-            <span className="text-[11px] font-extrabold text-red-600">IDR 195.299.234,00</span>
+            <span className="text-[11px] font-extrabold text-red-600">{currency(totalKeseluruhan)}</span>
           </div>
         </div>
       </div>
@@ -690,34 +777,6 @@ function PembayaranDashboard() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN DASHBOARD SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
-function LiveDashboard({ activeTab }: { activeTab: DashboardTab }) {
-  const [dashboard, setDashboard] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.get("/dashboard").then((response) => setDashboard(response.data)).catch(() => setDashboard(null)).finally(() => setLoading(false));
-  }, []);
-
-  const summary = dashboard?.summary || {};
-  const status = dashboard?.statusDistribution || [];
-  const monthly = dashboard?.monthly || [];
-  const activities = dashboard?.recentActivity || [];
-  const titleByTab: Record<DashboardTab, string> = { "pengajuan-dana": "Pengajuan Dana", pengujian: "Pengujian", pengadaan: "Pengadaan", pembayaran: "Pembayaran" };
-  const cardData = [
-    { label: "Total Pengadaan", value: summary.totalPengadaan ?? 0, icon: ClipboardList },
-    { label: "Dalam Proses", value: summary.dalamProses ?? 0, icon: Clock },
-    { label: "Pengujian Selesai", value: summary.pengujianSelesai ?? 0, icon: FlaskConical },
-    { label: "Menunggu Verifikasi", value: summary.perluVerifikasi ?? 0, icon: AlertTriangle },
-  ];
-
-  if (loading) return <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-[12px] text-gray-500">Memuat dashboard dari database...</div>;
-  return <div className="space-y-5">
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{cardData.map((card) => { const Icon = card.icon; return <div key={card.label} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"><div className="flex items-start justify-between"><div><p className="text-[10.5px] font-bold uppercase tracking-wide text-gray-400">{card.label}</p><p className="mt-2 text-[28px] font-extrabold text-[#252271]">{card.value}</p></div><span className="rounded-xl bg-[#252271]/10 p-2 text-[#252271]"><Icon size={18} /></span></div><p className="mt-2 text-[10px] text-gray-400">Data aktual sistem</p></div>; })}</div>
-    <div className="grid gap-5 xl:grid-cols-5"><div className="rounded-2xl border border-gray-100 bg-white p-5 xl:col-span-3"><SectionTitle icon={BarChart3}>Tren {titleByTab[activeTab]}</SectionTitle><div className="mt-5 space-y-3">{monthly.map((entry: any) => <div key={entry.month} className="grid grid-cols-[38px_1fr_32px] items-center gap-3 text-[11px]"><span className="font-semibold text-gray-500">{entry.month}</span><div className="h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-[#e6251c]" style={{ width: `${Math.min(100, (entry.pengadaan || 0) * 10)}%` }} /></div><span className="text-right font-bold text-[#252271]">{entry.pengadaan || 0}</span></div>)}</div></div><div className="rounded-2xl border border-gray-100 bg-white p-5 xl:col-span-2"><SectionTitle icon={PieChart}>Status Dokumen</SectionTitle><div className="mt-4 space-y-3">{status.map((entry: any) => <div key={entry.name} className="flex items-center justify-between"><span className="flex items-center gap-2 text-[11px] text-gray-600"><i className="h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />{entry.name}</span><span className="text-[13px] font-extrabold text-[#252271]">{entry.value}</span></div>)}</div></div></div>
-    <div className="rounded-2xl border border-gray-100 bg-white p-5"><SectionTitle icon={Clock}>Laporan Aktivitas User & Admin</SectionTitle><div className="mt-4 divide-y divide-gray-100">{activities.length === 0 ? <p className="py-4 text-[11px] text-gray-400">Belum ada aktivitas pada periode ini.</p> : activities.map((activity: any, index: number) => <div key={`${activity.title}-${activity.created_at || index}`} className="flex items-center justify-between gap-4 py-3"><div><p className="text-[12px] font-bold text-gray-700">{activity.title}</p><p className="text-[10.5px] text-gray-400">{activity.meta} â€¢ {activity.action || activity.type}</p></div><span className="rounded-full bg-[#f5f7fd] px-2.5 py-1 text-[10px] font-bold text-[#252271]">{activity.status || "diproses"}</span></div>)}</div></div>
-  </div>;
-}
-
 export function AdminDashboardScreen() {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<DashboardTab>("pengajuan-dana");
@@ -756,7 +815,10 @@ export function AdminDashboardScreen() {
           })}
         </div>
 
-        <LiveDashboard activeTab={activeTab} />
+        {activeTab === "pengajuan-dana" && <PengajuanDanaDashboard />}
+        {activeTab === "pengujian" && <PengujianDashboard />}
+        {activeTab === "pengadaan" && <PengadaanDashboard />}
+        {activeTab === "pembayaran" && <PembayaranDashboard />}
 
       </div>
     </div>

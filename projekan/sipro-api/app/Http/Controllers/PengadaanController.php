@@ -54,7 +54,9 @@ class PengadaanController extends Controller
             $status = 'draft';
 
             $prefix = $flow === 'pr' ? 'PR-' : 'PD-';
-            $last = Pengadaan::where('id', 'regexp', '^' . $prefix . '[0-9]+$')->orderBy('id', 'desc')->first();
+            // LIKE keeps generated ids portable for both MySQL production and
+            // SQLite-based authorization tests.
+            $last = Pengadaan::where('id', 'like', $prefix . '%')->orderBy('id', 'desc')->first();
             $next = $last ? intval(substr($last->id, 3)) + 1 : 1;
             $id = $prefix . str_pad($next, 3, '0', STR_PAD_LEFT);
 

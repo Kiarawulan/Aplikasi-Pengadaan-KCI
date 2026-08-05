@@ -67,6 +67,7 @@ export interface RolePermissions {
   templateDokumen: AccessLevel;
   masterData: AccessLevel;
   userManagement: AccessLevel;
+  roleManagement: AccessLevel;
   dashboard: AccessLevel;
 }
 
@@ -80,11 +81,14 @@ export interface AppRole {
   isSystem: boolean; // system roles (Admin, User) can't be deleted
   color: string; // badge color
   active?: boolean;
+  userCount?: number;
+  updatedAt?: string;
 }
 
 // ─── User ─────────────────────────────────────────────────────────────────────
 export interface AppUser {
   id: string;
+  username?: string;
   email: string;
   name: string;
   password: string; // plain text for demo (localStorage)
@@ -92,7 +96,9 @@ export interface AppUser {
   departemen: string;
   isActive: boolean;
   isAdmin: boolean;
+  accountType?: "admin" | "user";
   createdAt: string;
+  updatedAt?: string;
   lastLogin?: string;
   mustResetPassword?: boolean;
 }

@@ -15,7 +15,7 @@ export const DEFAULT_ROLES: AppRole[] = [
     permissions: {
       pengajuanDana: "editor", pengadaan: "editor", pengujian: "editor",
       pembayaran: "editor", templateDokumen: "editor", masterData: "editor",
-      userManagement: "editor", dashboard: "editor",
+      userManagement: "editor", roleManagement: "editor", dashboard: "editor",
     },
   },
   {
@@ -29,7 +29,7 @@ export const DEFAULT_ROLES: AppRole[] = [
     permissions: {
       pengajuanDana: "editor", pengadaan: "editor", pengujian: "viewer",
       pembayaran: "viewer", templateDokumen: "viewer", masterData: "no-access",
-      userManagement: "no-access", dashboard: "viewer",
+      userManagement: "no-access", roleManagement: "no-access", dashboard: "viewer",
     },
   },
 ];
@@ -43,6 +43,16 @@ const LS_USERS = "sipro_users";
 const LS_ROLES = "sipro_roles";
 const LS_CURRENT = "sipro_current_user";
 const LS_TOKEN = "sipro_token";
+
+const EMPTY_PERMISSIONS: RolePermissions = {
+  pengajuanDana: "no-access", pengadaan: "no-access", pengujian: "no-access",
+  pembayaran: "no-access", templateDokumen: "no-access", masterData: "no-access",
+  userManagement: "no-access", roleManagement: "no-access", dashboard: "no-access",
+};
+
+function normalizePermissions(permissions: Partial<RolePermissions> | undefined): RolePermissions {
+  return { ...EMPTY_PERMISSIONS, ...(permissions || {}) };
+}
 
 export function getUsers(): AppUser[] {
   try { return JSON.parse(localStorage.getItem(LS_USERS) || JSON.stringify(DEFAULT_USERS)); }
@@ -90,11 +100,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [apiRole, setApiRole] = useState<AppRole | null>(null);
 
-  const currentRole: AppRole | null = apiRole ?? (currentUser
-    ? (getRoleById(currentUser.roleId) ?? null)
-    : null);
+  const currentRole: AppRole | null = apiRole;
 
-  const isAdmin = currentUser?.isAdmin || (currentRole?.roleType === "admin") || currentUser?.roleId === "role-admin";
+  const isAdmin = currentUser?.accountType === "admin" || currentUser?.isAdmin === true || currentRole?.roleType === "admin";
 
   const login = async (email: string, password: string) => {
     try {
@@ -106,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const appUser: AppUser = {
         id: apiUserData.id,
+        username: apiUserData.username,
         email: apiUserData.email,
         name: apiUserData.name,
         password: '',
@@ -113,6 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         departemen: apiUserData.departemen,
         isActive: apiUserData.is_active,
         isAdmin: apiUserData.is_admin,
+        accountType: apiUserData.account_type,
         mustResetPassword: apiUserData.must_reset_password,
         lastLogin: apiUserData.last_login_at,
         createdAt: new Date().toISOString(),
@@ -127,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           roleType: apiUserData.is_admin ? 'admin' : 'user',
           color: apiUserData.role_color || '#64748b',
           createdAt: '',
-          permissions: apiUserData.permissions,
+          permissions: normalizePermissions(apiUserData.permissions),
         });
       }
 
@@ -139,16 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: err?.response?.data?.message || err?.response?.data?.errors?.email?.[0] || "Email atau password salah." };
       }
 
-      console.warn("Laravel API unavailable, using the limited offline UI:", err?.message);
-      const users = getUsers();
-      const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-      if (!user) return { success: false, error: "Email atau password salah." };
-      if (!user.isActive) return { success: false, error: "Akun ini telah dinonaktifkan." };
-
-      const updatedUser = { ...user, lastLogin: new Date().toISOString() };
-      localStorage.setItem(LS_CURRENT, JSON.stringify(updatedUser));
-      setCurrentUser(updatedUser);
-      return { success: true };
+      return { success: false, error: "Server autentikasi tidak dapat dihubungi. Coba lagi setelah API aktif." };
     }
   };
 
@@ -181,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         const appUser: AppUser = {
           id: apiUserData.id,
+          username: apiUserData.username,
           email: apiUserData.email,
           name: apiUserData.name,
           password: '',
@@ -188,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           departemen: apiUserData.departemen,
           isActive: apiUserData.is_active,
           isAdmin: apiUserData.is_admin,
+          accountType: apiUserData.account_type,
           mustResetPassword: apiUserData.must_reset_password,
           lastLogin: apiUserData.last_login_at,
           createdAt: new Date().toISOString(),
@@ -202,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             roleType: apiUserData.is_admin ? 'admin' : 'user',
             color: apiUserData.role_color || '#64748b',
             createdAt: '',
-            permissions: apiUserData.permissions,
+            permissions: normalizePermissions(apiUserData.permissions),
           });
         }
         setCurrentUser(appUser);
@@ -219,6 +222,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (currentUser) {
       fetchUser();
     }
+  }, []);
+
+  useEffect(() => {
+    const clearExpiredSession = () => {
+      setApiRole(null);
+      setCurrentUser(null);
+    };
+    window.addEventListener('sipro-auth-expired', clearExpiredSession);
+    return () => window.removeEventListener('sipro-auth-expired', clearExpiredSession);
   }, []);
 
   useEffect(() => {

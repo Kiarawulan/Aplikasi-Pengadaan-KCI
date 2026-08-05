@@ -207,7 +207,7 @@ interface SidebarProps {
 }
 
 function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, hasPermission } = useAuth();
   const userName = currentUser?.name || "Administrator";
   const userEmail = currentUser?.email || "admin@kci.co.id";
   const initial = userName.charAt(0).toUpperCase();
@@ -219,15 +219,21 @@ function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
 
   const isUserRoleSection = page === "manajemen-user" || page === "manajemen-role";
   const isVerifikasiSection = page === "verifikasi";
+  const canDashboard = hasPermission("dashboard", "viewer");
+  const canUserManagement = hasPermission("userManagement", "viewer");
+  const canRoleManagement = hasPermission("roleManagement", "viewer");
+  const canVerifikasi = hasPermission("pengajuanDana", "viewer") || hasPermission("pengadaan", "viewer") || hasPermission("pengujian", "viewer") || hasPermission("pembayaran", "viewer");
+  const canTemplate = hasPermission("templateDokumen", "viewer");
+  const canMasterData = hasPermission("masterData", "viewer");
 
   // ── Collapsed (icon-only) mode ─────────────────────────────────────────────
   if (collapsed) {
     const navIcons: { path: string; p: Page; active: boolean }[] = [
-      { path: ICONS.dashboard, p: "dashboard", active: page === "dashboard" },
-      { path: ICONS.users, p: "manajemen-user", active: isUserRoleSection },
-      { path: ICONS.clipboard, p: "verifikasi", active: isVerifikasiSection },
-      { path: ICONS.document, p: "template-dokumen", active: page === "template-dokumen" },
-      { path: ICONS.database, p: "master-data", active: page === "master-data" },
+      ...(canDashboard ? [{ path: ICONS.dashboard, p: "dashboard" as Page, active: page === "dashboard" }] : []),
+      ...(canUserManagement || canRoleManagement ? [{ path: ICONS.users, p: (canUserManagement ? "manajemen-user" : "manajemen-role") as Page, active: isUserRoleSection }] : []),
+      ...(canVerifikasi ? [{ path: ICONS.clipboard, p: "verifikasi" as Page, active: isVerifikasiSection }] : []),
+      ...(canTemplate ? [{ path: ICONS.document, p: "template-dokumen" as Page, active: page === "template-dokumen" }] : []),
+      ...(canMasterData ? [{ path: ICONS.database, p: "master-data" as Page, active: page === "master-data" }] : []),
     ];
     return (
       <aside className="relative w-[56px] shrink-0 self-stretch bg-[#e6251c] overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">
@@ -326,15 +332,15 @@ function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
         {/* Navigation */}
         <nav className="absolute top-[125px] bottom-[76px] left-0 right-0 overflow-auto px-[8px] py-[4px] flex flex-col gap-[2px]">
           {/* Dashboard */}
-          <NavLink
+          {canDashboard && <NavLink
             label="Dashboard"
             iconPath={ICONS.dashboard}
             active={page === "dashboard"}
             onClick={() => onNavigate("dashboard")}
-          />
+          />}
 
           {/* Manajemen User & Role group */}
-          <div className="flex flex-col gap-[2px]">
+          {(canUserManagement || canRoleManagement) && <div className="flex flex-col gap-[2px]">
             <button
               onClick={() => setUserRoleOpen((v) => !v)}
               className={`w-full flex items-center justify-between px-[10px] py-[8px] rounded-[8px] transition-all duration-150
@@ -355,22 +361,22 @@ function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
             {userRoleOpen && (
               <div className="relative flex flex-col gap-[2px] items-start pl-[11px] w-[208px] ml-auto">
                 <div className="absolute inset-0 border-l border-white/50 pointer-events-none" />
-                <SubNavLink
+                {canUserManagement && <SubNavLink
                   label="Manajemen User"
                   active={page === "manajemen-user"}
                   onClick={() => onNavigate("manajemen-user")}
-                />
-                <SubNavLink
+                />}
+                {canRoleManagement && <SubNavLink
                   label="Manajemen Role"
                   active={page === "manajemen-role"}
                   onClick={() => onNavigate("manajemen-role")}
-                />
+                />}
               </div>
             )}
-          </div>
+          </div>}
 
           {/* Verifikasi group */}
-          <div className="flex flex-col gap-[2px]">
+          {canVerifikasi && <div className="flex flex-col gap-[2px]">
             <button
               onClick={() => { onNavigate("verifikasi"); }}
               className={`w-full flex items-center justify-between px-[10px] py-[8px] rounded-[8px] transition-all duration-150
@@ -384,23 +390,23 @@ function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
               </div>
               <ChevronRight open={isVerifikasiSection} />
             </button>
-          </div>
+          </div>}
 
           {/* Template Dokumen */}
-          <NavLink
+          {canTemplate && <NavLink
             label="Template Dokumen"
             iconPath={ICONS.document}
             active={page === "template-dokumen"}
             onClick={() => onNavigate("template-dokumen")}
-          />
+          />}
 
           {/* Master Data */}
-          <NavLink
+          {canMasterData && <NavLink
             label="Master Data"
             iconPath={ICONS.database}
             active={page === "master-data"}
             onClick={() => onNavigate("master-data")}
-          />
+          />}
         </nav>
 
         {/* User Card */}
@@ -746,6 +752,7 @@ function SecondarySidebar({
   onPengujianDoc,
   onPembayaranDoc,
 }: SecondarySidebarProps) {
+  const { hasPermission } = useAuth();
   const items: { id: VerifCategory; label: string; icon: React.ReactNode }[] = [
     {
       id: "pengajuan-dana",
@@ -868,7 +875,7 @@ function SecondarySidebar({
 
       {/* Nav items */}
       <div className="flex-1 min-h-0 overflow-y-auto px-[10px] py-[4px] flex flex-col gap-[6px]">
-        {items.map((item) => {
+        {items.filter((item) => hasPermission(item.id === "pengajuan-dana" ? "pengajuanDana" : item.id, "viewer")).map((item) => {
           const isActive = category === item.id;
           return (
             <div key={item.id} className="flex flex-col gap-[2px]">
@@ -5636,6 +5643,7 @@ function DetailUserModal({ userId, onClose }: { userId: number; onClose: () => v
 
 // ─── Root App ──────────────────────────────────────────────────────────────────
 export function AdminApp() {
+  const { hasPermission, currentRole } = useAuth();
   const [page, setPage] = useState<Page>("dashboard");
   const [modal, setModal] = useState<Modal>(null);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -5647,7 +5655,39 @@ export function AdminApp() {
 
   const isVerifPage = page === "verifikasi";
 
+  const canOpenPage = (target: Page) => {
+    if (target === "dashboard") return hasPermission("dashboard", "viewer");
+    if (target === "manajemen-user") return hasPermission("userManagement", "viewer");
+    if (["manajemen-role", "tambah-role"].includes(target)) return hasPermission("roleManagement", "viewer");
+    if (target === "template-dokumen") return hasPermission("templateDokumen", "viewer");
+    if (target === "master-data") return hasPermission("masterData", "viewer");
+    if (target === "verifikasi") return hasPermission("pengajuanDana", "viewer") || hasPermission("pengadaan", "viewer") || hasPermission("pengujian", "viewer") || hasPermission("pembayaran", "viewer");
+    return false;
+  };
+
+  const firstAllowedPage = (): Page | null => {
+    const pages: Page[] = ["dashboard", "manajemen-user", "manajemen-role", "verifikasi", "template-dokumen", "master-data"];
+    return pages.find(canOpenPage) || null;
+  };
+
+  useEffect(() => {
+    if (!currentRole) return;
+    const fallback = firstAllowedPage();
+    if (fallback && !canOpenPage(page)) setPage(fallback);
+  }, [currentRole, page, hasPermission]);
+
+  useEffect(() => {
+    const categoryPermissions: Record<VerifCategory, "pengajuanDana" | "pengadaan" | "pengujian" | "pembayaran"> = {
+      "pengajuan-dana": "pengajuanDana", pengadaan: "pengadaan", pengujian: "pengujian", pembayaran: "pembayaran",
+    };
+    if (!hasPermission(categoryPermissions[verifCategory], "viewer")) {
+      const fallback = (Object.keys(categoryPermissions) as VerifCategory[]).find((category) => hasPermission(categoryPermissions[category], "viewer"));
+      if (fallback) setVerifCategory(fallback);
+    }
+  }, [verifCategory, hasPermission]);
+
   function handleNavigate(p: Page) {
+    if (!canOpenPage(p)) return;
     setPage(p);
     setModal(null);
   }

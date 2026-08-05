@@ -1,28 +1,32 @@
 import { useState, useEffect } from "react";
 import { Plus, Search, Edit2, Trash2 } from "lucide-react";
 import { AdminModal, ConfirmModal, ModalField, ModalInput, ModalSelect } from "@/components/admin/shared/AdminModal";
-import { PermissionMatrix } from "@/components/admin/shared/PermissionMatrix";
-import { getRoles, saveRoles, getUsers } from "@/store/authStore";
-import { generateId } from "@/store/dataStore";
+import { PermissionMatrix, permissionGroupsFromRole, rolePermissionsFromGroups, type PermGroup } from "@/components/admin/shared/PermissionMatrix";
+import { useAuth } from "@/store/authStore";
 import { api } from "@/services/api";
 import type { AppRole, RolePermissions } from "@/types";
 
 
 const DEFAULT_PERMS: RolePermissions = {
-  pengajuanDana: "viewer",
-  pengadaan: "viewer",
-  pengujian: "viewer",
+  pengajuanDana: "no-access",
+  pengadaan: "no-access",
+  pengujian: "no-access",
   pembayaran: "no-access",
-  templateDokumen: "viewer",
+  templateDokumen: "no-access",
   masterData: "no-access",
   userManagement: "no-access",
-  dashboard: "viewer",
+  roleManagement: "no-access",
+  dashboard: "no-access",
 };
 
+function normalizePermissions(permissions?: Partial<RolePermissions>): RolePermissions {
+  return { ...DEFAULT_PERMS, ...(permissions || {}) };
+}
+
 export function RoleManagementScreen() {
+  const { hasPermission } = useAuth();
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
-  const allUsers = getUsers();
   const [search, setSearch] = useState("");
 
   const [showAdd, setShowAdd] = useState(false);
@@ -34,16 +38,17 @@ export function RoleManagementScreen() {
     roleType: "admin" as "admin" | "user",
     color: "#252271",
   });
+  const [addGroups, setAddGroups] = useState<PermGroup[]>(() => permissionGroupsFromRole(DEFAULT_PERMS));
+  const [editGroups, setEditGroups] = useState<PermGroup[]>(() => permissionGroupsFromRole(DEFAULT_PERMS));
 
   const fetchRoles = async () => {
     setLoading(true);
     try {
       const res = await api.get('/roles');
       setRoles(res.data);
-      saveRoles(res.data);
     } catch (e) {
-      console.warn('API unavailable, falling back to local roles store:', e);
-      setRoles(getRoles());
+      console.warn('Gagal memuat role dari API:', e);
+      setRoles([]);
     } finally {
       setLoading(false);
     }
@@ -61,11 +66,12 @@ export function RoleManagementScreen() {
         description: `Role Type: ${form.roleType.toUpperCase()}`,
         roleType: form.roleType,
         color: form.color,
-        permissions: DEFAULT_PERMS,
+        permissions: rolePermissionsFromGroups(addGroups, DEFAULT_PERMS),
       });
       fetchRoles();
       setShowAdd(false);
       setForm({ name: "", roleType: "admin", color: "#252271" });
+      setAddGroups(permissionGroupsFromRole(DEFAULT_PERMS));
     } catch (e: any) {
       alert(e.response?.data?.message || 'Gagal menyimpan role ke database.');
     }
@@ -79,7 +85,7 @@ export function RoleManagementScreen() {
         description: showEdit.description,
         roleType: showEdit.roleType || 'admin',
         color: showEdit.color,
-        permissions: showEdit.permissions || DEFAULT_PERMS,
+        permissions: rolePermissionsFromGroups(editGroups, normalizePermissions(showEdit.permissions)),
       });
       fetchRoles();
       setShowEdit(null);
@@ -126,13 +132,13 @@ export function RoleManagementScreen() {
                 className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-[12px] pl-[37px] pr-4 py-2 text-[12px] text-[#0f172a] placeholder-[#9ca3af] outline-none focus:border-[#252271] transition-colors"
               />
             </div>
-            <button
+            {hasPermission("roleManagement", "editor") && <button
               onClick={() => setShowAdd(true)}
               className="w-full sm:w-auto bg-gradient-to-b from-[#e6251c] to-[#c20f06] rounded-[10px] px-4 py-2 flex items-center justify-center gap-1.5 text-white text-[12px] font-medium hover:brightness-110 active:scale-95 transition-all duration-150 shrink-0 shadow-md"
             >
               <Plus size={15} />
               Tambah Role
-            </button>
+            </button>}
           </div>
 
           {/* Role Table */}
@@ -156,7 +162,7 @@ export function RoleManagementScreen() {
                 ) : (
                   filteredRoles.map((role, idx) => {
                     const colorScheme = roleColors[idx % roleColors.length];
-                    const userCount = allUsers.filter(u => u.roleId === role.id).length;
+                    const userCount = role.userCount || 0;
                     const initial = role.name ? role.name.charAt(0).toUpperCase() : "R";
 
                     return (
@@ -180,20 +186,20 @@ export function RoleManagementScreen() {
                         </td>
                         <td className="px-3 py-4 pr-5 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => setShowEdit(role)}
+                            {hasPermission("roleManagement", "editor") && <button
+                              onClick={() => { setEditGroups(permissionGroupsFromRole(normalizePermissions(role.permissions))); setShowEdit(role); }}
                               className="p-1.5 rounded-[6px] hover:bg-[#e0e7ff] text-[#252271] transition-colors"
                               title="Edit Role"
                             >
                               <Edit2 size={15} />
-                            </button>
-                            <button
+                            </button>}
+                            {hasPermission("roleManagement", "editor") && <button
                               onClick={() => setShowConfirmDelete(role)}
                               className="p-1.5 rounded-[6px] hover:bg-[#fef2f2] text-[#cc0000] transition-colors"
                               title="Hapus Role"
                             >
                               <Trash2 size={15} />
-                            </button>
+                            </button>}
                           </div>
                         </td>
                       </tr>
@@ -225,11 +231,9 @@ export function RoleManagementScreen() {
               </ModalField>
             </div>
 
-            {form.roleType === "admin" && (
-              <div className="border-t border-gray-100 pt-3">
-                <PermissionMatrix />
-              </div>
-            )}
+            <div className="border-t border-gray-100 pt-3">
+              <PermissionMatrix groups={addGroups} onGroupsChange={setAddGroups} />
+            </div>
           </div>
         </AdminModal>
       )}
@@ -278,11 +282,9 @@ export function RoleManagementScreen() {
               </ModalField>
             </div>
 
-            {showEdit.roleType === "admin" && (
-              <div className="border-t border-gray-100 pt-3">
-                <PermissionMatrix />
-              </div>
-            )}
+            <div className="border-t border-gray-100 pt-3">
+              <PermissionMatrix groups={editGroups} onGroupsChange={setEditGroups} />
+            </div>
           </div>
         </AdminModal>
       )}

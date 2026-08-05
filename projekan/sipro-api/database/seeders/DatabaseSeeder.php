@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
                     'dashboard' => 'editor', 'pengajuanDana' => 'editor', 'pengadaan' => 'editor',
                     'pengujian' => 'editor', 'pembayaran' => 'editor', 'templateDokumen' => 'editor',
                     'masterData' => 'editor', 'userManagement' => 'editor',
+                    'roleManagement' => 'editor',
                 ],
             ],
             [
@@ -42,6 +43,7 @@ class DatabaseSeeder extends Seeder
                     'dashboard' => 'viewer', 'pengajuanDana' => 'editor', 'pengadaan' => 'editor',
                     'pengujian' => 'editor', 'pembayaran' => 'editor', 'templateDokumen' => 'viewer',
                     'masterData' => 'no-access', 'userManagement' => 'no-access',
+                    'roleManagement' => 'no-access',
                 ],
             ],
         ];
@@ -64,6 +66,7 @@ class DatabaseSeeder extends Seeder
             [
                 'id' => 'user-admin',
                 'name' => 'Super Admin',
+                'username' => 'superadmin',
                 'email' => 'admin@sipro.com',
                 'password' => 'admin123',
                 'role_id' => 'role-admin',
@@ -73,6 +76,7 @@ class DatabaseSeeder extends Seeder
             [
                 'id' => 'user-it',
                 'name' => 'User IT',
+                'username' => 'userit',
                 'email' => 'it@sipro.com',
                 'password' => 'it123',
                 'role_id' => 'role-it',

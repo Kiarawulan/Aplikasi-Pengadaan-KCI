@@ -61,6 +61,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 
 // ─── User App (fully synchronized via Laravel MySQL API) ──────────────────────
 function UserApp() {
+  const { hasPermission, currentRole } = useAuth();
   const [selectedItem, setSelectedItem] = useState<PengadaanItem | null>(() => {
     try {
       const saved = localStorage.getItem("sipro_last_selected_item");
@@ -88,6 +89,21 @@ function UserApp() {
     return (localStorage.getItem("sipro_last_back_screen") as Screen) || "dashboard";
   });
 
+  const canOpenScreen = (target: Screen) => {
+    if (target === "profile") return true;
+    if (target === "dashboard") return hasPermission("dashboard", "viewer");
+    if (["rup-list", "daftar-pengadaan", "pd-detail", "pr-detail", "purchase-requisition"].includes(target)) return hasPermission("pengadaan", "viewer");
+    if (target === "daftar-pengujian") return hasPermission("pengujian", "viewer");
+    if (["pembayaran-outsource", "pembayaran-non-outsource", "pembayaran-payment-request", "pembayaran-umd"].includes(target)) return hasPermission("pembayaran", "viewer");
+    if (target === "template-dokumen") return hasPermission("templateDokumen", "viewer");
+    return false;
+  };
+
+  const firstAllowedScreen = (): Screen | null => {
+    const candidates: Screen[] = ["dashboard", "daftar-pengadaan", "daftar-pengujian", "pembayaran-outsource", "template-dokumen", "profile"];
+    return candidates.find(canOpenScreen) || null;
+  };
+
   useEffect(() => {
     if ((screen === "pd-detail" || screen === "pr-detail") && !selectedItem) {
       setScreen("daftar-pengadaan");
@@ -96,10 +112,24 @@ function UserApp() {
   }, [screen, selectedItem]);
 
   useEffect(() => {
+    if (!currentRole) return;
+    const fallback = firstAllowedScreen();
+    if (fallback && !canOpenScreen(screen)) {
+      setScreen(fallback);
+      localStorage.setItem("sipro_last_user_screen", fallback);
+    }
+  }, [screen, hasPermission, currentRole]);
+
+  useEffect(() => {
     if (selectedItem?.id) sessionStorage.setItem("sipro_active_pengadaan_id", selectedItem.id);
   }, [selectedItem?.id]);
 
   const handleNavigate = (s: Screen) => {
+    if (!canOpenScreen(s)) {
+      const fallback = firstAllowedScreen();
+      if (fallback) setScreen(fallback);
+      return;
+    }
     setScreen(s);
     localStorage.setItem("sipro_last_user_screen", s);
     if (s !== "pd-detail" && s !== "pr-detail") {

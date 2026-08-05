@@ -48,20 +48,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('module.permission:dashboard,viewer');
 
     // Users
-    Route::get('/users', [UserController::class, 'index'])->middleware('admin.only');
-    Route::post('/users', [UserController::class, 'store'])->middleware('admin.only');
-    Route::put('/users/{user}', [UserController::class, 'update'])->middleware('admin.only');
-    Route::delete('/users/{user}', [UserController::class, 'destroy'])->middleware('admin.only');
+    Route::get('/users', [UserController::class, 'index'])->middleware('module.permission:userManagement,viewer');
+    Route::post('/users', [UserController::class, 'store'])->middleware('module.permission:userManagement,editor');
+    Route::get('/users/{user}', [UserController::class, 'show'])->middleware('module.permission:userManagement,viewer');
+    Route::put('/users/{user}', [UserController::class, 'update'])->middleware('module.permission:userManagement,editor');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->middleware('module.permission:userManagement,editor');
 
     // Dashboard
-    Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->middleware('admin.only');
-    Route::post('/users/{user}/toggle-active', [UserController::class, 'toggleActive'])->middleware('admin.only');
+    Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->middleware('module.permission:userManagement,editor');
+    Route::post('/users/{user}/toggle-active', [UserController::class, 'toggleActive'])->middleware('module.permission:userManagement,editor');
 
     // Roles
-    Route::get('/roles', [RoleController::class, 'index'])->middleware('admin.only');
-    Route::post('/roles', [RoleController::class, 'store'])->middleware('admin.only');
-    Route::put('/roles/{role}', [RoleController::class, 'update'])->middleware('admin.only');
-    Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->middleware('admin.only');
+    // User Management needs a read-only list of assignable roles. The controller
+    // limits this list to User roles unless Role Management is also permitted.
+    Route::get('/roles', [RoleController::class, 'index']);
+    Route::post('/roles', [RoleController::class, 'store'])->middleware('module.permission:roleManagement,editor');
+    Route::get('/roles/{role}', [RoleController::class, 'show'])->middleware('module.permission:roleManagement,viewer');
+    Route::put('/roles/{role}', [RoleController::class, 'update'])->middleware('module.permission:roleManagement,editor');
+    Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->middleware('module.permission:roleManagement,editor');
 
     // Pengadaan
     Route::get('/pengadaan', [PengadaanController::class, 'index'])->middleware('module.permission:pengadaan,viewer');
@@ -76,21 +80,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/pengadaan/{pengadaan}/documents', [UploadedDocumentController::class, 'store'])->middleware('module.permission:pengadaan,editor');
 
     // Verifikasi
-    Route::get('/verifikasi', [VerifikasiController::class, 'index'])->middleware('admin.only');
-    Route::post('/verifikasi', [VerifikasiController::class, 'store'])->middleware('admin.only');
-    Route::get('/verifikasi/{verifikasi}', [VerifikasiController::class, 'show'])->middleware('admin.only');
-    Route::put('/verifikasi/{verifikasi}', [VerifikasiController::class, 'update'])->middleware('admin.only');
-    Route::delete('/verifikasi/{verifikasi}', [VerifikasiController::class, 'destroy'])->middleware('admin.only');
-    Route::post('/verifikasi/{verifikasi}/approve', [VerifikasiController::class, 'approve'])->middleware('admin.only');
-    Route::post('/verifikasi/{verifikasi}/revisi', [VerifikasiController::class, 'revisi'])->middleware('admin.only');
-    Route::post('/verifikasi/{verifikasi}/reject', [VerifikasiController::class, 'reject'])->middleware('admin.only');
+    Route::get('/verifikasi', [VerifikasiController::class, 'index']);
+    Route::post('/verifikasi', [VerifikasiController::class, 'store']);
+    Route::get('/verifikasi/{verifikasi}', [VerifikasiController::class, 'show']);
+    Route::put('/verifikasi/{verifikasi}', [VerifikasiController::class, 'update']);
+    Route::delete('/verifikasi/{verifikasi}', [VerifikasiController::class, 'destroy']);
+    Route::post('/verifikasi/{verifikasi}/approve', [VerifikasiController::class, 'approve']);
+    Route::post('/verifikasi/{verifikasi}/revisi', [VerifikasiController::class, 'revisi']);
+    Route::post('/verifikasi/{verifikasi}/reject', [VerifikasiController::class, 'reject']);
 
     // Template Dokumen
     Route::get('/templates', [TemplateDokumenController::class, 'index'])->middleware('module.permission:templateDokumen,viewer');
     Route::get('/templates/{template}', [TemplateDokumenController::class, 'show'])->middleware('module.permission:templateDokumen,viewer');
-    Route::post('/templates', [TemplateDokumenController::class, 'store'])->middleware('admin.only');
-    Route::put('/templates/{template}', [TemplateDokumenController::class, 'update'])->middleware('admin.only');
-    Route::delete('/templates/{template}', [TemplateDokumenController::class, 'destroy'])->middleware('admin.only');
+    Route::post('/templates', [TemplateDokumenController::class, 'store'])->middleware('module.permission:templateDokumen,editor');
+    Route::put('/templates/{template}', [TemplateDokumenController::class, 'update'])->middleware('module.permission:templateDokumen,editor');
+    Route::delete('/templates/{template}', [TemplateDokumenController::class, 'destroy'])->middleware('module.permission:templateDokumen,editor');
 
     // Opsi vendor diperlukan oleh form NPP User; perubahan master tetap khusus Admin.
     Route::get('/vendors/options', [VendorController::class, 'index'])->middleware('module.permission:pengadaan,viewer');
@@ -105,14 +109,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/pengujian', [PengujianController::class, 'index'])->middleware('module.permission:pengujian,viewer');
     Route::post('/pengujian', [PengujianController::class, 'store'])->middleware('module.permission:pengujian,editor');
     Route::get('/pengujian/{pengujian}', [PengujianController::class, 'show'])->middleware('module.permission:pengujian,viewer');
-    Route::put('/pengujian/{pengujian}', [PengujianController::class, 'update'])->middleware('admin.only');
-    Route::delete('/pengujian/{pengujian}', [PengujianController::class, 'destroy'])->middleware('admin.only');
-    Route::post('/pengujian/{pengujian}/advance-status', [PengujianController::class, 'advanceStatus'])->middleware('admin.only');
+    Route::put('/pengujian/{pengujian}', [PengujianController::class, 'update'])->middleware('module.permission:pengujian,editor');
+    Route::delete('/pengujian/{pengujian}', [PengujianController::class, 'destroy'])->middleware('module.permission:pengujian,editor');
+    Route::post('/pengujian/{pengujian}/advance-status', [PengujianController::class, 'advanceStatus'])->middleware('module.permission:pengujian,editor');
 
     Route::get('/payments', [PaymentController::class, 'index'])->middleware('module.permission:pembayaran,viewer');
     Route::post('/payments', [PaymentController::class, 'store'])->middleware('module.permission:pembayaran,editor');
     Route::put('/payments/{payment}', [PaymentController::class, 'update'])->middleware('module.permission:pembayaran,editor');
-    Route::post('/payments/{payment}/process', [PaymentController::class, 'process'])->middleware('admin.only');
+    Route::post('/payments/{payment}/process', [PaymentController::class, 'process'])->middleware('module.permission:pembayaran,editor');
     Route::get('/documents/{document}/download', [UploadedDocumentController::class, 'download'])->middleware('module.permission:pengadaan,viewer');
     Route::delete('/documents/{document}', [UploadedDocumentController::class, 'destroy'])->middleware('module.permission:pengadaan,editor');
 });

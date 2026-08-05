@@ -102,6 +102,63 @@ export const DEFAULT_HAK_AKSES_GROUPS: PermGroup[] = [
   },
 ];
 
+const SUB_PERMISSION_MODULE: Record<string, keyof RolePermissions> = {
+  "pd-dashboard": "dashboard",
+  "pd-verifikasi": "pengajuanDana",
+  "pg-m-user": "userManagement",
+  "pg-m-role": "roleManagement",
+  "pg-vendor": "masterData",
+  "pg-harga-satuan": "masterData",
+  "pg-bank": "masterData",
+  "pg-doc-center": "templateDokumen",
+  "pj-m-user": "userManagement",
+  "pj-m-user-detail": "userManagement",
+};
+
+function moduleForSubPermission(subId: string): keyof RolePermissions {
+  if (SUB_PERMISSION_MODULE[subId]) return SUB_PERMISSION_MODULE[subId];
+  if (subId.startsWith("pg-")) return "pengadaan";
+  if (subId.startsWith("pj-")) return "pengujian";
+  if (subId.startsWith("byr-")) return "pembayaran";
+  return "pengajuanDana";
+}
+
+export function permissionGroupsFromRole(permissions: RolePermissions): PermGroup[] {
+  return DEFAULT_HAK_AKSES_GROUPS.map((group) => {
+    const subPerms = group.subPerms.map((sub) => {
+      const level = permissions[moduleForSubPermission(sub.id)] || "no-access";
+      return { ...sub, view: level === "viewer" || level === "editor", action: level === "editor" };
+    });
+    return {
+      ...group,
+      checked: subPerms.some((sub) => sub.view || sub.action),
+      selectAllView: subPerms.every((sub) => sub.view),
+      selectAllAction: subPerms.every((sub) => sub.action),
+      subPerms,
+    };
+  });
+}
+
+export function rolePermissionsFromGroups(groups: PermGroup[], initial: RolePermissions): RolePermissions {
+  const next = { ...initial };
+  const levels: Partial<RolePermissions> = {};
+  groups.forEach((group) => group.subPerms.forEach((sub) => {
+    const module = moduleForSubPermission(sub.id);
+    const current = levels[module] || "no-access";
+    if (sub.action) levels[module] = "editor";
+    else if (sub.view && current !== "editor") levels[module] = "viewer";
+  }));
+
+  Object.keys(levels).forEach((module) => {
+    next[module as keyof RolePermissions] = levels[module as keyof RolePermissions] as AccessLevel;
+  });
+  const managedModules = new Set(groups.flatMap((group) => group.subPerms.map((sub) => moduleForSubPermission(sub.id))));
+  managedModules.forEach((module) => {
+    if (!levels[module]) next[module] = "no-access";
+  });
+  return next;
+}
+
 export function RedCheckbox({ checked, onClick }: { checked: boolean; onClick: () => void }) {
   return (
     <button
@@ -181,7 +238,7 @@ export function PermissionMatrix({ groups: externalGroups, onGroupsChange }: Per
       prev.map((g) => {
         if (g.id !== gid) return g;
         const nowOn = col === "view" ? !g.selectAllView : !g.selectAllAction;
-        const subPerms = g.subPerms.map((s) => ({ ...s, [col]: nowOn }));
+        const subPerms = g.subPerms.map((s) => ({ ...s, [col]: nowOn, ...(col === "action" && nowOn ? { view: true } : {}) }));
         const anyChecked = subPerms.some((s) => s.view || s.action);
         return {
           ...g,
@@ -197,7 +254,7 @@ export function PermissionMatrix({ groups: externalGroups, onGroupsChange }: Per
     setGroups((prev) =>
       prev.map((g) => {
         if (g.id !== gid) return g;
-        const subPerms = g.subPerms.map((s) => (s.id === sid ? { ...s, [col]: !s[col] } : s));
+        const subPerms = g.subPerms.map((s) => (s.id === sid ? { ...s, [col]: !s[col], ...(col === "action" && !s.action ? { view: true } : {}) } : s));
         const allView = subPerms.every((s) => s.view);
         const allAction = subPerms.every((s) => s.action);
         const anyChecked = subPerms.some((s) => s.view || s.action);
