@@ -5,11 +5,14 @@ import { getRupList } from "@/store/dataStore";
 import { api } from "@/services/api";
 
 
+import { useAuth } from "@/store/authStore";
+
 export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Pengadaan Baru", submitLabel = "Submit", initialStep = "npp" as ParkStep, initialData, isViewOnly }: {
   onClose: () => void; onSubmit: (item: any) => void;
   title?: string; submitLabel?: string; initialStep?: ParkStep;
   initialData?: any; isViewOnly?: boolean;
 }) {
+  const { currentUser } = useAuth();
   const today = new Date().toISOString().split("T")[0];
   const [rupList, setRupList] = useState<RupItem[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -41,13 +44,13 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
 
   const [form, setForm] = useState({
     rupIds: initialData?.rupIds || ([] as string[]),
-    emailPic: initialData?.emailPic || "",
+    emailPic: initialData?.emailPic || currentUser?.email || "",
     tahun: initialData?.tahun || new Date().getFullYear().toString(),
-    divisi: initialData?.divisi || "",
-    judulPermohonan: initialData?.judulPermohonan || "",
+    divisi: initialData?.divisi || initialData?.subUnit || currentUser?.departemen || "",
+    judulPermohonan: initialData?.judulPermohonan || initialData?.nama || "",
     jenisPermohonan: initialData?.jenisPermohonan || "",
-    nominalPermohonan: initialData?.nominalPermohonan || "",
-    nominalKonversi: initialData?.nominalKonversi || "",
+    nominalPermohonan: initialData?.nominalPermohonan || initialData?.nominal || "",
+    nominalKonversi: initialData?.nominalKonversi || initialData?.nominal || "",
     kurs: initialData?.kurs || "IDR",
     detailPermohonan: initialData?.detailPermohonan || ""
   });

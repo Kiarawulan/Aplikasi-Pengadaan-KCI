@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronRight, Check, ChevronLeft, Trash2, Download, AlertCircle, Clock, AlertTriangle } from "lucide-react";
+import { ChevronRight, Check, ChevronLeft, Trash2, Download, AlertCircle, Clock, AlertTriangle, Edit2 } from "lucide-react";
 import type { Screen, PengadaanItem, VerifStatus } from "@/types";
 import { PD_MAIN_STEPS } from "@/constants/steps";
 import { Breadcrumb } from "@/components/user/layout/Breadcrumb";
@@ -11,6 +11,7 @@ import { ApprovedBadge } from "@/components/common/ApprovedBadge";
 import { DetailHeaderCard } from "@/components/user/pengadaan/DetailHeaderCard";
 import { StepTracker } from "@/components/user/pengadaan/StepTracker";
 import { PdSubStatus } from "@/components/user/pengadaan/PdSubStatus";
+import { PembelianBaruPopup } from "@/components/user/pengadaan/PembelianBaruPopup";
 import { api } from "@/services/api";
 import { useAuth } from "@/store/authStore";
 
@@ -65,6 +66,43 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
   const [completedStepIds, setCompletedStepIds] = useState<Set<string>>(new Set(item.completedSteps || []));
   const [flash, setFlash] = useState(false);
   const [allFd, setAllFd] = useState<Record<string, Record<string, string>>>(item.formData || {});
+  const [showEditPopup, setShowEditPopup] = useState(false);
+
+  const handleRevisionSubmit = async (newItem: any) => {
+    try {
+      await api.put(`/pengadaan/${item.id}`, {
+        nama: newItem.nama,
+        departemen: newItem.departemen,
+        nominal: newItem.nominal,
+        status: "pending",
+        form_data: {
+          ...(allFd || {}),
+          ...(newItem.formData || {}),
+          "buat-pd": {
+            ...(allFd["buat-pd"] || {}),
+            ...(newItem.formData || {})
+          }
+        }
+      });
+      setAllFd(prev => ({
+        ...prev,
+        ...(newItem.formData || {}),
+        "buat-pd": {
+          ...(prev["buat-pd"] || {}),
+          ...(newItem.formData || {})
+        }
+      }));
+      setShowEditPopup(false);
+      setVerifState({ status: "pending", canProceed: false, loading: false });
+      fetchStepVerifStatus(activeStep.id);
+      setFlash(true);
+      setTimeout(() => setFlash(false), 3000);
+      alert("Revisi Park Document berhasil disimpan dan dikirim ulang ke Admin!");
+    } catch (err: any) {
+      console.error(err);
+      alert("Gagal menyimpan revisi: " + (err.response?.data?.message || err.message));
+    }
+  };
 
   // Fetch latest item data on mount to avoid stale localStorage data
   useEffect(() => {
@@ -271,9 +309,21 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
     if (showStatusView) {
       if (activeSub.id === "detail-pd") {
         const d = fd("buat-pd");
+        const isApproved = verifState.status === "approved";
         return (
           <div>
-            <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary Park Document</p><ApprovedBadge /></div>
+            <div className="flex items-center gap-2 mb-4">
+              <p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary Park Document</p>
+              {isApproved ? (
+                <ApprovedBadge />
+              ) : verifState.status === "revisi" ? (
+                <span className="bg-orange-100 text-orange-700 text-[10px] font-semibold px-2 py-0.5 rounded">Perlu Revisi</span>
+              ) : verifState.status === "rejected" ? (
+                <span className="bg-red-100 text-red-700 text-[10px] font-semibold px-2 py-0.5 rounded">Ditolak</span>
+              ) : (
+                <span className="bg-yellow-100 text-yellow-700 text-[10px] font-semibold px-2 py-0.5 rounded">Menunggu Verifikasi</span>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
               <SummaryRow label="Email PIC" value={d["emailPic"] || item.formData?.emailPic || currentUser?.email || "—"} />
               <SummaryRow label="Divisi" value={d["subUnit"] || item.formData?.subUnit || item.departemen || "—"} />
@@ -292,12 +342,20 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
 
     if (activeSub.id === "buat-pd") {
       const d = fd("buat-pd");
-      const isApproved = item.status === "approved" || item.status === "Selesai";
+      const isApproved = verifState.status === "approved";
       return (
         <div>
           <div className="flex items-center gap-2 mb-4">
             <p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p>
-            {isApproved ? <ApprovedBadge /> : <span className="bg-yellow-100 text-yellow-700 text-[10px] font-semibold px-2 py-0.5 rounded">Menunggu Verifikasi</span>}
+            {isApproved ? (
+              <ApprovedBadge />
+            ) : verifState.status === "revisi" ? (
+              <span className="bg-orange-100 text-orange-700 text-[10px] font-semibold px-2 py-0.5 rounded">Perlu Revisi</span>
+            ) : verifState.status === "rejected" ? (
+              <span className="bg-red-100 text-red-700 text-[10px] font-semibold px-2 py-0.5 rounded">Ditolak</span>
+            ) : (
+              <span className="bg-yellow-100 text-yellow-700 text-[10px] font-semibold px-2 py-0.5 rounded">Menunggu Verifikasi</span>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
             <SummaryRow label="Judul Permohonan" value={d["judulPermohonan"] || item.nama} />
@@ -374,7 +432,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
   return (
     <div>
       <Breadcrumb segments={[{ label: "Daftar Pengadaan", screen: "daftar-pengadaan" }, { label: "Park Dokumen", screen: "daftar-pengadaan" }, { label: item.nama }]} onNavigate={onNavigate} />
-      <DetailHeaderCard item={item} allFd={allFd} />
+      <DetailHeaderCard item={item} allFd={allFd} verifStatus={verifState.status} />
 
       {/* Synchronized Admin Status Banner */}
       {verifState.status === "pending" && (
@@ -388,13 +446,21 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
       )}
 
       {verifState.status === "revisi" && (
-        <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-3">
-          <AlertCircle size={16} className="text-blue-600 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-[12px] font-semibold text-blue-800">📝 Perlu Revisi dari Admin</p>
-            <p className="text-[11px] text-blue-700 font-medium mt-0.5">Catatan Admin: "{verifState.catatanAdmin}"</p>
-            <p className="text-[10.5px] text-blue-600 mt-1">Perbaiki berkas dan kirim ulang pengajuan Anda.</p>
+        <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={16} className="text-blue-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-[12px] font-semibold text-blue-800">📝 Perlu Revisi dari Admin</p>
+              <p className="text-[11px] text-blue-700 font-medium mt-0.5">Catatan Admin: "{verifState.catatanAdmin}"</p>
+              <p className="text-[10.5px] text-blue-600 mt-1">Perbaiki data atau berkas dan kirim ulang pengajuan Anda.</p>
+            </div>
           </div>
+          <button
+            onClick={() => setShowEditPopup(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[11px] font-bold hover:bg-blue-700 transition-colors shadow-xs shrink-0"
+          >
+            <Edit2 size={12} /> Edit & Kirim Revisi
+          </button>
         </div>
       )}
 
@@ -409,12 +475,20 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
       )}
 
       {verifState.status === "approved" && (
-        <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center gap-3">
-          <Check size={16} className="text-green-600 shrink-0" />
-          <div>
-            <p className="text-[12px] font-semibold text-green-800">✅ Disetujui Admin</p>
-            <p className="text-[11px] text-green-700">Berkas telah diverifikasi oleh Admin. Anda dapat melanjutkan ke tahap berikutnya.</p>
+        <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Check size={16} className="text-green-600 shrink-0" />
+            <div>
+              <p className="text-[12px] font-semibold text-green-800">✅ Disetujui Admin</p>
+              <p className="text-[11px] text-green-700">Pengajuan Park Document telah disetujui Admin. Selesai, silakan lanjut ke Pembayaran UMD.</p>
+            </div>
           </div>
+          <button
+            onClick={() => onNavigate("pembayaran-umd")}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#252271] text-white rounded-lg text-[11px] font-bold hover:bg-[#1a1860] transition-colors shrink-0 shadow-xs"
+          >
+            Lanjut ke Pembayaran UMD <ChevronRight size={12} />
+          </button>
         </div>
       )}
 
@@ -457,7 +531,14 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
                     </button>
                   )}
 
-                  {showLanjutBtn && (
+                  {verifState.status === "approved" ? (
+                    <button
+                      onClick={() => onNavigate("pembayaran-umd")}
+                      className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-bold transition-all bg-[#252271] hover:bg-[#1a1860] shadow-sm"
+                    >
+                      Selesai, Lanjut ke Pembayaran UMD <ChevronRight size={12} />
+                    </button>
+                  ) : showLanjutBtn && (
                     <button
                       onClick={handleSubmit}
                       disabled={!verifState.canProceed && verifState.status === "pending"}
@@ -476,6 +557,26 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate }: { item:
           </div>
         </div>
       </div>
+
+      {showEditPopup && (
+        <PembelianBaruPopup
+          title="Edit & Kirim Revisi Park Document"
+          submitLabel="Kirim Ulang Revisi →"
+          initialData={{
+            ...(allFd["buat-pd"] || {}),
+            ...(item.formData || {}),
+            emailPic: allFd["buat-pd"]?.emailPic || item.formData?.emailPic || currentUser?.email || "",
+            divisi: allFd["buat-pd"]?.subUnit || allFd["buat-pd"]?.divisi || item.formData?.subUnit || item.departemen || "",
+            judulPermohonan: allFd["buat-pd"]?.judulPermohonan || item.nama || "",
+            nominalPermohonan: allFd["buat-pd"]?.nominalPermohonan || item.nominal || "",
+            jenisPermohonan: allFd["buat-pd"]?.jenisPermohonan || item.formData?.jenisPermohonan || "",
+            detailPermohonan: allFd["buat-pd"]?.detailPermohonan || item.formData?.detailPermohonan || ""
+          }}
+          initialStep="pengajuan-dana"
+          onClose={() => setShowEditPopup(false)}
+          onSubmit={handleRevisionSubmit}
+        />
+      )}
     </div>
   );
 }

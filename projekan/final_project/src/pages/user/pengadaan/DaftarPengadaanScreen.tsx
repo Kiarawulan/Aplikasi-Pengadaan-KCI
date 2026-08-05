@@ -40,7 +40,11 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
           nama: newItem.nama,
           departemen: newItem.departemen,
           nominal: newItem.nominal,
-          form_data: newItem.formData
+          status: "pending",
+          form_data: {
+            ...(editingItem.formData || {}),
+            ...(newItem.formData || {})
+          }
         });
         await fetchItems();
         setEditingItem(null);
@@ -62,7 +66,7 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
       console.error("Gagal membuat pengadaan baru:", err);
       const msg = err.response?.data?.message || err.message || "Unknown error";
       const errs = err.response?.data?.errors ? JSON.stringify(err.response.data.errors) : "";
-      alert(`Gagal membuat pengadaan baru. Coba lagi. Error: ${msg} ${errs}`);
+      alert(`Gagal menyimpan pengadaan. Error: ${msg} ${errs}`);
     }
   };
 
@@ -143,8 +147,8 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
                         <button onClick={() => onSelectItem(item)} className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100" title="Buka Detail">
                           <Eye size={11} className="text-blue-600" />
                         </button>
-                        {(item.status === "pending" || item.status === "revisi") && (
-                          <button onClick={() => { setEditingItem(item); setShowPopup(true); }} className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center hover:bg-amber-100" title="Edit Park Document">
+                        {(item.status === "pending" || item.status === "revisi" || item.status === "Perlu Revisi" || item.status === "draft" || item.status === "Draft") && (
+                          <button onClick={() => { setEditingItem(item); setShowPopup(true); }} className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center hover:bg-amber-100" title="Edit & Kirim Revisi">
                             <Edit2 size={11} className="text-amber-600" />
                           </button>
                         )}

@@ -27,8 +27,10 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
       const pembayaranItems = res.data.filter((item: PengadaanItem) => {
         const completed = item.completedSteps || [];
         const isReadyForPembayaran =
-          (item.id.startsWith("PR-") && completed.includes("contract") && (completed.includes("pengujian") || item.currentStep === "pembayaran")) ||
-          (item.id.startsWith("PD-") && completed.includes("pengajuan-dana"));
+          item.currentStep === "pembayaran" ||
+          item.status === "Proses Pembayaran" ||
+          (item.id.startsWith("PR-") && (completed.includes("contract") || item.currentStep === "pembayaran")) ||
+          (item.id.startsWith("PD-") && (completed.includes("pengajuan-dana") || item.status === "approved" || item.status === "Selesai" || item.status === "Menunggu Verifikasi Admin"));
         const isPembayaran = isReadyForPembayaran && !completed.includes("pembayaran");
         if (!isPembayaran) return false;
 
@@ -132,6 +134,7 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
 
         {showPopup && (
           <BuatPembayaranPopup
+            paymentType={type}
             onClose={() => setShowPopup(false)}
             onSuccess={() => {
               setShowPopup(false);

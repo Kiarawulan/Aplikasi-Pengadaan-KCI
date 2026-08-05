@@ -5,6 +5,7 @@ import { FileUploadInput } from "@/components/common/FileUploadInput";
 import { SummaryRow } from "@/components/common/SummaryRow";
 import { ApprovedBadge } from "@/components/common/ApprovedBadge";
 import { getPengujianList } from "@/store/dataStore";
+import { useAuth } from "@/store/authStore";
 
 import { Sp3DetailView } from "./Sp3DetailView";
 
@@ -14,6 +15,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
   status?: string;
   item?: any;
 }) {
+  const { currentUser } = useAuth();
   const f = (k: string) => {
     if (allFd[subStepId]?.[k]) return allFd[subStepId][k];
     if (k === 'kurs') return allFd['kurs'] || item?.formData?.kurs || "";
@@ -25,6 +27,8 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
     if (!fd.kurs) fd.kurs = allFd['kurs'] || item?.formData?.kurs || "";
     return fd;
   };
+
+  const userEmail = currentUser?.email || "—";
 
   if (step === "npp" && subStepId === "buat-npp") return (
     <div>
@@ -77,7 +81,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
         </div>
         <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
           <SummaryRow label="Judul Permohonan" value={d["judulPermohonan"] || af.judulPermohonan || item?.nama} />
-          <SummaryRow label="Email PIC" value={d["emailPic"] || af.emailPic || item?.formData?.emailPic || "—"} />
+          <SummaryRow label="Email PIC" value={d["emailPic"] || af.emailPic || item?.formData?.emailPic || userEmail} />
           <SummaryRow label="Divisi" value={d["subUnit"] || af.subUnit || af.divisi || item?.formData?.subUnit || item?.departemen || "—"} />
           <SummaryRow label="Jenis Permohonan" value={d["jenisPermohonan"] || af.jenisPermohonan || item?.formData?.jenisPermohonan || "—"} />
           <SummaryRow label="Nominal Permohonan" value={d["nominalPermohonan"] || af.nominalPermohonan || item?.nominal} />
@@ -95,7 +99,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
         <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p><StatusDisplay /></div>
         <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
           <SummaryRow label="Judul Permohonan" value={fdFrom("buat-pr").judulPermohonan || af.judulPermohonan || item?.nama || "Pengadaan Laptop"} />
-          <SummaryRow label="Email PIC" value={fdFrom("buat-pr").emailPic || af.emailPic || item?.formData?.emailPic || "namaemail@email.com"} />
+          <SummaryRow label="Email PIC" value={fdFrom("buat-pr").emailPic || af.emailPic || item?.formData?.emailPic || userEmail} />
           <SummaryRow label="Divisi" value={fdFrom("buat-pr").subUnit || af.subUnit || af.divisi || item?.formData?.subUnit || item?.departemen || "IT"} />
           <SummaryRow label="Jenis Permohonan" value={fdFrom("buat-pr").jenisPermohonan || af.jenisPermohonan || item?.formData?.jenisPermohonan || "Barang"} />
           <SummaryRow label="Nominal Permohonan" value={fdFrom("buat-pr").nominalPermohonan || af.nominalPermohonan || item?.nominal || "Rp 100.000.000"} />
@@ -139,7 +143,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
         <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p>{contractStatus}</div>
         <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
           <SummaryRow label="Judul Pengadaan" value={item?.nama || "Judul Pengadaan"} />
-          <SummaryRow label="Email PIC" value={fdFrom("buat-pr").emailPic || "admin@perusahaan.com"} />
+          <SummaryRow label="Email PIC" value={fdFrom("buat-pr").emailPic || userEmail} />
           <SummaryRow label="Nominal" value={fdFrom("pbj").nilaiKontrak || item?.nominal || fdFrom("buat-npp").nilaiPr || "Nominal"} />
           <SummaryRow label="Vendor" value={fdFrom("pbj").pemenang || fdFrom("buat-npp").vendor || "Vendor"} />
           <SummaryRow label="COA" value={fdFrom("buat-npp").coa || "-"} />

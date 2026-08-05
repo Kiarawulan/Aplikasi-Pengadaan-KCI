@@ -52,7 +52,7 @@ class PengadaanController extends Controller
             ]);
 
             $flow = $request->flow ?? 'pd';
-            $status = $flow === 'pr' ? 'Draft PR' : 'Park Dokumen';
+            $status = 'Menunggu Verifikasi Admin';
 
             $prefix = $flow === 'pr' ? 'PR-' : 'PD-';
             $last = Pengadaan::where('id', 'regexp', '^' . $prefix . '[0-9]+$')->orderBy('id', 'desc')->first();

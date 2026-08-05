@@ -30,6 +30,7 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
         api.get('/verifikasi').catch(() => ({ data: [] }))
       ]);
 
+      const dbPeng = resPeng.data || [];
       const dbVerif = resVerif.data || [];
       const storeVerif = getVerifRecords();
 
@@ -49,19 +50,25 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
       const prList: any[] = [];
 
       combinedVerif.forEach((item: any) => {
+        const pId = item.pengadaan_id || item.id;
+        const matchingPeng = dbPeng.find((p: any) => p.id === pId);
+        const fd = matchingPeng?.formData || matchingPeng?.details || {};
+        const bPd = fd["buat-pd"] || fd["buat-pr"] || {};
+        const userEmailPic = bPd.emailPic || fd.emailPic || matchingPeng?.emailPic || item.emailPic || (item.submit_by && item.submit_by.includes("@") ? item.submit_by : "—");
+
         const mapped = {
-          id: item.pengadaan_id || item.id,
+          id: pId,
           verif_id: item.id,
-          emailPic: item.submit_by || "user@kci.co.id",
-          tahun: new Date().getFullYear().toString(),
-          divisi: item.departemen || "CTIT",
-          jenisPermohonan: item.tipe || "Barang",
-          judulPermohonan: item.pengadaan_nama || item.judul || "Permohonan Dana",
-          nominalPermohonan: item.nominal || "Rp 0",
-          nominalKonversi: item.nominal || "Rp 0",
-          rupId: item.pengadaan_id || "-",
+          emailPic: userEmailPic,
+          tahun: bPd.tahun || fd.tahun || new Date().getFullYear().toString(),
+          divisi: bPd.subUnit || bPd.divisi || matchingPeng?.departemen || item.departemen || "CTIT",
+          jenisPermohonan: bPd.jenisPermohonan || matchingPeng?.jenis || item.tipe || "Barang",
+          judulPermohonan: bPd.judulPermohonan || matchingPeng?.nama || item.pengadaan_nama || item.judul || "Permohonan Dana",
+          nominalPermohonan: bPd.nominalPermohonan || matchingPeng?.nominal || item.nominal || "Rp 0",
+          nominalKonversi: bPd.nominalKonversi || matchingPeng?.nominal || item.nominal || "Rp 0",
+          rupId: pId,
           tglPr: item.submit_at ? new Date(item.submit_at).toLocaleDateString("id-ID") : new Date().toLocaleDateString("id-ID"),
-          status: item.status || "Menunggu Verifikasi",
+          status: item.status || matchingPeng?.status || "pending",
         };
 
         if (item.tipe === "park-dokumen" || item.tipe === "pd" || item.tipe === "pengajuan-dana") {

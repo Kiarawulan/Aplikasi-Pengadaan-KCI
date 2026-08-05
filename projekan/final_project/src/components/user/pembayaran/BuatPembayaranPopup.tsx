@@ -4,9 +4,10 @@ import type { PengadaanItem } from "@/types";
 import { api } from "@/services/api";
 
 
-export function BuatPembayaranPopup({ onClose, onSuccess }: {
+export function BuatPembayaranPopup({ onClose, onSuccess, paymentType }: {
   onClose: () => void;
   onSuccess: (item: PengadaanItem) => void;
+  paymentType?: "outsource" | "non-outsource" | "umd" | "payment-request";
 }) {
   const [items, setItems] = useState<PengadaanItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,19 +18,35 @@ export function BuatPembayaranPopup({ onClose, onSuccess }: {
   useEffect(() => {
     api.get("/pengadaan")
       .then((res) => {
-        // Filter: eligible for pembayaran if Pengujian is finished (has completed 'pengujian') 
-        // OR Pengadaan is finished (has 'contract') and didn't need pengujian. 
-        // For simplicity, we just allow any Pengadaan that has 'contract' completed and isn't already in pembayaran.
         const eligible = res.data.filter((item: PengadaanItem) => {
           const completed = item.completedSteps || [];
-          const isReady = item.status === "Selesai" || completed.includes("pengujian") || (item.id.startsWith("PD-") && completed.includes("pengajuan-dana")) || completed.includes("contract") || completed.includes("pbj") || completed.includes("sp3") || (item.status && item.status.includes("Disetujui Admin"));
+          const isReady = item.status === "Selesai" ||
+            completed.includes("pengujian") ||
+            (item.id.startsWith("PD-") && (completed.includes("pengajuan-dana") || item.status === "approved" || item.status === "Menunggu Verifikasi Admin")) ||
+            completed.includes("contract") ||
+            completed.includes("pbj") ||
+            completed.includes("sp3") ||
+            (item.status && item.status.includes("Disetujui Admin")) ||
+            item.status === "approved";
+
           const isAlreadyInPembayaran = item.currentStep === "pembayaran";
-          return isReady && !isAlreadyInPembayaran;
+          if (!isReady || isAlreadyInPembayaran) return false;
+
+          // Scope scoping rule requested by user:
+          // Park Document (PD-) items are ONLY for UMD.
+          // Outsource, non-outsource, and payment-request MUST NOT show PD- items.
+          if (paymentType === "umd") {
+            return item.id.startsWith("PD-");
+          } else if (paymentType === "outsource" || paymentType === "non-outsource" || paymentType === "payment-request") {
+            return !item.id.startsWith("PD-");
+          }
+
+          return true;
         });
         setItems(eligible);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [paymentType]);
 
   const filtered = items.filter(
     (item) => item.nama.toLowerCase().includes(search.toLowerCase()) || item.id.toLowerCase().includes(search.toLowerCase())
@@ -41,6 +58,7 @@ export function BuatPembayaranPopup({ onClose, onSuccess }: {
     try {
       const res = await api.put(`/pengadaan/${selectedId}`, {
         currentStep: "pembayaran",
+        completedStepId: selectedId.startsWith("PD-") ? "pengajuan-dana" : "contract",
         status: "Proses Pembayaran"
       });
       onSuccess(res.data);
