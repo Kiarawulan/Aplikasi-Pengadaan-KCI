@@ -8,6 +8,15 @@ const LS_VENDORS = "sipro_vendors";
 const LS_HARGA = "sipro_harga_satuan";
 const LS_PENGUJIAN = "sipro_pengujian";
 const LS_RUP = "sipro_rup";
+const DATA_CACHE_VERSION = "sipro_business_data_version";
+const BUSINESS_CACHE_KEYS = [LS_PENGADAAN, LS_VERIF, LS_TEMPLATES, LS_VENDORS, LS_HARGA, LS_PENGUJIAN, LS_RUP];
+
+// Business records must come from Laravel/MySQL. Clear the legacy browser
+// samples once so an old localStorage value cannot reappear in any table.
+if (typeof window !== "undefined" && localStorage.getItem(DATA_CACHE_VERSION) !== "database-v1") {
+  BUSINESS_CACHE_KEYS.forEach((key) => localStorage.removeItem(key));
+  localStorage.setItem(DATA_CACHE_VERSION, "database-v1");
+}
 
 // ─── Default Data ─────────────────────────────────────────────────────────────
 const DEFAULT_PENGADAAN: PengadaanItem[] = [
@@ -78,9 +87,8 @@ function getOrInit<T>(key: string, defaults: T[]): T[] {
   try {
     const raw = localStorage.getItem(key);
     if (raw) return JSON.parse(raw);
-    localStorage.setItem(key, JSON.stringify(defaults));
-    return defaults;
-  } catch { return defaults; }
+    return [];
+  } catch { return []; }
 }
 
 function save<T>(key: string, data: T[]) {

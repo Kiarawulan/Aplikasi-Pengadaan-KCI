@@ -1,10 +1,27 @@
+import { useEffect, useState } from "react";
 import { Search, Download } from "lucide-react";
 import { TopBar } from "@/components/user/layout/TopBar";
-import { getTemplates } from "@/store/dataStore";
+import { api } from "@/services/api";
+import type { TemplateDokumen } from "@/types";
 
 
 export function TemplateDokumenScreen() {
-  const docs = getTemplates();
+  const [docs, setDocs] = useState<TemplateDokumen[]>([]);
+
+  useEffect(() => {
+    api.get("/templates")
+      .then((response) => setDocs(response.data.map((item: any) => ({
+        id: item.id,
+        nama: item.nama,
+        kategori: item.kategori,
+        tipe: item.tipe,
+        ukuran: item.ukuran,
+        deskripsi: item.deskripsi,
+        uploadedBy: item.uploaded_by,
+        uploadedAt: item.uploaded_at,
+      }))))
+      .catch((error) => console.error("Gagal mengambil template dokumen:", error));
+  }, []);
 
   return (
     <div>

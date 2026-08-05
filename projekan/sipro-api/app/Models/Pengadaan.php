@@ -15,6 +15,7 @@ class Pengadaan extends Model
 
     protected $fillable = [
         'id',
+        'flow_type',
         'nama',
         'departemen',
         'nominal',
@@ -22,11 +23,14 @@ class Pengadaan extends Model
         'status',
         'current_step',
         'created_by',
+        'updated_by',
+        'submitted_at',
         'form_data',
     ];
 
     protected $casts = [
         'tanggal' => 'date',
+        'submitted_at' => 'datetime',
         'form_data' => 'array',
     ];
 
@@ -43,5 +47,15 @@ class Pengadaan extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by', 'id');
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class, 'pengadaan_id', 'id');
+    }
+
+    public function documents()
+    {
+        return $this->hasMany(UploadedDocument::class, 'pengadaan_id', 'id');
     }
 }

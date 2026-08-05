@@ -15,11 +15,19 @@ class Pengujian extends Model
 
     protected $fillable = [
         'id',
+        'pengadaan_id',
         'nama',
         'pemohon',
         'departemen',
         'tanggal',
         'status',
         'catatan',
+        'requested_by',
+        'scheduled_at',
+        'scheduled_by',
+        'bahp_path',
+        'details',
     ];
+
+    protected $casts = ['scheduled_at' => 'datetime', 'details' => 'array'];
 }

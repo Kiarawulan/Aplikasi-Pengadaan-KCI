@@ -19,30 +19,8 @@ export function BuatPembayaranPopup({ onClose, onSuccess, paymentType }: {
     api.get("/pengadaan")
       .then((res) => {
         const eligible = res.data.filter((item: PengadaanItem) => {
-          const completed = item.completedSteps || [];
-          const statusLower = item.status?.toLowerCase() || "";
-
-          if (paymentType === "umd") {
-            const isPd = item.id.startsWith("PD-");
-            const isApproved = statusLower === "approved" ||
-                               statusLower === "selesai" ||
-                               statusLower.includes("disetujui") ||
-                               completed.includes("pengajuan-dana");
-            return isPd && isApproved;
-          }
-
-          const isReady = item.status === "Selesai" ||
-            completed.includes("pengujian") ||
-            completed.includes("contract") ||
-            completed.includes("pbj") ||
-            completed.includes("sp3") ||
-            statusLower.includes("disetujui") ||
-            statusLower === "approved";
-
-          const isAlreadyInPembayaran = item.currentStep === "pembayaran";
-          if (!isReady || isAlreadyInPembayaran) return false;
-
-          return !item.id.startsWith("PD-");
+          if (item.currentStep !== "pembayaran") return false;
+          return paymentType === "umd" ? item.id.startsWith("PD-") : item.id.startsWith("PR-");
         });
         setItems(eligible);
       })
@@ -57,12 +35,12 @@ export function BuatPembayaranPopup({ onClose, onSuccess, paymentType }: {
     if (!selectedId) return;
     setSubmitting(true);
     try {
-      const res = await api.put(`/pengadaan/${selectedId}`, {
-        currentStep: "pembayaran",
-        completedStepId: selectedId.startsWith("PD-") ? "pengajuan-dana" : "contract",
-        status: "Proses Pembayaran"
+      await api.post("/payments", {
+        pengadaan_id: selectedId,
+        payment_type: paymentType || (selectedId.startsWith("PD-") ? "umd" : "outsource"),
+        form_data: {},
       });
-      onSuccess(res.data);
+      onSuccess(items.find((item) => item.id === selectedId)!);
     } catch (err) {
       console.error(err);
       alert("Gagal membuat pembayaran.");

@@ -95,6 +95,10 @@ function UserApp() {
     }
   }, [screen, selectedItem]);
 
+  useEffect(() => {
+    if (selectedItem?.id) sessionStorage.setItem("sipro_active_pengadaan_id", selectedItem.id);
+  }, [selectedItem?.id]);
+
   const handleNavigate = (s: Screen) => {
     setScreen(s);
     localStorage.setItem("sipro_last_user_screen", s);
@@ -108,6 +112,7 @@ function UserApp() {
     if (!item || !item.id) return;
     setSelectedItem(item);
     localStorage.setItem("sipro_last_selected_item", JSON.stringify(item));
+    sessionStorage.setItem("sipro_active_pengadaan_id", item.id);
     const bScreen = targetBackScreen || screen;
     setBackScreen(bScreen);
     localStorage.setItem("sipro_last_back_screen", bScreen);

@@ -37,7 +37,6 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   const steps = [...PD_MAIN_STEPS];
 
   const goToUmdPayment = () => {
-    api.put(`/pengadaan/${item.id}`, { currentStep: "pembayaran", status: "Proses Pembayaran" }).catch(() => {});
     const pIdx = steps.findIndex(s => s.id === "pembayaran");
     if (pIdx !== -1) {
       setActiveStepIdx(pIdx);
@@ -121,6 +120,13 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             ...(newItem.formData || {})
           }
         }
+      });
+      await api.post(`/pengadaan/${item.id}/submit-step`, {
+        stepId: "pengajuan-dana",
+        form_data: {
+          ...(allFd || {}),
+          ...(newItem.formData || {}),
+        },
       });
       setAllFd(prev => ({
         ...prev,
@@ -272,16 +278,6 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       } else {
         setCompletedStepIds(p => {
           const next = new Set([...p, activeStep.id]);
-          if (activeStepIdx < steps.length - 1) {
-            api.put(`/pengadaan/${item.id}`, {
-              currentStep: steps[activeStepIdx + 1].id,
-              completedStepId: activeStep.id
-            }).catch(() => { });
-          } else {
-            api.put(`/pengadaan/${item.id}`, {
-              status: "Selesai"
-            }).catch(() => { });
-          }
           return next;
         });
         if (activeStepIdx < steps.length - 1) {
@@ -290,20 +286,20 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         }
       }
     } else {
-      // Submit current sub-step to backend API for Admin verification
-      // For pembayaran step (UMD), use 'umd' as tipe so admin sees it in UMD payment verification
-      const tipeToSubmit = activeStep.id === 'pembayaran' ? 'umd' : activeSub.id;
       try {
-        await api.post(`/pengadaan/${item.id}/submit-step`, {
-          stepId: activeStep.id,
-          tipe: tipeToSubmit,
-        });
-        // Also save the UMD form data to backend when submitting
         if (activeStep.id === 'pembayaran') {
           const umdFormData = { ...allFd, umdData: allFd['umdData'] || {} };
-          await api.put(`/pengadaan/${item.id}/form-data`, umdFormData).catch(() => {});
+          await api.post('/payments', { pengadaan_id: item.id, payment_type: 'umd', form_data: umdFormData });
+        } else {
+          await api.post(`/pengadaan/${item.id}/submit-step`, {
+            stepId: activeStep.id,
+            form_data: allFd,
+          });
         }
-      } catch { }
+      } catch (error: any) {
+        alert(error.response?.data?.message || "Gagal mengirim pengajuan.");
+        return;
+      }
 
       const nextSubs = new Set([...submittedSubs, subKey(activeStep.id, activeSub.id)]);
       setSubmittedSubs(nextSubs);

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import type { AppUser, AppRole, AuthContextType, RolePermissions, AccessLevel } from "../types";
 import { api } from "../services/api";
 
-// Default roles for UI fallback
+// Default roles for the existing UI fallback.
 export const DEFAULT_ROLES: AppRole[] = [
   {
     id: "role-admin",
@@ -19,57 +19,15 @@ export const DEFAULT_ROLES: AppRole[] = [
     },
   },
   {
-    id: "role-logistik",
-    name: "Logistik",
-    description: "Akses ke pengadaan dan kontrak",
-    isSystem: true,
-    roleType: "user",
-    color: "#252271",
-    createdAt: "2024-01-01",
-    permissions: {
-      pengajuanDana: "viewer", pengadaan: "editor", pengujian: "viewer",
-      pembayaran: "viewer", templateDokumen: "viewer", masterData: "viewer",
-      userManagement: "no-access", dashboard: "viewer",
-    },
-  },
-  {
-    id: "role-pbj",
-    name: "PBJ",
-    description: "Akses ke proses pengadaan barang dan jasa",
-    isSystem: true,
-    roleType: "user",
-    color: "#16a34a",
-    createdAt: "2024-01-01",
-    permissions: {
-      pengajuanDana: "viewer", pengadaan: "editor", pengujian: "viewer",
-      pembayaran: "no-access", templateDokumen: "viewer", masterData: "viewer",
-      userManagement: "no-access", dashboard: "viewer",
-    },
-  },
-  {
-    id: "role-finance",
-    name: "Finance",
-    description: "Akses ke pembayaran dan pengajuan dana",
-    isSystem: true,
-    roleType: "user",
-    color: "#d97706",
-    createdAt: "2024-01-01",
-    permissions: {
-      pengajuanDana: "editor", pengadaan: "viewer", pengujian: "viewer",
-      pembayaran: "editor", templateDokumen: "viewer", masterData: "viewer",
-      userManagement: "no-access", dashboard: "viewer",
-    },
-  },
-  {
     id: "role-it",
     name: "IT",
     description: "Akses terbatas untuk departemen IT",
     isSystem: false,
-    roleType: "admin",
+    roleType: "user",
     color: "#7c3aed",
     createdAt: "2024-01-01",
     permissions: {
-      pengajuanDana: "editor", pengadaan: "editor", pengujian: "editor",
+      pengajuanDana: "editor", pengadaan: "editor", pengujian: "viewer",
       pembayaran: "viewer", templateDokumen: "viewer", masterData: "no-access",
       userManagement: "no-access", dashboard: "viewer",
     },
@@ -78,10 +36,7 @@ export const DEFAULT_ROLES: AppRole[] = [
 
 export const DEFAULT_USERS: AppUser[] = [
   { id: "user-admin", email: "admin@sipro.com", name: "Super Admin", password: "admin123", roleId: "role-admin", departemen: "Management", isActive: true, isAdmin: true, createdAt: "2024-01-01" },
-  { id: "user-logistik", email: "logistik@sipro.com", name: "Budi Santoso", password: "logistik123", roleId: "role-logistik", departemen: "Logistik", isActive: true, isAdmin: false, createdAt: "2024-01-10" },
-  { id: "user-it", email: "it@sipro.com", name: "Andi Wijaya", password: "it123", roleId: "role-it", departemen: "CTIT", isActive: true, isAdmin: false, createdAt: "2024-01-12" },
-  { id: "user-finance", email: "finance@sipro.com", name: "Sari Dewi", password: "finance123", roleId: "role-finance", departemen: "Finance", isActive: true, isAdmin: false, createdAt: "2024-01-15" },
-  { id: "user-pbj", email: "pbj@sipro.com", name: "Reza Pratama", password: "pbj123", roleId: "role-pbj", departemen: "PBJ", isActive: true, isAdmin: false, createdAt: "2024-02-01" },
+  { id: "user-it", email: "it@sipro.com", name: "User IT", password: "it123", roleId: "role-it", departemen: "CTIT", isActive: true, isAdmin: false, createdAt: "2024-01-12" },
 ];
 
 const LS_USERS = "sipro_users";
@@ -180,12 +135,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser(appUser);
       return { success: true };
     } catch (err: any) {
-      console.warn("Laravel API login unavailable or failed, falling back to local auth:", err?.response?.data || err?.message);
+      if (err?.response) {
+        return { success: false, error: err?.response?.data?.message || err?.response?.data?.errors?.email?.[0] || "Email atau password salah." };
+      }
 
-      // 2. Fallback to Local Auth if API offline
+      console.warn("Laravel API unavailable, using the limited offline UI:", err?.message);
       const users = getUsers();
       const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-      if (!user) return { success: false, error: err?.response?.data?.message || err?.response?.data?.errors?.email?.[0] || "Email atau password salah." };
+      if (!user) return { success: false, error: "Email atau password salah." };
       if (!user.isActive) return { success: false, error: "Akun ini telah dinonaktifkan." };
 
       const updatedUser = { ...user, lastLogin: new Date().toISOString() };
@@ -249,8 +206,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
         }
         setCurrentUser(appUser);
-      } catch (err) {
-        // ignore if failed
+      } catch {
+        // The database may have been reset while the browser still holds an old token.
+        // Remove the stale session so the user is returned to the login screen.
+        localStorage.removeItem(LS_TOKEN);
+        localStorage.removeItem(LS_CURRENT);
+        setApiRole(null);
+        setCurrentUser(null);
       }
     };
 

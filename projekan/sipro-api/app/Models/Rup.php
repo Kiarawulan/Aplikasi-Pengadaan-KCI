@@ -12,4 +12,22 @@ class Rup extends Model
     protected $guarded = [];
     public $incrementing = false;
     protected $keyType = 'string';
+
+    protected $fillable = [
+        'id',
+        'nama',
+        'jenis',
+        'metode',
+        'nilai',
+        'status',
+        'progress',
+        'departemen',
+        'created_by',
+        'details',
+        'catatan_admin',
+    ];
+
+    protected $casts = [
+        'details' => 'array',
+    ];
 }

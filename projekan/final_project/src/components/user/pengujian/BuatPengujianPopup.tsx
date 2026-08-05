@@ -15,15 +15,10 @@ export function BuatPengujianPopup({ onClose, onSuccess }: {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get("/pengadaan")
-      .then((res) => {
-        const eligible = res.data.filter((item: PengadaanItem) => {
-          const completed = item.completedSteps || [];
-          const isPengadaanDone = item.status === "Selesai" || completed.includes("contract") || completed.includes("pbj") || completed.includes("sp3") || (item.status && item.status.includes("Disetujui Admin"));
-          const isAlreadyInNextFlow = item.currentStep === "pengujian" || item.currentStep === "pembayaran";
-          return isPengadaanDone && !isAlreadyInNextFlow;
-        });
-        setItems(eligible);
+    Promise.all([api.get("/pengadaan"), api.get("/pengujian")])
+      .then(([pengadaanResponse, pengujianResponse]) => {
+        const requestedIds = new Set(pengujianResponse.data.map((item: any) => item.pengadaan_id));
+        setItems(pengadaanResponse.data.filter((item: PengadaanItem) => item.currentStep === "pengujian" && !requestedIds.has(item.id)));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -36,11 +31,8 @@ export function BuatPengujianPopup({ onClose, onSuccess }: {
     if (!selectedId) return;
     setSubmitting(true);
     try {
-      const res = await api.put(`/pengadaan/${selectedId}`, {
-        currentStep: "pengujian",
-        status: "Proses Pengujian"
-      });
-      onSuccess(res.data);
+      await api.post("/pengujian", { pengadaan_id: selectedId });
+      onSuccess(items.find((item) => item.id === selectedId)!);
     } catch (err) {
       console.error(err);
       alert("Gagal membuat pengujian.");

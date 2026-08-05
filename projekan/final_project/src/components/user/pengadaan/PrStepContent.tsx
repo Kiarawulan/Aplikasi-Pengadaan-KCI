@@ -6,7 +6,6 @@ import { SummaryRow } from "@/components/common/SummaryRow";
 import { ApprovedBadge } from "@/components/common/ApprovedBadge";
 import { getPengujianList } from "@/store/dataStore";
 import { useAuth } from "@/store/authStore";
-
 import { Sp3DetailView } from "./Sp3DetailView";
 
 export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {

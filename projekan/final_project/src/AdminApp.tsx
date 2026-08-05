@@ -86,6 +86,88 @@ type PembayaranDoc =
   | "pembayaran-spm"
   | "pembayaran-verification";
 
+// Semua tabel verifikasi memakai sumber yang sama: record yang dibuat User
+// tersimpan di backend, dibaca Admin, lalu statusnya dikirim kembali ke User.
+// Bentuk data di bawah hanya menyesuaikan nama kolom lama agar tampilan tetap utuh.
+function useAdminVerificationQueue(types: string) {
+  const [items, setItems] = useState<any[]>([]);
+
+  const refresh = React.useCallback(async () => {
+    try {
+      const response = await api.get(`/verifikasi?tipe=${types}`);
+      setItems(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error(`Gagal memuat antrean ${types}`, error);
+      setItems([]);
+    }
+  }, [types]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const process = async (verificationId: string, action: "approve" | "revisi" | "reject", catatan?: string) => {
+    const payload = action === "approve" ? undefined : { catatan: catatan?.trim() || "Perlu penyesuaian dokumen." };
+    await api.post(`/verifikasi/${verificationId}/${action}`, payload);
+    await refresh();
+  };
+
+  return { items, refresh, process };
+}
+
+function mapVerificationRow(verifikasi: any) {
+  const form = verifikasi.document_form_data || verifikasi.pengadaan_form_data || {};
+  const document = verifikasi.document || {};
+  const nominal = verifikasi.nominal || form.nilaiKontrak || form.nilai || form.nominal || "-";
+  const packageName = verifikasi.pengadaan_nama || form.namaPaket || form.judul || form.nama || "Pengadaan";
+  const reference = document.nomor_sp3 || document.no_sp3 || document.no_kontrak || form.nomorSp3 || form.noSp3 || verifikasi.pengadaan_id;
+
+  return {
+    ...verifikasi,
+    ...document,
+    formData: form,
+    idNpp: form.idNpp || form.noNpp || verifikasi.pengadaan_id,
+    idRup: form.idRup || form.rupId || "-",
+    noCont: document.no_kontrak || form.nomorKontrak || "-",
+    opexCapex: form.opexCapex || form.opex_capex || "-",
+    kategori: form.kategori || form.category || "-",
+    tahun: form.tahun || (verifikasi.submit_at ? new Date(verifikasi.submit_at).getFullYear().toString() : "-"),
+    sp3Final: reference,
+    statusHps: form.statusHps || "-",
+    noRequest: document.nomor_pengujian || document.reference_number || verifikasi.id,
+    noSp3: reference,
+    sp3: document.no_sp3 || form.nomorSp3 || form.noSp3 || reference,
+    nppNo: document.no_npp || form.noNpp || form.nomorNpp || verifikasi.pengadaan_id,
+    noKontrak: document.no_kontrak || form.nomorKontrak || form.noKontrak || reference,
+    noPembayaran: document.nomor_pembayaran || document.payment_number || form.nomorPembayaran || verifikasi.id,
+    procTitle: packageName,
+    title: document.judul || document.paket || form.judul || packageName,
+    namaPaket: packageName,
+    judulPengadaan: packageName,
+    namaPengujian: document.nama || form.namaPengujian || packageName,
+    nilaiPr: nominal,
+    nilaiPo: nominal,
+    nilaiKontrak: nominal,
+    nilaiTagihan: document.nominal || document.amount || nominal,
+    rkap: form.rkap || nominal,
+    taxValue: form.taxValue || form.pajak || "-",
+    dept: verifikasi.departemen || form.departemen || "-",
+    divisi: verifikasi.departemen || form.departemen || "-",
+    vendor: document.vendor || form.vendor || form.namaVendor || "-",
+    vendorName: document.vendor || form.vendor || form.namaVendor || "-",
+    tanggalPermohonan: verifikasi.submit_at ? new Date(verifikasi.submit_at).toLocaleDateString("id-ID") : "-",
+    tanggalRequest: verifikasi.submit_at ? new Date(verifikasi.submit_at).toLocaleDateString("id-ID") : "-",
+    pemohon: verifikasi.submit_by || "-",
+    assignTo: verifikasi.verified_by || "-",
+    realisasi: form.realisasi || "-",
+    nilaiEfisiensi: form.nilaiEfisiensi || "-",
+    nomorMemoInternal: form.nomorMemoInternal || document.nomor_memo || "-",
+    tanggalMemo: form.tanggalMemo || "-",
+    status: verifikasi.status || "pending",
+    verif_id: verifikasi.id,
+  };
+}
+
 // ─── Sample data ─────────────────────────────────────────────────────────────
 const USERS = [
   { id: 1, initial: "A", color: "bg-[#fee2e2]", textColor: "text-[#dc2626]", name: "Ahmad Fauzi", email: "ahmad@mail.co.id", dept: "CTIT", role: "Admin Full Access", roleColor: "bg-[#fef2f2] text-[#b91c1c]", active: true },
@@ -1907,6 +1989,20 @@ const NPP_ROWS: NppRow[] = [
 ];
 
 function NppDetailPage({ row, onBack }: { row: NppRow; onBack: () => void }) {
+  const process = async (action: "approve" | "revisi" | "reject") => {
+    const verifId = (row as any).verif_id;
+    if (!verifId) return alert("ID verifikasi NPP tidak ditemukan.");
+    const catatan = action === "approve" ? undefined : prompt(action === "revisi" ? "Catatan revisi:" : "Alasan penolakan:");
+    if (action !== "approve" && !catatan) return;
+    try {
+      await api.post(`/verifikasi/${verifId}/${action}`, catatan ? { catatan } : undefined);
+      alert(action === "approve" ? "NPP berhasil disetujui!" : action === "revisi" ? "Catatan revisi telah dikirim!" : "NPP berhasil ditolak.");
+      onBack();
+    } catch (error: any) {
+      alert(error.response?.data?.message || "Gagal memproses NPP.");
+    }
+  };
+
   return (
     <div className="flex-1 min-h-0 overflow-auto bg-[#f8fafc]">
       <div className="px-[44px] py-[20px]">
@@ -1925,9 +2021,9 @@ function NppDetailPage({ row, onBack }: { row: NppRow; onBack: () => void }) {
         <div className="bg-white rounded-[15px] border border-[#e5e7eb] p-[24px] shadow-sm mb-[20px]">
           <NppDetailView
             item={row}
-            onApprove={() => { alert("NPP berhasil disetujui!"); onBack(); }}
-            onRevisi={() => { alert("Catatan revisi telah dikirim!"); onBack(); }}
-            onReject={() => { alert("NPP berhasil ditolak."); onBack(); }}
+            onApprove={() => process("approve")}
+            onRevisi={() => process("revisi")}
+            onReject={() => process("reject")}
           />
         </div>
       </div>
@@ -1956,17 +2052,13 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
       ]);
 
       const dbVerif = resVerif.data || [];
-      const storeVerif = getVerifRecords();
+      const storeVerif: any[] = [];
       const dbRup = resRup.data || [];
-      const storeRup = getRupList();
+      const storeRup: any[] = [];
 
       const map = new Map<string, any>();
 
-      const initialMocks = [
-        { idRup: "RUP-2024-001", id: "RUP-2024-001", nama: "Pengadaan Server Data Center KCI", vpDept: "VP CTIT", status: "Final", tahun: "2024", opex: "CAPEX" },
-        { idRup: "RUP-2024-002", id: "RUP-2024-002", nama: "Jasa Pemeliharaan AC Depo Bukit Duri", vpDept: "VP Logistik", status: "Final", tahun: "2024", opex: "OPEX" },
-      ];
-      initialMocks.forEach(m => map.set(m.idRup, m));
+      const initialMocks: any[] = [];
 
       dbRup.forEach((r: any) => {
         const st = r.status === "approved" || r.status === "Approved" || r.status === "Final" ? "Final" : (r.status || "Draft");
@@ -2041,10 +2133,9 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
     const target = targetRow || selectedRow;
     if (!target) return;
     try {
-      if (target.verif_id && !target.verif_id.startsWith("VR-RUP")) {
-        await api.post(`/verifikasi/${target.verif_id}/approve`).catch(() => {});
+      if (target.verif_id) {
+        await api.post(`/verifikasi/${target.verif_id}/approve`);
       }
-      await api.put(`/rup/${target.idRup}`, { status: "approved" }).catch(() => {});
       updateRup(target.idRup, { status: "approved" });
       if (target.verif_id) {
         updateVerifRecord(target.verif_id, { status: "approved" });
@@ -2617,31 +2708,39 @@ function RupSignedPage() {
 }
 
 // ─── SP3 Page ─────────────────────────────────────────────────────────────────
-const SP3_ROWS = [
-  { noSp3: "SP3-2024-001", procTitle: "Pengadaan Server CTIT 2024", rkap: "Rp 500.000.000", dept: "CTIT", taxValue: "Rp 55.000.000", realisation: "—", status: "Draft" },
-  { noSp3: "SP3-2024-002", procTitle: "Pengadaan Alat Logistik 2024", rkap: "Rp 200.000.000", dept: "Logistik", taxValue: "Rp 22.000.000", realisation: "—", status: "Final" },
-];
-
 function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "detail">("list");
-  const [selectedRow, setSelectedRow] = useState<typeof SP3_ROWS[0] | null>(null);
+  const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const [showDelete, setShowDelete] = useState(false);
   const [showApprove, setShowApprove] = useState(false);
   const [showReject, setShowReject] = useState(false);
+  const [actionNote, setActionNote] = useState("");
   const [activeTab, setActiveTab] = useState<"informasi" | "evaluasi">("evaluasi");
+  const { items: verificationItems, process: processVerification } = useAdminVerificationQueue("sp3");
 
-  const rows = SP3_ROWS.filter(
+  const rows = verificationItems.map(mapVerificationRow).filter(
     (r) => r.noSp3.toLowerCase().includes(search.toLowerCase()) || r.procTitle.toLowerCase().includes(search.toLowerCase())
   );
+
+  const submitAction = async (action: "approve" | "reject") => {
+    if (!selectedRow?.verif_id) return;
+    try {
+      await processVerification(selectedRow.verif_id, action, actionNote);
+      setActionNote("");
+      setShowApprove(false);
+      setShowReject(false);
+      setView("list");
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Proses SP3 gagal disimpan.");
+    }
+  };
 
   const breadcrumb = subPage === "task-approval" ? "SP3 > Task Approval" : "SP3 > List Signed SP3";
 
   const [showSignedUpload, setShowSignedUpload] = useState(false);
   const [signedSearch, setSignedSearch] = useState("");
-  const [sp3SignedList, setSp3SignedList] = useState([
-    { idSp3: "SP3-2024-001", namaFile: "SP3-Signed-001.pdf", tanggal: "13-JAN-2026", status: "Uploaded" },
-  ]);
+  const [sp3SignedList, setSp3SignedList] = useState<any[]>([]);
 
   if (subPage === "list-signed") {
     const filteredSigned = sp3SignedList.filter(
@@ -2794,7 +2893,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
           </div>
 
           <div className="bg-white border border-[#e5e7eb] rounded-[15px] p-[24px] shadow-sm mb-[20px]">
-            <Sp3DetailView item={selectedRow} />
+            <Sp3DetailView item={selectedRow} showActions={false} />
           </div>
 
           <div className="flex gap-[10px] justify-end">
@@ -2811,7 +2910,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
                 <p className="text-[#0f172a] text-[14px] text-center">Apakah kamu yakin ingin menyetujui SP3 ini?</p>
                 <div className="flex gap-[12px] justify-center">
                   <button onClick={() => setShowApprove(false)} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Cancel</button>
-                  <button onClick={() => setShowApprove(false)} className="px-[24px] py-[8px] rounded-[8px] bg-[#252271] text-white text-[13px] font-medium hover:brightness-110 transition-colors active:scale-95">Approve</button>
+                  <button onClick={() => submitAction("approve")} className="px-[24px] py-[8px] rounded-[8px] bg-[#252271] text-white text-[13px] font-medium hover:brightness-110 transition-colors active:scale-95">Approve</button>
                 </div>
               </div>
             </div>
@@ -2823,10 +2922,10 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
               <div className="bg-[#cc0000] px-[24px] py-[12px]"><p className="text-white text-[14px] font-bold">Reject SP3</p></div>
               <div className="p-[32px] flex flex-col gap-[16px]">
                 <p className="text-[#0f172a] text-[14px] text-center">Masukkan alasan penolakan:</p>
-                <textarea className="w-full h-[90px] border border-[#d1d5dc] rounded-[8px] px-[12px] py-[8px] text-[13px] outline-none focus:border-[#252271] resize-none transition-colors" placeholder="Alasan reject..." />
+                <textarea value={actionNote} onChange={(event) => setActionNote(event.target.value)} className="w-full h-[90px] border border-[#d1d5dc] rounded-[8px] px-[12px] py-[8px] text-[13px] outline-none focus:border-[#252271] resize-none transition-colors" placeholder="Alasan reject..." />
                 <div className="flex gap-[12px] justify-center">
                   <button onClick={() => setShowReject(false)} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Cancel</button>
-                  <button onClick={() => setShowReject(false)} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] transition-colors active:scale-95">Reject</button>
+                  <button onClick={() => submitAction("reject")} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] transition-colors active:scale-95">Reject</button>
                 </div>
               </div>
             </div>
@@ -3018,20 +3117,6 @@ const PBJ_STEPS = [
   "Penunjukan Pemenang (SPPBJ)"
 ];
 
-type PbjRow = { noSp3: string; namaPaket: string; nilaiKontrak: string; vendor: string; status: string };
-
-const PBJ_LIST_ROWS: PbjRow[] = [
-  { noSp3: "SP3-2024-001", namaPaket: "Pengadaan Server CTIT 2024", nilaiKontrak: "Rp 500.000.000", vendor: "PT Maju Bersama", status: "Draft" },
-  { noSp3: "SP3-2024-002", namaPaket: "Pengadaan Alat Logistik 2024", nilaiKontrak: "Rp 200.000.000", vendor: "CV Logistik Sejahtera", status: "Final" },
-];
-
-type PbjMemoRow = { noSp3: string; nomorMemo: string; tanggalMemo: string; perihal: string; status: string };
-
-const PBJ_MEMO_ROWS: PbjMemoRow[] = [
-  { noSp3: "SP3-2024-001", nomorMemo: "MI-2024-001", tanggalMemo: "15-01-2024", perihal: "Permohonan Persetujuan PBJ Server CTIT", status: "Draft" },
-  { noSp3: "SP3-2024-002", nomorMemo: "MI-2024-002", tanggalMemo: "20-01-2024", perihal: "Permohonan Persetujuan PBJ Alat Logistik", status: "Final" },
-];
-
 // shared filter+table shell (matching user reference images)
 function DocFilterBar({ onSearch, search }: { search: string; onSearch: (v: string) => void }) {
   return (
@@ -3073,25 +3158,14 @@ function DocFilterBar({ onSearch, search }: { search: string; onSearch: (v: stri
 }
 
 // ─── Proses PBJ Detail ────────────────────────────────────────────────────────
-function ProsesPBJPage({ row, breadcrumbFrom, onBack }: { row: any; breadcrumbFrom: string; onBack: () => void }) {
-  const [activeStep, setActiveStep] = useState(0);
+function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSaveStep, onUpload }: { row: any; breadcrumbFrom: string; onBack: () => void; onComplete?: () => Promise<void>; onRevisi?: (catatan: string) => Promise<void>; onSaveStep?: (progress: any) => Promise<void>; onUpload?: (file: File, step: string) => Promise<void> }) {
+  const savedProgress = row.formData?.admin_progress || {};
+  const [activeStep, setActiveStep] = useState(savedProgress.activeStep || 0);
   const [isEditing, setIsEditing] = useState(false);
-  const [fieldValues, setFieldValues] = useState<Record<number, Record<number, string>>>({});
-  const [customFiles, setCustomFiles] = useState<Record<number, { name: string; size: string; date: string }[]>>({});
+  const [fieldValues, setFieldValues] = useState<Record<number, Record<number, string>>>(savedProgress.fieldValues || {});
+  const [customFiles, setCustomFiles] = useState<Record<number, { name: string; size: string; date: string }[]>>(savedProgress.customFiles || {});
 
-  const defaultAttachments: Record<number, { name: string; size: string; date: string }[]> = {
-    0: [{ name: "RKS-2024-V2.pdf", size: "1.8 MB", date: "01-03-2024" }, { name: "KAK_Pengadaan_Server.pdf", size: "2.4 MB", date: "01-03-2024" }],
-    1: [{ name: "Surat_Undangan_RKS_Signed.pdf", size: "1.1 MB", date: "16-03-2024" }],
-    2: [{ name: "BA_Aanwijzing_PBJ_2024.pdf", size: "3.2 MB", date: "22-03-2024" }],
-    3: [{ name: "Dokumen_Penawaran_Vendor.zip", size: "14.5 MB", date: "24-03-2024" }],
-    4: [{ name: "BA_Pembukaan_Penawaran_Signed.pdf", size: "2.1 MB", date: "25-03-2024" }],
-    5: [{ name: "Laporan_Hasil_Evaluasi_PBJ.pdf", size: "4.7 MB", date: "30-03-2024" }],
-    6: [{ name: "BA_Klarifikasi_Negosiasi_Final.pdf", size: "1.9 MB", date: "03-04-2024" }],
-    7: [{ name: "Nota_Dinas_Usulan_Pemenang.pdf", size: "1.3 MB", date: "06-04-2024" }],
-    8: [{ name: "Surat_Pengumuman_Pemenang.pdf", size: "1.5 MB", date: "08-04-2024" }],
-    9: [{ name: "BA_Hasil_Masa_Sanggah.pdf", size: "890 KB", date: "11-04-2024" }],
-    10: [{ name: "Surat_SPPBJ_Resmi_Signed.pdf", size: "2.8 MB", date: "14-04-2024" }],
-  };
+  const defaultAttachments: Record<number, { name: string; size: string; date: string }[]> = {};
 
   const initialFields: Record<number, { label: string; value: string }[]> = {
     0: [
@@ -3182,9 +3256,15 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack }: { row: any; breadcrumbFr
     }));
   };
 
-  const handleUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      try {
+        await onUpload?.(file, PBJ_STEPS[activeStep]);
+      } catch (error: any) {
+        alert(error?.response?.data?.message || "Lampiran gagal diunggah.");
+        return;
+      }
       const newFileObj = {
         name: file.name,
         size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
@@ -3201,15 +3281,31 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack }: { row: any; breadcrumbFr
   const [revisionNote, setRevisionNote] = useState("");
   const [stepVerifications, setStepVerifications] = useState<Record<number, string>>({});
 
+  const saveCurrentStep = async () => {
+    await onSaveStep?.({
+      activeStep,
+      stepName: PBJ_STEPS[activeStep],
+      fieldValues,
+      customFiles,
+    });
+  };
+
   const handleVerifikasiStep = () => {
     setStepVerifications((prev) => ({ ...prev, [activeStep]: "Sudah Diverifikasi" }));
     setShowRevisionBox(false);
     alert(`Step ${activeStep + 1} (${PBJ_STEPS[activeStep]}) berhasil diverifikasi & disetujui!`);
   };
 
-  const handleSendRevision = () => {
+  const handleSendRevision = async () => {
     if (!revisionNote.trim()) {
       alert("Harap isi catatan revisi terlebih dahulu.");
+      return;
+    }
+    try {
+      await saveCurrentStep();
+      await onRevisi?.(revisionNote);
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Catatan revisi gagal dikirim.");
       return;
     }
     setStepVerifications((prev) => ({ ...prev, [activeStep]: `Perlu Revisi: ${revisionNote}` }));
@@ -3230,11 +3326,24 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack }: { row: any; breadcrumbFr
     }
   };
 
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     setIsEditing(false);
     setShowRevisionBox(false);
+    try {
+      await saveCurrentStep();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Perubahan PBJ gagal disimpan.");
+      return;
+    }
     if (activeStep < PBJ_STEPS.length - 1) {
       setActiveStep(activeStep + 1);
+      return;
+    }
+    try {
+      await onComplete?.();
+      onBack();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Proses PBJ gagal disimpan.");
     }
   };
 
@@ -3443,28 +3552,12 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack }: { row: any; breadcrumbFr
   );
 }
 
-const SAMPLE_PBJ_TASK = [
-  { noSp3: "SP3-2024-001", namaPaket: "Pengadaan Server CTIT 2024", nilaiPr: "Rp 500.000.000", nilaiPo: "Rp 485.000.000", nilaiEfisiensi: "Rp 15.000.000", realisasi: "100%", assignTo: "Tim PBJ 1", status: "Contract Release" },
-  { noSp3: "SP3-2024-002", namaPaket: "Pengadaan Alat Logistik 2024", nilaiPr: "Rp 200.000.000", nilaiPo: "Rp 190.000.000", nilaiEfisiensi: "Rp 10.000.000", realisasi: "100%", assignTo: "Tim PBJ 2", status: "Contract Release" },
-  { noSp3: "SP3-2024-003", namaPaket: "Pengadaan Lisensi Software 2024", nilaiPr: "Rp 350.000.000", nilaiPo: "Rp 340.000.000", nilaiEfisiensi: "Rp 10.000.000", realisasi: "100%", assignTo: "Tim PBJ 1", status: "Contract Release" },
-];
-
-const SAMPLE_PBJ_LIST = [
-  { noSp3: "SP3-2024-001", namaPaket: "Pengadaan Server CTIT 2024", nilaiKontrak: "Rp 485.000.000", status: "Contract Release" },
-  { noSp3: "SP3-2024-002", namaPaket: "Pengadaan Alat Logistik 2024", nilaiKontrak: "Rp 190.000.000", status: "Contract Release" },
-  { noSp3: "SP3-2024-003", namaPaket: "Pengadaan Lisensi Software 2024", nilaiKontrak: "Rp 340.000.000", status: "Contract Release" },
-];
-
-const SAMPLE_PBJ_MEMO = [
-  { noSp3: "SP3-2024-001", judulPengadaan: "Pengadaan Server CTIT 2024", nomorMemoInternal: "MI-2024-001", tanggalMemo: "15-01-2024", status: "approved" },
-  { noSp3: "SP3-2024-002", judulPengadaan: "Pengadaan Alat Logistik 2024", nomorMemoInternal: "MI-2024-002", tanggalMemo: "20-01-2024", status: "approved" },
-  { noSp3: "SP3-2024-003", judulPengadaan: "Pengadaan Lisensi Software 2024", nomorMemoInternal: "MI-2024-003", tanggalMemo: "25-01-2024", status: "approved" },
-];
-
 function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-internal" }) {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "proses">("list");
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
+  const { items: verificationItems, refresh, process: processVerification } = useAdminVerificationQueue("pbj");
+  const queueRows = verificationItems.map(mapVerificationRow);
 
   React.useEffect(() => {
     setView("list");
@@ -3473,8 +3566,32 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
 
   const breadcrumbLabel = subPage === "task-approval" ? "Task Approval" : subPage === "list-pbj" ? "List PBJ" : "Memo Internal";
 
+  const complete = async (row: any) => {
+    await processVerification(row.verif_id, "approve");
+    await refresh();
+  };
+
+  const sendRevision = async (row: any, catatan: string) => {
+    await processVerification(row.verif_id, "revisi", catatan);
+    await refresh();
+  };
+
+  const saveProgress = async (row: any, progress: any) => {
+    if (!row.document?.id) return;
+    await api.put(`/step-documents/pbj/${row.document.id}`, {
+      form_data: { ...(row.formData || {}), admin_progress: progress },
+    });
+  };
+
+  const uploadAttachment = async (row: any, file: File, step: string) => {
+    const payload = new FormData();
+    payload.append("file", file);
+    payload.append("stage", `pbj:${step}`);
+    await api.post(`/pengadaan/${row.pengadaan_id}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
+  };
+
   if (view === "proses" && selectedRow) {
-    return <ProsesPBJPage row={selectedRow} breadcrumbFrom={breadcrumbLabel} onBack={() => { setView("list"); setSelectedRow(null); }} />;
+    return <ProsesPBJPage row={selectedRow} breadcrumbFrom={breadcrumbLabel} onBack={() => { setView("list"); setSelectedRow(null); }} onComplete={() => complete(selectedRow)} onRevisi={(catatan) => sendRevision(selectedRow, catatan)} onSaveStep={(progress) => saveProgress(selectedRow, progress)} onUpload={(file, step) => uploadAttachment(selectedRow, file, step)} />;
   }
 
   return (
@@ -3506,7 +3623,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
                   </tr>
                 </thead>
                 <tbody>
-                  {SAMPLE_PBJ_TASK.filter((r) => r.noSp3.toLowerCase().includes(search.toLowerCase()) || r.namaPaket.toLowerCase().includes(search.toLowerCase())).map((r, i) => (
+                  {queueRows.filter((r) => r.noSp3.toLowerCase().includes(search.toLowerCase()) || r.namaPaket.toLowerCase().includes(search.toLowerCase())).map((r, i) => (
                     <tr key={i} className={`border-b border-[#f3f4f6] text-[11.5px] ${i % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"} hover:bg-[#eef2ff] transition-colors`}>
                       <td className="px-[14px] py-[12px] text-[#364153] font-medium whitespace-nowrap">{r.noSp3}</td>
                       <td className="px-[14px] py-[12px] text-[#364153] font-medium">{r.namaPaket}</td>
@@ -3549,7 +3666,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
                   </tr>
                 </thead>
                 <tbody>
-                  {SAMPLE_PBJ_LIST.filter((r) => r.noSp3.toLowerCase().includes(search.toLowerCase()) || r.namaPaket.toLowerCase().includes(search.toLowerCase())).map((r, i) => (
+                  {queueRows.filter((r) => r.noSp3.toLowerCase().includes(search.toLowerCase()) || r.namaPaket.toLowerCase().includes(search.toLowerCase())).map((r, i) => (
                     <tr key={i} className={`border-b border-[#f3f4f6] text-[11.5px] ${i % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"} hover:bg-[#eef2ff] transition-colors`}>
                       <td className="px-[14px] py-[12px] text-[#364153] font-medium whitespace-nowrap">{r.noSp3}</td>
                       <td className="px-[14px] py-[12px] text-[#364153] font-medium">{r.namaPaket}</td>
@@ -3586,7 +3703,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
                   </tr>
                 </thead>
                 <tbody>
-                  {SAMPLE_PBJ_MEMO.filter((r) => r.noSp3.toLowerCase().includes(search.toLowerCase()) || r.judulPengadaan.toLowerCase().includes(search.toLowerCase())).map((r, i) => (
+                  {queueRows.filter((r) => r.noSp3.toLowerCase().includes(search.toLowerCase()) || r.judulPengadaan.toLowerCase().includes(search.toLowerCase())).map((r, i) => (
                     <tr key={i} className={`border-b border-[#f3f4f6] text-[11.5px] ${i % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"} hover:bg-[#eef2ff] transition-colors`}>
                       <td className="px-[14px] py-[12px] text-[#364153] font-medium whitespace-nowrap">{r.noSp3}</td>
                       <td className="px-[14px] py-[12px] text-[#364153] font-medium">{r.judulPengadaan}</td>
@@ -3628,23 +3745,14 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
 // ─── Contract Page ────────────────────────────────────────────────────────────
 const CONTRACT_STEPS = ["Draft Kontrak", "Performance Bond", "Verifikasi Jamlak", "Review Legal", "Approval Logistik", "Approval User", "Approval Legal", "Tanda Tangan Vendor", "Tanda Tangan KCI"];
 
-function ProsesContractPage({ row, breadcrumbFrom, onBack }: { row: any; breadcrumbFrom: string; onBack: () => void }) {
-  const [activeStep, setActiveStep] = useState(0);
+function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSaveStep, onUpload }: { row: any; breadcrumbFrom: string; onBack: () => void; onComplete?: () => Promise<void>; onRevisi?: (catatan: string) => Promise<void>; onSaveStep?: (progress: any) => Promise<void>; onUpload?: (file: File, step: string) => Promise<void> }) {
+  const savedProgress = row.formData?.admin_progress || {};
+  const [activeStep, setActiveStep] = useState(savedProgress.activeStep || 0);
   const [isEditing, setIsEditing] = useState(false);
-  const [fieldValues, setFieldValues] = useState<Record<number, Record<number, string>>>({});
-  const [customFiles, setCustomFiles] = useState<Record<number, { name: string; size: string; date: string }[]>>({});
+  const [fieldValues, setFieldValues] = useState<Record<number, Record<number, string>>>(savedProgress.fieldValues || {});
+  const [customFiles, setCustomFiles] = useState<Record<number, { name: string; size: string; date: string }[]>>(savedProgress.customFiles || {});
 
-  const defaultContractAttachments: Record<number, { name: string; size: string; date: string }[]> = {
-    0: [{ name: "Draft-Kontrak-V1.docx", size: "3.5 MB", date: "01-03-2024" }, { name: "Lampiran_Spesifikasi_Teknis.pdf", size: "2.1 MB", date: "01-03-2024" }],
-    1: [{ name: "Jaminan_Pelaksanaan_Bank_Mandiri.pdf", size: "2.2 MB", date: "03-03-2024" }],
-    2: [{ name: "Surat_Konfirmasi_Keabsahan_Bank.pdf", size: "1.1 MB", date: "04-03-2024" }],
-    3: [{ name: "Catatan_Review_Legal_GRC.pdf", size: "1.4 MB", date: "05-03-2024" }],
-    4: [{ name: "ND_Approval_VP_Logistik.pdf", size: "980 KB", date: "05-03-2024" }],
-    5: [{ name: "ND_Approval_VP_CTIT.pdf", size: "1.0 MB", date: "06-03-2024" }],
-    6: [{ name: "ND_Approval_VP_Legal.pdf", size: "1.2 MB", date: "07-03-2024" }],
-    7: [{ name: "Kontrak_Signed_Vendor.pdf", size: "5.8 MB", date: "08-03-2024" }],
-    8: [{ name: "Kontrak_Final_Signed_KCI_Vendor.pdf", size: "6.4 MB", date: "10-03-2024" }],
-  };
+  const defaultContractAttachments: Record<number, { name: string; size: string; date: string }[]> = {};
 
   const initialContractFields: Record<number, { label: string; value: string }[]> = {
     0: [
@@ -3714,9 +3822,15 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack }: { row: any; breadcr
     }));
   };
 
-  const handleUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      try {
+        await onUpload?.(file, CONTRACT_STEPS[activeStep]);
+      } catch (error: any) {
+        alert(error?.response?.data?.message || "Lampiran gagal diunggah.");
+        return;
+      }
       const newFileObj = {
         name: file.name,
         size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
@@ -3733,15 +3847,31 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack }: { row: any; breadcr
   const [revisionNote, setRevisionNote] = useState("");
   const [stepVerifications, setStepVerifications] = useState<Record<number, string>>({});
 
+  const saveCurrentStep = async () => {
+    await onSaveStep?.({
+      activeStep,
+      stepName: CONTRACT_STEPS[activeStep],
+      fieldValues,
+      customFiles,
+    });
+  };
+
   const handleVerifikasiStep = () => {
     setStepVerifications((prev) => ({ ...prev, [activeStep]: "Sudah Diverifikasi" }));
     setShowRevisionBox(false);
     alert(`Step ${activeStep + 1} (${CONTRACT_STEPS[activeStep]}) berhasil diverifikasi & disetujui!`);
   };
 
-  const handleSendRevision = () => {
+  const handleSendRevision = async () => {
     if (!revisionNote.trim()) {
       alert("Harap isi catatan revisi terlebih dahulu.");
+      return;
+    }
+    try {
+      await saveCurrentStep();
+      await onRevisi?.(revisionNote);
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Catatan revisi gagal dikirim.");
       return;
     }
     setStepVerifications((prev) => ({ ...prev, [activeStep]: `Perlu Revisi: ${revisionNote}` }));
@@ -3762,11 +3892,24 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack }: { row: any; breadcr
     }
   };
 
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     setIsEditing(false);
     setShowRevisionBox(false);
+    try {
+      await saveCurrentStep();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Perubahan kontrak gagal disimpan.");
+      return;
+    }
     if (activeStep < CONTRACT_STEPS.length - 1) {
       setActiveStep(activeStep + 1);
+      return;
+    }
+    try {
+      await onComplete?.();
+      onBack();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Proses kontrak gagal disimpan.");
     }
   };
 
@@ -3976,22 +4119,12 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack }: { row: any; breadcr
   );
 }
 
-const SAMPLE_CONTRACT_TASK = [
-  { noSp3: "SP3-2024-001", namaPaket: "Pengadaan Server CTIT 2024", nilaiKontrak: "Rp 485.000.000", dept: "CTIT", pbj: "Sarana", performanceBond: "Rp 24.250.000", status: "Contract Release" },
-  { noSp3: "SP3-2024-002", namaPaket: "Pengadaan Alat Logistik 2024", nilaiKontrak: "Rp 190.000.000", dept: "Logistik", pbj: "Non-Sarana", performanceBond: "Rp 9.500.000", status: "Contract Release" },
-  { noSp3: "SP3-2024-003", namaPaket: "Pengadaan Lisensi Software 2024", nilaiKontrak: "Rp 340.000.000", dept: "CTIT", pbj: "Sarana", performanceBond: "Rp 17.000.000", status: "Contract Release" },
-];
-
-const SAMPLE_CONTRACT_LIST = [
-  { noSp3: "SP3-2024-001", namaPaket: "Pengadaan Server CTIT 2024", nilaiKontrak: "Rp 485.000.000", status: "Active" },
-  { noSp3: "SP3-2024-002", namaPaket: "Pengadaan Alat Logistik 2024", nilaiKontrak: "Rp 190.000.000", status: "Active" },
-  { noSp3: "SP3-2024-003", namaPaket: "Pengadaan Lisensi Software 2024", nilaiKontrak: "Rp 340.000.000", status: "Active" },
-];
-
 function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" }) {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "proses">("list");
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
+  const { items: verificationItems, refresh, process: processVerification } = useAdminVerificationQueue("contract");
+  const queueRows = verificationItems.map(mapVerificationRow);
 
   React.useEffect(() => {
     setView("list");
@@ -4000,8 +4133,32 @@ function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" 
 
   const breadcrumbLabel = subPage === "task-approval" ? "Task Approval" : "List Contract";
 
+  const complete = async (row: any) => {
+    await processVerification(row.verif_id, "approve");
+    await refresh();
+  };
+
+  const sendRevision = async (row: any, catatan: string) => {
+    await processVerification(row.verif_id, "revisi", catatan);
+    await refresh();
+  };
+
+  const saveProgress = async (row: any, progress: any) => {
+    if (!row.document?.id) return;
+    await api.put(`/step-documents/contract/${row.document.id}`, {
+      form_data: { ...(row.formData || {}), admin_progress: progress },
+    });
+  };
+
+  const uploadAttachment = async (row: any, file: File, step: string) => {
+    const payload = new FormData();
+    payload.append("file", file);
+    payload.append("stage", `contract:${step}`);
+    await api.post(`/pengadaan/${row.pengadaan_id}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
+  };
+
   if (view === "proses" && selectedRow) {
-    return <ProsesContractPage row={selectedRow} breadcrumbFrom={breadcrumbLabel} onBack={() => { setView("list"); setSelectedRow(null); }} />;
+    return <ProsesContractPage row={selectedRow} breadcrumbFrom={breadcrumbLabel} onBack={() => { setView("list"); setSelectedRow(null); }} onComplete={() => complete(selectedRow)} onRevisi={(catatan) => sendRevision(selectedRow, catatan)} onSaveStep={(progress) => saveProgress(selectedRow, progress)} onUpload={(file, step) => uploadAttachment(selectedRow, file, step)} />;
   }
 
   return (
@@ -4032,7 +4189,7 @@ function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" 
                   </tr>
                 </thead>
                 <tbody>
-                  {SAMPLE_CONTRACT_TASK.filter((r) => r.noSp3.toLowerCase().includes(search.toLowerCase()) || r.namaPaket.toLowerCase().includes(search.toLowerCase())).map((r, i) => (
+                  {queueRows.filter((r) => r.noSp3.toLowerCase().includes(search.toLowerCase()) || r.namaPaket.toLowerCase().includes(search.toLowerCase())).map((r, i) => (
                     <tr key={i} className={`border-b border-[#f3f4f6] text-[11.5px] ${i % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"} hover:bg-[#eef2ff] transition-colors`}>
                       <td className="px-[14px] py-[12px] text-[#364153] font-medium whitespace-nowrap">{r.noSp3}</td>
                       <td className="px-[14px] py-[12px] text-[#364153] font-medium">{r.namaPaket}</td>
@@ -4071,7 +4228,7 @@ function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" 
                   </tr>
                 </thead>
                 <tbody>
-                  {SAMPLE_CONTRACT_LIST.filter((r) => r.noSp3.toLowerCase().includes(search.toLowerCase()) || r.namaPaket.toLowerCase().includes(search.toLowerCase())).map((r, i) => (
+                  {queueRows.filter((r) => r.noSp3.toLowerCase().includes(search.toLowerCase()) || r.namaPaket.toLowerCase().includes(search.toLowerCase())).map((r, i) => (
                     <tr key={i} className={`border-b border-[#f3f4f6] text-[11.5px] ${i % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"} hover:bg-[#eef2ff] transition-colors`}>
                       <td className="px-[14px] py-[12px] text-[#364153] font-medium whitespace-nowrap">{r.noSp3}</td>
                       <td className="px-[14px] py-[12px] text-[#364153] font-medium">{r.namaPaket}</td>
@@ -4139,25 +4296,7 @@ type PengujianRequestRow = {
   status: string;
 };
 
-const PENGUJIAN_KONTRAK_500_ROWS: PengujianKontrakRow[] = [
-  { idNpp: "NPP-2024-008", idRup: "RUP-2024-008", noCont: "1", divisi: "CTIT", opexCapex: "OPEX", kategori: "Tools & Testing", tahun: "2024", sp3Final: "SP3-2024-008", status: "Status", statusHps: "Final", namaPaket: "Pengadaan Tools Lab CTIT 2024", nilaiKontrak: "Rp 180.000.000", vendor: "PT Labtek Utama" },
-  { idNpp: "NPP-2024-012", idRup: "RUP-2024-012", noCont: "2", divisi: "CTIT", opexCapex: "OPEX", kategori: "Network Maint", tahun: "2024", sp3Final: "SP3-2024-012", status: "Status", statusHps: "Final", namaPaket: "Maintenance Network Router Depot", nilaiKontrak: "Rp 350.000.000", vendor: "CV Net Jaya" },
-  { idNpp: "NPP-2024-015", idRup: "RUP-2024-015", noCont: "3", divisi: "CTIT", opexCapex: "OPEX", kategori: "Security Cert", tahun: "2024", sp3Final: "SP3-2024-015", status: "Status", statusHps: "Final", namaPaket: "Renewal SSL & Security Certs", nilaiKontrak: "Rp 95.000.000", vendor: "PT Tech Solution" },
-];
-
-const PENGUJIAN_KONTRAK_500PLUS_ROWS: PengujianKontrakRow[] = [
-  { idNpp: "NPP-2024-001", idRup: "RUP-2024-001", noCont: "1", divisi: "CTIT", opexCapex: "CAPEX", kategori: "Server Infra", tahun: "2024", sp3Final: "SP3-2024-001", status: "Status", statusHps: "Final", namaPaket: "Pengadaan Server CTIT 2024", nilaiKontrak: "Rp 500.000.000", vendor: "PT Maju Bersama" },
-  { idNpp: "NPP-2024-005", idRup: "RUP-2024-005", noCont: "2", divisi: "Fasilitas", opexCapex: "CAPEX", kategori: "Substation", tahun: "2024", sp3Final: "SP3-2024-005", status: "Status", statusHps: "Final", namaPaket: "Modernisasi Substation & Power KCI", nilaiKontrak: "Rp 1.250.000.000", vendor: "PT Powerindo Utama" },
-  { idNpp: "NPP-2024-009", idRup: "RUP-2024-009", noCont: "3", divisi: "Telematika", opexCapex: "CAPEX", kategori: "Fiber Optic", tahun: "2024", sp3Final: "SP3-2024-009", status: "Status", statusHps: "Final", namaPaket: "Upgrade Core Fiber Optic Network", nilaiKontrak: "Rp 850.000.000", vendor: "PT Telkom Infratel" },
-];
-
-const PENGUJIAN_REQUEST_ROWS: PengujianRequestRow[] = [
-  { noRequest: "REQ-2024-001", namaPengujian: "Uji Fungsi Server High Availability", tanggalRequest: "01-03-2024", pemohon: "Departemen CTIT", kategori: "Fungsi & Stress Test", status: "Pending" },
-  { noRequest: "REQ-2024-002", namaPengujian: "Uji Beban & Bandwidth Fiber Optic", tanggalRequest: "10-03-2024", pemohon: "Departemen Telematika", kategori: "Performance Test", status: "Selesai" },
-  { noRequest: "REQ-2024-003", namaPengujian: "Uji Ketahanan Baterai UPS Central", tanggalRequest: "15-03-2024", pemohon: "Departemen Fasilitas Ops", kategori: "Electrical Test", status: "In Progress" },
-];
-
-function DetailPengujianPage({ item, isKontrak, onBack }: { item: PengujianKontrakRow | PengujianRequestRow; isKontrak: boolean; onBack: () => void }) {
+function DetailPengujianPage({ item, isKontrak, onBack, onProcess }: { item: any; isKontrak: boolean; onBack: () => void; onProcess?: (action: "approve" | "revisi" | "reject") => Promise<void> }) {
   const titleName = isKontrak ? (item as PengujianKontrakRow).namaPaket : (item as PengujianRequestRow).namaPengujian;
   const docNo = isKontrak ? (item as PengujianKontrakRow).idNpp : (item as PengujianRequestRow).noRequest;
   const vendorOrDept = isKontrak ? (item as PengujianKontrakRow).vendor : (item as PengujianRequestRow).pemohon;
@@ -4174,9 +4313,9 @@ function DetailPengujianPage({ item, isKontrak, onBack }: { item: PengujianKontr
       <PengujianDetailView
         item={itemProp}
         onBack={onBack}
-        onApprove={() => alert("Pengujian berhasil diverifikasi!")}
-        onReject={() => alert("Pengujian telah ditolak.")}
-        onRevisi={() => alert("Catatan kelengkapan telah dikirim.")}
+        onApprove={() => { if (onProcess) onProcess("approve").catch((error: any) => alert(error?.response?.data?.message || "Pengujian gagal diverifikasi.")); }}
+        onReject={() => { if (onProcess) onProcess("reject").catch((error: any) => alert(error?.response?.data?.message || "Pengujian gagal ditolak.")); }}
+        onRevisi={() => { if (onProcess) onProcess("revisi").catch((error: any) => alert(error?.response?.data?.message || "Catatan revisi gagal dikirim.")); }}
       />
     </div>
   );
@@ -4186,14 +4325,24 @@ function DetailPengujianPage({ item, isKontrak, onBack }: { item: PengujianKontr
 function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "detail">("list");
-  const [selectedRow, setSelectedRow] = useState<PembayaranRow | null>(null);
+  const [selectedRow, setSelectedRow] = useState<any | null>(null);
+  const { items: verificationItems } = useAdminVerificationQueue("outsource,non-outsource,umd,payment-request");
 
   React.useEffect(() => {
     setView("list");
     setSelectedRow(null);
   }, [subDoc]);
 
-  const rows = (PEMBAYARAN_ROWS[subDoc] || PEMBAYARAN_ROWS["pembayaran-outsource"] || []).filter(
+  const typeBySubDoc: Partial<Record<PembayaranDoc, string>> = {
+    "pembayaran-outsource": "outsource",
+    "pembayaran-non-outsource": "non-outsource",
+    "pembayaran-umd": "umd",
+  };
+  const selectedType = typeBySubDoc[subDoc];
+  const rows = verificationItems
+    .filter((item) => !selectedType || item.tipe === selectedType)
+    .map(mapVerificationRow)
+    .filter(
     (r) =>
       r.noPembayaran.toLowerCase().includes(search.toLowerCase()) ||
       r.namaPaket.toLowerCase().includes(search.toLowerCase()) ||
@@ -4340,7 +4489,9 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
 function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "detail">("list");
-  const [selectedItem, setSelectedItem] = useState<PengujianKontrakRow | PengujianRequestRow | null>(null);
+  const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const { items: verificationItems, refresh, process: processVerification } = useAdminVerificationQueue("pengujian");
+  const queueRows = verificationItems.map(mapVerificationRow);
 
   React.useEffect(() => {
     setView("list");
@@ -4353,10 +4504,23 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
   const breadcrumbMain = isKontrak ? "Kontrak" : "Request Pengujian";
   const breadcrumbSub = subDoc === "kontrak-list-500" ? "List Kontrak <500jt" : subDoc === "kontrak-list-500plus" ? "List Kontrak >500jt" : subDoc === "request-list-request" ? "List Request Pengujian" : "List Pengujian";
 
-  const kontrakRows = is500Plus ? PENGUJIAN_KONTRAK_500PLUS_ROWS : PENGUJIAN_KONTRAK_500_ROWS;
+  const kontrakRows = queueRows.filter((row) => {
+    const amount = Number(String(row.nilaiKontrak || "").replace(/[^0-9]/g, ""));
+    return is500Plus ? amount >= 500000000 : amount < 500000000;
+  });
+  const requestRows = queueRows;
+
+  const processSelected = async (action: "approve" | "revisi" | "reject") => {
+    if (!selectedItem?.verif_id) return;
+    const catatan = action === "approve" ? undefined : window.prompt("Masukkan catatan untuk User:") || undefined;
+    if (action !== "approve" && !catatan) return;
+    await processVerification(selectedItem.verif_id, action, catatan);
+    await refresh();
+    setView("list");
+  };
 
   if (view === "detail" && selectedItem) {
-    return <DetailPengujianPage item={selectedItem} isKontrak={isKontrak} onBack={() => setView("list")} />;
+    return <DetailPengujianPage item={selectedItem} isKontrak={isKontrak} onBack={() => setView("list")} onProcess={processSelected} />;
   }
 
   return (
@@ -4493,7 +4657,7 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {PENGUJIAN_REQUEST_ROWS.filter((r) => r.noRequest.toLowerCase().includes(search.toLowerCase()) || r.namaPengujian.toLowerCase().includes(search.toLowerCase())).map((r, i) => (
+                  {requestRows.filter((r) => r.noRequest.toLowerCase().includes(search.toLowerCase()) || r.namaPengujian.toLowerCase().includes(search.toLowerCase())).map((r, i) => (
                     <tr key={i} className={`border-b border-[#f3f4f6] ${i % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"} hover:bg-[#eef2ff] transition-colors`}>
                       <td className="px-[14px] py-[10px] text-[#364153]">{i + 1}</td>
                       <td className="px-[14px] py-[10px] text-[#364153] font-medium">{r.noRequest}</td>
@@ -4894,22 +5058,22 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
   const fetchNppData = async () => {
     try {
       const [resVerif, resRup] = await Promise.all([
-        api.get('/verifikasi').catch(() => ({ data: [] })),
-        api.get('/rup').catch(() => ({ data: [] }))
+        api.get('/verifikasi?tipe=npp').catch(() => ({ data: [] })),
+        Promise.resolve({ data: [] })
       ]);
 
       const dbVerif = resVerif.data || [];
-      const storeVerif = getVerifRecords();
+      const storeVerif: any[] = [];
       const dbRup = resRup.data || [];
-      const storeRup = getRupList();
+      const storeRup: any[] = [];
 
       const map = new Map<string, any>();
 
-      const initialMocks = [
+      const initialMocks: any[] = []; /*
         { idNpp: "NPP-2024-001", idRup: "RUP-2024-001", noCont: "—", divisi: "CTIT", opexCapex: "CAPEX", kategori: "IT", tahun: "2024", sp3Final: "—", status: "Draft", statusHps: "Final", nama: "Pengadaan Server Data Center KCI" },
         { idNpp: "NPP-2024-002", idRup: "RUP-2024-002", noCont: "—", divisi: "Logistik", opexCapex: "OPEX", kategori: "Operasional", tahun: "2024", sp3Final: "—", status: "Final", statusHps: "Final", nama: "Jasa Pemeliharaan AC Depo Bukit Duri" },
       ];
-      initialMocks.forEach(m => map.set(m.idNpp, m));
+      initialMocks.forEach(m => map.set(m.idNpp, m)); */
 
       dbRup.forEach((r: any) => {
         const idStr = `NPP-${r.id}`;
@@ -4967,6 +5131,8 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
           status: st,
           statusHps: "Final",
           nama: v.pengadaan_nama || existing.nama || "Pengadaan Baru",
+          formData: v.document_form_data || v.pengadaan_form_data || {},
+          noNpp: v.document?.no_npp,
           verif_id: v.id
         });
       });

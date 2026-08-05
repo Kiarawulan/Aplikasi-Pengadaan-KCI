@@ -356,11 +356,12 @@ export function RupListScreen() {
         <TambahRupModal
           onClose={() => { setShowModal(false); setEditingId(null); }}
           initialData={form}
-          onSubmit={(formData) => {
+          onSubmit={async (formData) => {
             const formattedNilai = formData.nilaiSebelumPajak
               ? (formData.nilaiSebelumPajak.startsWith("Rp") ? formData.nilaiSebelumPajak : `Rp ${formData.nilaiSebelumPajak}`)
               : "Rp 0";
 
+            try {
             if (editingId) {
               const updatedData: Partial<RupItem> = {
                 ...formData,
@@ -371,20 +372,14 @@ export function RupListScreen() {
                 catatanAdmin: "",
                 details: formData,
               };
-              updateRup(editingId, updatedData);
-              const existingVerif = getVerifRecords().find(r => r.pengadaanId === editingId);
-              if (existingVerif) {
-                updateVerifRecord(existingVerif.id, { status: "pending", catatanAdmin: "" });
-                api.put(`/verifikasi/${existingVerif.id}`, { status: "pending", catatan_admin: "" }).catch(() => {});
-              }
-              api.put(`/rup/${editingId}`, {
+              await api.put(`/rup/${editingId}`, {
                 nama: formData.namaPaket || form.judul,
                 jenis: formData.jenisPengadaan || "Barang",
                 nilai: formattedNilai,
                 status: "pending",
                 catatan_admin: "",
                 details: formData,
-              }).catch(() => {});
+              });
             } else {
               const id = generateId("RUP");
               const newRup: RupItem = {
@@ -401,24 +396,14 @@ export function RupListScreen() {
                 createdAt: new Date().toISOString().split("T")[0],
                 details: formData,
               };
-              addRup(newRup);
-              addVerifRecord({
-                id: generateId("VR"),
-                pengadaanId: id,
-                pengadaanNama: newRup.nama,
-                departemen: newRup.departemen,
-                nominal: newRup.nilai,
-                tipe: "rup",
-                submitBy: currentUser?.name || "User",
-                submitAt: new Date().toISOString(),
-                status: "pending",
-              });
-              api.post('/rup', newRup).catch(console.error);
+              await api.post('/rup', newRup);
             }
-            fetchRup();
+            await fetchRup();
             setShowModal(false);
             setEditingId(null);
-          }}
+          } catch (error: any) {
+            alert(error.response?.data?.message || "Gagal menyimpan RUP.");
+          }}}
         />
       )}
     </div>

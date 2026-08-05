@@ -10,7 +10,7 @@ import { RupDetailView } from "../../../components/admin/verifikasi/RupDetailVie
 
 import { NppDetailView } from "../../../components/admin/verifikasi/NppDetailView";
 import { PengujianDetailView } from "../../../components/admin/verifikasi/PengujianDetailView";
-import { getVerifRecords, getRupList, updateRup, updateVerifRecord } from "../../../store/dataStore";
+import { getVerifRecords, getRupList, saveVerifRecords, saveRupList, updateRup, updateVerifRecord } from "../../../store/dataStore";
 
 type ScreenProps = {
   activeSubItem: string;
@@ -79,7 +79,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
       ]);
 
       const dbVerif = resVerif.data || [];
-      const storeVerif = getVerifRecords();
+      const storeVerif: any[] = [];
 
       const allVerif = [
         ...dbVerif,
@@ -96,7 +96,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
       ];
 
       const dbRup = resRup.data || [];
-      const storeRup = getRupList();
+      const storeRup: any[] = [];
 
       dbRup.forEach((r: any) => {
         if (!allVerif.some(v => v.pengadaan_id === r.id)) {
@@ -133,7 +133,9 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
       allVerif.forEach(item => {
         const pId = item.pengadaan_id || item.id;
         const matchingPeng = pengDataList.find((p: any) => p.id === pId);
-        const fd = matchingPeng ? (typeof matchingPeng.formData === 'string' ? JSON.parse(matchingPeng.formData) : (matchingPeng.formData || {})) : {};
+        const fd = matchingPeng
+          ? (typeof matchingPeng.formData === 'string' ? JSON.parse(matchingPeng.formData) : (matchingPeng.formData || {}))
+          : (item.document_form_data || item.pengadaan_form_data || {});
         const buatNpp = fd['buat-npp'] || fd['npp'] || {};
         const buatPd = fd['buat-pd'] || fd['buat-pr'] || {};
 
@@ -180,35 +182,38 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
 
   useEffect(() => {
     fetchData();
+    const timer = window.setInterval(fetchData, 15000);
+    return () => window.clearInterval(timer);
   }, [activeSubItem]);
 
   const rupList = activeSubItem === 'rup-task-approval' 
     ? verifTasks.filter(t => t.tipe === 'rup' && (t.status === 'pending' || t.status === 'Submitted' || t.status === 'Menunggu Verifikasi Admin')) 
     : verifTasks.filter(t => t.tipe === 'rup');
 
-  const nppList = activeSubItem === 'npp-task-approval'
-    ? verifTasks.filter(t => t.tipe === 'npp')
-    : activeSubItem.includes('memo')
-    ? pengadaanList.filter(p => p.status === 'approved' && p.completedSteps.includes('rup'))
-    : pengadaanList.filter(p => p.completedSteps.includes('rup') || p.completedSteps.includes('npp') || p.currentStep === 'npp' || p.currentStep === 'sp3' || p.currentStep === 'pbj' || p.currentStep === 'contract');
-
-  const sp3List = activeSubItem === 'sp3-task-approval'
-    ? verifTasks.filter(t => t.tipe === 'sp3')
-    : activeSubItem.includes('signed') || activeSubItem.includes('final')
-    ? pengadaanList.filter(p => p.status === 'approved' && (p.completedSteps.includes('npp') || p.completedSteps.includes('sp3')))
-    : pengadaanList.filter(p => p.completedSteps.includes('npp') || p.completedSteps.includes('sp3') || p.currentStep === 'sp3' || p.currentStep === 'pbj' || p.currentStep === 'contract');
-
-  const pbjList = activeSubItem === 'pbj-task-approval-pbj'
-    ? verifTasks.filter(t => t.tipe === 'pbj')
-    : activeSubItem.includes('memo')
-    ? pengadaanList.filter(p => p.status === 'approved' && (p.completedSteps.includes('sp3') || p.completedSteps.includes('pbj')))
-    : pengadaanList.filter(p => p.completedSteps.includes('sp3') || p.completedSteps.includes('pbj') || p.currentStep === 'pbj' || p.currentStep === 'contract');
-
-  const contractList = activeSubItem === 'contract-task-approval-contract'
-    ? verifTasks.filter(t => t.tipe === 'contract')
-    : pengadaanList.filter(p => p.completedSteps.includes('pbj') || p.completedSteps.includes('contract') || p.currentStep === 'contract');
+  const nppList = verifTasks.filter(t => t.tipe === 'npp');
+  const sp3List = verifTasks.filter(t => t.tipe === 'sp3');
+  const pbjList = verifTasks.filter(t => t.tipe === 'pbj');
+  const contractList = verifTasks.filter(t => t.tipe === 'contract');
 
   const genericList = pengadaanList; // used for warehouse, harga, dll
+
+  const adminFilters = [
+    {
+      key: "status",
+      label: "Status",
+      options: [
+        { value: "pending", label: "Menunggu" },
+        { value: "approved", label: "Disetujui" },
+        { value: "revisi", label: "Revisi" },
+        { value: "rejected", label: "Ditolak" },
+      ],
+    },
+    {
+      key: "dept",
+      label: "Departemen",
+      options: Array.from(new Set(verifTasks.map(task => task.dept).filter(Boolean))).map(dept => ({ value: dept, label: dept })),
+    },
+  ];
 
 
   const [showDetail, setShowDetail] = useState<any | null>(null);
@@ -216,6 +221,25 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
   const [revisionNote, setRevisionNote] = useState("");
   const [showPbjProcess, setShowPbjProcess] = useState<any | null>(null);
   const [showContractProcess, setShowContractProcess] = useState<any | null>(null);
+
+  const handleDelete = async (row: any) => {
+    if (!row.verif_id || !confirm(`Hapus ${row.tipe || 'data'} ini? Data tahap, antrean verifikasi, dan riwayat terkait akan dihapus.`)) return;
+    try {
+      await api.delete(`/verifikasi/${row.verif_id}`);
+      // Bersihkan cache demo lama agar data tidak tampil lagi saat halaman dimuat ulang.
+      saveVerifRecords(getVerifRecords().filter(item => item.id !== row.verif_id));
+      if (row.tipe === 'rup') {
+        saveRupList(getRupList().filter(item => item.id !== row.id));
+      }
+      setShowDetail(null);
+      setShowPbjProcess(null);
+      setShowContractProcess(null);
+      await fetchData();
+      alert('Data berhasil dihapus.');
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Gagal menghapus data.');
+    }
+  };
 
   // Forms
   const [formRup, setFormRup] = useState<RupForm>({
@@ -359,6 +383,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
         {mode.startsWith("rup") && (
           <VerifTable
             columns={rupColumns} data={rupList} searchKeys={["judul", "bebanBiaya", "vpDept"]}
+            filterOptions={adminFilters}
             onView={(r) => setShowDetail({ type: "rup", item: r })}
             onApprove={async (r) => {
               try {
@@ -407,7 +432,8 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item));
               }
             }}
-            showVerifActions={true} showCrudActions={false} emptyMessage="Tidak ada data RUP."
+            onDelete={handleDelete}
+            showVerifActions={true} showCrudActions={true} emptyMessage="Tidak ada data RUP."
           />
         )}
 
@@ -415,6 +441,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
           <VerifTable
             hideIndexColumn={true}
             columns={nppColumns} data={nppList} searchKeys={["judul", "sp3", "vendor"]}
+            filterOptions={adminFilters}
             onView={(r) => setShowDetail({ type: "npp", item: r })}
             onApprove={async (r) => {
               if (r.verif_id) {
@@ -459,14 +486,16 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item));
               }
             }}
+            onDelete={handleDelete}
             showVerifActions={true}
-            showCrudActions={false} emptyMessage="Tidak ada data NPP."
+            showCrudActions={true} emptyMessage="Tidak ada data NPP."
           />
         )}
 
         {mode.startsWith("sp3") && (
           <VerifTable
             columns={sp3Columns} data={sp3List} searchKeys={["nama", "id", "vendor"]}
+            filterOptions={adminFilters}
             onView={(r) => setShowDetail({ type: "sp3", item: r })}
             onApprove={async (r) => {
               if (r.verif_id) {
@@ -511,14 +540,16 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item));
               }
             }}
+            onDelete={handleDelete}
             showVerifActions={true}
-            showCrudActions={false} emptyMessage="Tidak ada data SP3."
+            showCrudActions={true} emptyMessage="Tidak ada data SP3."
           />
         )}
 
         {mode.startsWith("pbj") && (
           <VerifTable
             columns={pbjColumns} data={pbjList} searchKeys={["nama", "id", "assignTo"]}
+            filterOptions={adminFilters}
             onView={(r) => setShowPbjProcess(r)}
             onApprove={async (r) => {
               if (r.verif_id) {
@@ -563,6 +594,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item));
               }
             }}
+            onDelete={handleDelete}
             showVerifActions={true}
             showCrudActions={true} emptyMessage="Tidak ada data PBJ."
           />
@@ -571,8 +603,10 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
         {mode.startsWith("contract") && (
           <VerifTable
             columns={contractColumns} data={contractList} searchKeys={["nama", "paket", "id"]}
+            filterOptions={adminFilters}
             onView={(r) => setShowDetail({ type: "contract", item: r })}
             showVerifActions={true}
+            onDelete={handleDelete}
             onApprove={async (r) => {
               const s = (r.status || "").toLowerCase();
               if (s.includes("pengujian")) {
@@ -607,7 +641,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                 alert("Hanya bisa bypass tahap Pengujian atau Pembayaran dari sini.");
               }
             }}
-            showCrudActions={false} emptyMessage="Tidak ada data Kontrak."
+            showCrudActions={true} emptyMessage="Tidak ada data Kontrak."
             approveLabel="Proses Kontrak"
           />
         )}

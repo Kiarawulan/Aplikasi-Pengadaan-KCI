@@ -5,6 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\Pengadaan;
 use App\Models\PengadaanCompletedStep;
 use App\Models\Verifikasi;
+use App\Models\Npp;
+use App\Models\Sp3;
+use App\Models\Contract;
+use App\Models\Pbj;
+use App\Models\ParkDocument;
+use App\Models\PurchaseRequisition;
+use App\Models\ProcessHistory;
+use App\Models\Payment;
+use App\Models\Pengujian;
+use App\Models\UploadedDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -15,28 +25,12 @@ class PengadaanController extends Controller
         $user = $request->user();
         $query = Pengadaan::with(['completedSteps', 'verifikasiRecords']);
 
-        // Non-admin filter by creator / department
+        // User hanya boleh membaca record yang dibuatnya sendiri.
         if (! $user->is_admin) {
-            $query->where(function ($q) use ($user) {
-                $q->where('created_by', $user->id)
-                  ->orWhere('departemen', $user->departemen);
-            });
+            $query->where('created_by', $user->id);
         }
 
-        $pengadaan = $query->get()->map(function ($p) {
-            return [
-                'id'             => $p->id,
-                'nama'           => $p->nama,
-                'departemen'     => $p->departemen,
-                'nominal'        => $p->nominal,
-                'tanggal'        => $p->tanggal,
-                'status'         => $p->status,
-                'currentStep'    => $p->current_step,
-                'createdBy'      => $p->created_by,
-                'completedSteps' => $p->completedSteps->pluck('step_id'),
-                'formData'       => $p->form_data ?? [],
-            ];
-        });
+        $pengadaan = $query->get()->map(fn (Pengadaan $item) => $this->present($item));
 
         return response()->json($pengadaan);
     }
@@ -46,13 +40,13 @@ class PengadaanController extends Controller
         try {
             $request->validate([
                 'nama'       => 'required|string',
-                'departemen' => 'required|string',
+                'departemen' => 'nullable|string',
                 'nominal'    => 'nullable|string',
-                'flow'       => 'nullable|string',
+                'flow'       => 'required|in:pr,pd',
             ]);
 
-            $flow = $request->flow ?? 'pd';
-            $status = 'Menunggu Verifikasi Admin';
+            $flow = $request->flow;
+            $status = 'draft';
 
             $prefix = $flow === 'pr' ? 'PR-' : 'PD-';
             $last = Pengadaan::where('id', 'regexp', '^' . $prefix . '[0-9]+$')->orderBy('id', 'desc')->first();
@@ -62,34 +56,18 @@ class PengadaanController extends Controller
             $pengadaan = Pengadaan::create([
                 'id'           => $id,
                 'nama'         => $request->nama,
-                'departemen'   => $request->departemen,
+                'flow_type'    => $flow,
+                'departemen'   => $request->user()->departemen,
                 'nominal'      => $request->nominal ?? '—',
                 'tanggal'      => now()->toDateString(),
                 'status'       => $status,
-                'current_step' => $flow === 'pr' ? 'npp' : 'memo-internal',
+                'current_step' => $flow === 'pr' ? 'npp' : 'pengajuan-dana',
                 'created_by'   => $request->user()->id,
+                'updated_by'   => $request->user()->id,
                 'form_data'    => $request->form_data,
             ]);
 
-            if ($flow === 'pd' || $flow === 'pr') {
-                // Auto create verifikasi record
-                $lastVerif = Verifikasi::where('id', 'regexp', '^VR-[0-9]+$')->orderBy('id', 'desc')->first();
-                $nextVerif = $lastVerif ? intval(substr($lastVerif->id, 3)) + 1 : Verifikasi::count() + 1;
-                $verifId = 'VR-' . str_pad($nextVerif, 3, '0', STR_PAD_LEFT);
-                Verifikasi::create([
-                    'id'             => $verifId,
-                    'pengadaan_id'   => $pengadaan->id,
-                    'pengadaan_nama' => $pengadaan->nama,
-                    'departemen'     => $pengadaan->departemen,
-                    'nominal'        => $pengadaan->nominal,
-                    'tipe'           => $flow === 'pr' ? 'purchase-requisition' : 'park-dokumen',
-                    'submit_by'      => $request->user()->name,
-                    'submit_at'      => now(),
-                    'status'         => 'pending',
-                ]);
-            }
-
-            return response()->json($pengadaan, 201);
+            return response()->json($this->present($pengadaan), 201);
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()], 500);
         }
@@ -98,14 +76,20 @@ class PengadaanController extends Controller
     public function show(Request $request, Pengadaan $pengadaan)
     {
         $user = $request->user();
-        if (!$user->is_admin && $user->departemen !== $pengadaan->departemen && $pengadaan->created_by !== $user->id) {
+        if (!$user->is_admin && $pengadaan->created_by !== $user->id) {
             return response()->json(['message' => 'Unauthorized access to this division data.'], 403);
         }
 
         $pengadaan->load(['completedSteps', 'verifikasiRecords']);
 
-        return response()->json([
+        return response()->json($this->present($pengadaan, true));
+    }
+
+    private function present(Pengadaan $pengadaan, bool $includeHistory = false): array
+    {
+        $data = [
             'id'             => $pengadaan->id,
+            'flowType'       => $pengadaan->flow_type,
             'nama'           => $pengadaan->nama,
             'departemen'     => $pengadaan->departemen,
             'nominal'        => $pengadaan->nominal,
@@ -114,38 +98,71 @@ class PengadaanController extends Controller
             'currentStep'    => $pengadaan->current_step,
             'createdBy'      => $pengadaan->created_by,
             'completedSteps' => $pengadaan->completedSteps->pluck('step_id'),
-            'verifikasi'     => $pengadaan->verifikasiRecords,
             'formData'       => $pengadaan->form_data ?? [],
-        ]);
+        ];
+
+        if ($includeHistory) {
+            $data['verifikasi'] = $pengadaan->verifikasiRecords;
+            $data['history'] = ProcessHistory::where('pengadaan_id', $pengadaan->id)->latest()->get();
+        }
+
+        return $data;
     }
 
     public function updateFormData(Request $request, Pengadaan $pengadaan)
     {
         $user = $request->user();
-        if (!$user->is_admin && $user->departemen !== $pengadaan->departemen && $pengadaan->created_by !== $user->id) {
+        if (!$user->is_admin && $pengadaan->created_by !== $user->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $pengadaan->form_data = $request->all();
+        if (! $user->is_admin && ! in_array($pengadaan->status, ['draft', 'revision_required'], true)) {
+            return response()->json(['message' => 'Pengadaan tidak dapat diubah pada status saat ini.'], 422);
+        }
+        $pengadaan->form_data = $request->input('form_data', $request->all());
+        $pengadaan->updated_by = $user->id;
         $pengadaan->save();
 
         return response()->json(['message' => 'Form data updated']);
     }
 
-    public function submitStep(Request $request, Pengadaan $pengadaan)
+public function submitStep(Request $request, Pengadaan $pengadaan)
     {
         $user = $request->user();
-        if (!$user->is_admin && $user->departemen !== $pengadaan->departemen && $pengadaan->created_by !== $user->id) {
+        if (!$user->is_admin && $pengadaan->created_by !== $user->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         $request->validate([
             'stepId' => 'required|string',
             'tipe'   => 'nullable|string',
+            'form_data' => 'nullable|array',
         ]);
 
         $stepId = $request->stepId;
-        $tipe = $request->tipe ?? $stepId;
+        $tipe = $request->tipe ?? ($pengadaan->flow_type === 'pd' && $stepId === 'pengajuan-dana' ? 'park-dokumen' : $stepId);
+
+        $userSteps = $pengadaan->flow_type === 'pr' ? ['npp', 'pengajuan-dana', 'pengujian', 'pembayaran'] : ['pengajuan-dana', 'pengujian', 'pembayaran'];
+        $adminSteps = ['sp3', 'pbj', 'contract'];
+        if (! $user->is_admin && ! in_array($stepId, $userSteps, true)) {
+            return response()->json(['message' => 'Tahap ini hanya dapat diproses oleh admin.'], 403);
+        }
+        if ($user->is_admin && ! in_array($stepId, $adminSteps, true)) {
+            return response()->json(['message' => 'Admin memproses tahapan internal SP3, PBJ, dan Kontrak melalui antrean ini.'], 422);
+        }
+        if ($stepId !== $pengadaan->current_step) {
+            return response()->json(['message' => 'Tahap belum dapat diproses. Selesaikan tahapan sebelumnya terlebih dahulu.'], 422);
+        }
+
+        // Simpan payload yang sama sebelum membuat antrean verifikasi. Dengan
+        // begitu admin selalu membaca detail yang identik dengan input user.
+        if ($request->has('form_data')) {
+            $pengadaan->form_data = $request->form_data;
+            $pengadaan->save();
+        }
+
+        // Simpan data form tahapan ke tabel khusus (npp / sp3 / contract)
+        $this->persistStepDocument($request, $pengadaan, $stepId);
 
         // Check existing verif record for this step
         $existing = Verifikasi::where('pengadaan_id', $pengadaan->id)
@@ -154,14 +171,18 @@ class PengadaanController extends Controller
             ->first();
 
         if ($existing) {
+            $oldStatus = $existing->status;
             $existing->status = 'pending';
             $existing->catatan_admin = null;
             $existing->submit_by = $request->user()->name;
             $existing->submit_at = now();
             $existing->save();
 
-            $pengadaan->status = 'Menunggu Verifikasi Admin';
+            $pengadaan->status = 'waiting_approval';
+            $pengadaan->submitted_at = now();
             $pengadaan->save();
+
+            $this->recordHistory($request, $pengadaan, $existing, 'resubmitted', $oldStatus, 'pending');
 
             return response()->json([
                 'message' => 'Pengajuan verifikasi berhasil diperbarui.',
@@ -186,8 +207,11 @@ class PengadaanController extends Controller
             'status'         => 'pending',
         ]);
 
-        $pengadaan->status = 'Menunggu Verifikasi Admin';
+        $pengadaan->status = 'waiting_approval';
+        $pengadaan->submitted_at = now();
         $pengadaan->save();
+
+        $this->recordHistory($request, $pengadaan, $verif, 'submitted', null, 'pending');
 
         return response()->json([
             'message'    => 'Pengajuan verifikasi berhasil dikirim. Menunggu persetujuan admin.',
@@ -226,7 +250,7 @@ class PengadaanController extends Controller
             return response()->json([
                 'stepId'        => $stepId,
                 'status'        => 'not_submitted',
-                'canProceed'    => true,
+                'canProceed'    => $stepId === $pengadaan->current_step,
                 'message'       => 'Tahap ini belum diajukan verifikasi.',
             ]);
         }
@@ -247,7 +271,7 @@ class PengadaanController extends Controller
     public function update(Request $request, Pengadaan $pengadaan)
     {
         $user = $request->user();
-        if (!$user->is_admin && $user->departemen !== $pengadaan->departemen && $pengadaan->created_by !== $user->id) {
+        if (!$user->is_admin && $pengadaan->created_by !== $user->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -259,13 +283,14 @@ class PengadaanController extends Controller
             'status'      => 'sometimes|string',
         ]);
 
+        if (! $user->is_admin && ! in_array($pengadaan->status, ['draft', 'revision_required'], true)) return response()->json(['message' => 'Pengadaan tidak dapat diubah pada status saat ini.'], 422);
         if ($request->has('nama')) $pengadaan->nama = $request->nama;
         if ($request->has('departemen')) $pengadaan->departemen = $request->departemen;
         if ($request->has('nominal')) $pengadaan->nominal = $request->nominal;
-        if ($request->has('currentStep')) {
+        if ($user->is_admin && $request->has('currentStep')) {
             $pengadaan->current_step = $request->currentStep;
         }
-        if ($request->has('completedStepId')) {
+        if ($user->is_admin && $request->has('completedStepId')) {
             // Record completed step
             PengadaanCompletedStep::firstOrCreate([
                 'pengadaan_id' => $pengadaan->id,
@@ -274,21 +299,192 @@ class PengadaanController extends Controller
                 'completed_at' => now(),
             ]);
         }
-        if ($request->has('status')) $pengadaan->status = $request->status;
+        if ($request->has('form_data')) $pengadaan->form_data = $request->form_data;
+        if ($user->is_admin && $request->has('status')) $pengadaan->status = $request->status;
+        $pengadaan->updated_by = $user->id;
 
         $pengadaan->save();
 
-        return response()->json($pengadaan);
+        return response()->json($this->present($pengadaan->fresh(['completedSteps', 'verifikasiRecords'])));
     }
 
     public function destroy(Request $request, Pengadaan $pengadaan)
     {
         $user = $request->user();
-        if (!$user->is_admin && $user->departemen !== $pengadaan->departemen && $pengadaan->created_by !== $user->id) {
+        if (!$user->is_admin && $pengadaan->created_by !== $user->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        if (! $user->is_admin && ! in_array($pengadaan->status, ['draft', 'revision_required'], true)) {
+            return response()->json(['message' => 'Hanya draft atau pengajuan revisi yang dapat dihapus.'], 422);
+        }
+        // Foreign key lama pada verifikasi sudah dilepas, jadi data terkait harus
+        // dibersihkan secara eksplisit agar tidak menjadi data yatim.
+        Npp::where('pengadaan_id', $pengadaan->id)->delete();
+        Sp3::where('pengadaan_id', $pengadaan->id)->delete();
+        Contract::where('pengadaan_id', $pengadaan->id)->delete();
+        Pbj::where('pengadaan_id', $pengadaan->id)->delete();
+        ParkDocument::where('pengadaan_id', $pengadaan->id)->delete();
+        PurchaseRequisition::where('pengadaan_id', $pengadaan->id)->delete();
+        Payment::where('pengadaan_id', $pengadaan->id)->delete();
+        Pengujian::where('pengadaan_id', $pengadaan->id)->delete();
+        UploadedDocument::where('pengadaan_id', $pengadaan->id)->delete();
+        ProcessHistory::where('pengadaan_id', $pengadaan->id)->delete();
+        Verifikasi::where('pengadaan_id', $pengadaan->id)->delete();
         $pengadaan->delete();
         return response()->json(['message' => 'Pengadaan berhasil dihapus']);
+    }
+
+    /**
+     * Menyimpan data form tahapan pengadaan (NPP / SP3 / Contract) ke tabel khusus.
+     * Dipanggil dari submitStep agar data yang diinput user tersimpan terstruktur
+     * di database dan otomatis muncul sebagai record verifikasi di halaman admin.
+     */
+    protected function persistStepDocument(Request $request, Pengadaan $pengadaan, string $stepId)
+    {
+// Peta langkah frontend -> tabel/model dokumen
+        $map = [
+            'npp'            => Npp::class,
+            'sp3'            => Sp3::class,
+            'contract'       => Contract::class,
+            'pbj'            => Pbj::class,
+            'pengajuan-dana' => PurchaseRequisition::class,
+            'park-dokumen'   => ParkDocument::class,
+            'buat-pd'        => ParkDocument::class,
+            'detail-pd'      => ParkDocument::class,
+        ];
+
+        $modelClass = $map[$stepId] ?? null;
+        if ($stepId === 'pengajuan-dana' && $pengadaan->flow_type === 'pd') {
+            $modelClass = ParkDocument::class;
+        }
+        if (! $modelClass) {
+            return; // bukan tahapan yang punya tabel khusus
+        }
+
+        $formData = $request->form_data ?? $request->all();
+        // Ambil data form yang relevan dari form_data pengadaan bila dikirim terpisah
+        if (empty($formData) && $pengadaan->form_data) {
+            $formData = $pengadaan->form_data;
+        }
+
+        $prefix = match ($stepId) {
+            'npp'            => 'NPP',
+            'sp3'            => 'SP3',
+            'contract'       => 'CTR',
+            'pbj'            => 'PBJ',
+            'pengajuan-dana' => 'PR',
+            'park-dokumen'   => 'PD',
+            'buat-pd'        => 'PD',
+            'detail-pd'      => 'PD',
+            default => 'DOC',
+        };
+        if ($stepId === 'pengajuan-dana' && $pengadaan->flow_type === 'pd') {
+            $prefix = 'PD';
+        }
+
+        $document = $modelClass::where('pengadaan_id', $pengadaan->id)->latest()->first();
+        if ($document) {
+            $id = $document->id;
+        } else {
+            $last = $modelClass::where('id', 'regexp', '^' . $prefix . '-[0-9]+$')->orderBy('id', 'desc')->first();
+            $next = $last ? intval(substr($last->id, strlen($prefix) + 1)) + 1 : 1;
+            $id = $prefix . '-' . str_pad($next, 3, '0', STR_PAD_LEFT);
+        }
+
+        $subFd = is_array($formData) ? ($formData['buat-npp'] ?? $formData['npp'] ?? $formData['buat-pr'] ?? $formData['sp3'] ?? $formData['buat-pd'] ?? $formData) : [];
+
+        $data = [
+            'id'             => $id,
+            'pengadaan_id'   => $pengadaan->id,
+            'status'         => 'pending',
+            'submitted_by'   => $request->user()->name ?? 'User',
+            'form_data'      => $formData,
+        ];
+
+        if ($stepId === 'npp') {
+            $data['no_npp']       = $request->no_npp ?? $subFd['noNpp'] ?? null;
+            $data['judul']        = $request->judul ?? $subFd['judulPermohonan'] ?? $subFd['judul'] ?? $pengadaan->nama;
+            $data['vendor']       = $request->vendor ?? $subFd['vendor'] ?? null;
+            $data['nilai_pr']     = $request->nilai_pr ?? $subFd['nilaiPr'] ?? $pengadaan->nominal;
+            $data['coa']          = $request->coa ?? $subFd['coa'] ?? null;
+            $data['jenis_barang'] = $request->jenis_barang ?? $subFd['jenisBarang'] ?? null;
+            $data['kurs']         = $request->kurs ?? $subFd['kurs'] ?? null;
+            $data['metode']       = $request->metode ?? $subFd['metode'] ?? null;
+            $data['realisasi']    = $request->realisasi ?? $subFd['realisasi'] ?? null;
+            $data['keterangan']   = $request->keterangan ?? $subFd['keterangan'] ?? null;
+        } elseif ($stepId === 'sp3') {
+            $data['no_sp3']         = $request->no_sp3 ?? $subFd['noSp3'] ?? null;
+            $data['judul']          = $request->judul ?? $subFd['judulPermohonan'] ?? $subFd['judul'] ?? $pengadaan->nama;
+            $data['departemen']     = $request->departemen ?? $subFd['subUnit'] ?? $subFd['divisi'] ?? $pengadaan->departemen;
+            $data['rkap']           = $request->rkap ?? $subFd['nilaiPr'] ?? $subFd['nilaiPermohonan'] ?? $pengadaan->nominal;
+            $data['tax']            = $request->tax ?? $subFd['nilaiTax'] ?? null;
+            $data['realisasi']      = $request->realisasi ?? $subFd['realisasi'] ?? null;
+            $data['vendor']         = $request->vendor ?? $subFd['vendor'] ?? null;
+            $data['pr_no']          = $request->pr_no ?? $subFd['noPR'] ?? $subFd['prNo'] ?? null;
+            $data['rab_no']         = $request->rab_no ?? $subFd['noRAB'] ?? $subFd['rabNo'] ?? null;
+            $data['kak_no']         = $request->kak_no ?? $subFd['noKAK'] ?? $subFd['kakNo'] ?? null;
+            $data['mi_no']          = $request->mi_no ?? $subFd['noMI'] ?? $subFd['miNo'] ?? null;
+            $data['tipe_pemilihan'] = $request->tipe_pemilihan ?? $subFd['metode'] ?? null;
+        } elseif ($stepId === 'contract') {
+            $data['no_kontrak']       = $request->no_kontrak ?? $subFd['noKontrak'] ?? null;
+            $data['paket']            = $request->paket ?? $subFd['judulPermohonan'] ?? $subFd['paket'] ?? $pengadaan->nama;
+            $data['nilai']            = $request->nilai ?? $subFd['nilaiKontrak'] ?? $subFd['nilaiPr'] ?? $pengadaan->nominal;
+            $data['departemen']       = $request->departemen ?? $subFd['subUnit'] ?? $subFd['divisi'] ?? $pengadaan->departemen;
+            $data['pbj']              = $request->pbj ?? $subFd['pbj'] ?? null;
+            $data['vendor']           = $request->vendor ?? $subFd['vendor'] ?? $subFd['pemenang'] ?? null;
+            $data['performance_bond'] = $request->performance_bond ?? $subFd['performanceBond'] ?? null;
+            $data['start_date']       = $request->start_date ?? $subFd['targetLogistik'] ?? $subFd['startDate'] ?? null;
+            $data['end_date']         = $request->end_date ?? $subFd['perkiraanWaktu'] ?? $subFd['endDate'] ?? null;
+        } elseif ($stepId === 'pbj') {
+            $data['no_pbj']     = $request->no_pbj ?? $subFd['noPbj'] ?? null;
+            $data['nama_paket'] = $request->nama_paket ?? $subFd['judulPermohonan'] ?? $subFd['namaPaket'] ?? $pengadaan->nama;
+            $data['departemen'] = $request->departemen ?? $subFd['subUnit'] ?? $subFd['divisi'] ?? $pengadaan->departemen;
+            $data['nilai']      = $request->nilai ?? $subFd['nilaiPr'] ?? $subFd['nilai'] ?? $pengadaan->nominal;
+            $data['metode']     = $request->metode ?? $subFd['metode'] ?? null;
+            $data['vendor']     = $request->vendor ?? $subFd['vendor'] ?? $subFd['pemenang'] ?? null;
+            $data['tgl_awal']   = $request->tgl_awal ?? $subFd['tglAwal'] ?? $subFd['targetLogistik'] ?? null;
+            $data['tgl_akhir']  = $request->tgl_akhir ?? $subFd['tglAkhir'] ?? $subFd['perkiraanWaktu'] ?? null;
+            $data['keterangan'] = $request->keterangan ?? $subFd['keterangan'] ?? null;
+        } elseif ($stepId === 'pengajuan-dana') {
+            $data['no_pr']            = $request->no_pr ?? $subFd['noPr'] ?? null;
+            $data['judul']            = $request->judul ?? $subFd['judulPermohonan'] ?? $subFd['judul'] ?? $pengadaan->nama;
+            $data['departemen']       = $request->departemen ?? $subFd['subUnit'] ?? $subFd['divisi'] ?? $pengadaan->departemen;
+            $data['sub_unit']         = $request->sub_unit ?? $subFd['subUnit'] ?? null;
+            $data['jenis_permohonan'] = $request->jenis_permohonan ?? $subFd['jenisPermohonan'] ?? null;
+            $data['nominal']          = $request->nominal ?? $subFd['nominalPermohonan'] ?? $subFd['nominal'] ?? $pengadaan->nominal;
+} elseif (($stepId === 'pengajuan-dana' && $pengadaan->flow_type === 'pd') || $stepId === 'park-dokumen' || $stepId === 'buat-pd' || $stepId === 'detail-pd') {
+            $data['no_dokumen'] = $request->no_dokumen ?? $subFd['noDokumen'] ?? null;
+            $data['judul']      = $request->judul ?? $subFd['judulPermohonan'] ?? $subFd['judul'] ?? $pengadaan->nama;
+            $data['departemen'] = $request->departemen ?? $subFd['subUnit'] ?? $subFd['divisi'] ?? $pengadaan->departemen;
+            $data['kategori']   = $request->kategori ?? $subFd['jenisPermohonan'] ?? $subFd['kategori'] ?? null;
+            $data['nominal']    = $request->nominal ?? $subFd['nominalPermohonan'] ?? $subFd['nominal'] ?? $pengadaan->nominal;
+        }
+
+        try {
+            if ($document) {
+                unset($data['id']);
+                $document->fill($data);
+                $document->save();
+            } else {
+                $modelClass::create($data);
+            }
+        } catch (\Throwable $e) {
+            \Log::error('Gagal simpan dokumen ' . $stepId . ': ' . $e->getMessage());
+        }
+    }
+
+    protected function recordHistory(Request $request, Pengadaan $pengadaan, Verifikasi $verifikasi, string $action, ?string $fromStatus, ?string $toStatus): void
+    {
+        ProcessHistory::create([
+            'pengadaan_id'  => $pengadaan->id,
+            'verifikasi_id' => $verifikasi->id,
+            'step_id'       => $verifikasi->tipe,
+            'actor_id'      => $request->user()?->id,
+            'actor_name'    => $request->user()?->name,
+            'action'        => $action,
+            'from_status'   => $fromStatus,
+            'to_status'     => $toStatus,
+        ]);
     }
 }

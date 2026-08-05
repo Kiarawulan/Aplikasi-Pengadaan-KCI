@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Check, ChevronLeft, X } from "lucide-react";
+import { Check, CheckCircle2, ChevronLeft, Clock, FileWarning, X, XCircle } from "lucide-react";
 import type { Screen, PengadaanItem } from "@/types";
 import { PR_MAIN_STEPS } from "@/constants/steps";
 import { Breadcrumb } from "@/components/user/layout/Breadcrumb";
@@ -109,11 +109,8 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       } else if (fromScreen && (fromScreen.includes("pembayaran") || fromScreen.startsWith("pembayaran-"))) {
         const pIdx = steps.findIndex(st => st.id === "pembayaran");
         if (pIdx !== -1) targetIdx = pIdx;
-      } else if (fresh.currentStep === "pengujian") {
-        const pIdx = steps.findIndex(st => st.id === "pengujian");
-        if (pIdx !== -1) targetIdx = pIdx;
-      } else if (fresh.currentStep === "pembayaran") {
-        const pIdx = steps.findIndex(st => st.id === "pembayaran");
+      } else {
+        const pIdx = steps.findIndex(st => st.id === fresh.currentStep);
         if (pIdx !== -1) targetIdx = pIdx;
       }
       setActiveStepIdx(targetIdx);
@@ -139,9 +136,9 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
   // Check verification status from backend & local
   useEffect(() => {
-    const verifTypes = ["npp", "pengajuan-dana", "sp3", "pbj", "timeline", "pembayaran"];
+    const verifTypes = ["npp", "pengajuan-dana", "sp3", "pbj", "contract", "pembayaran"];
     if (verifTypes.includes(activeStep.id)) {
-      api.get(`/pengadaan/${item.id}/step-status?stepId=${activeStep.id}`).then(res => {
+      const refreshStatus = () => api.get(`/pengadaan/${item.id}/step-status?stepId=${activeStep.id}`).then(res => {
         setVerifStatus(res.data.status);
         setCatatanAdmin(res.data.catatanAdmin || null);
         if (res.data.verifikasi?.id) {
@@ -157,6 +154,9 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         setCatatanAdmin(null);
         setVerifId(null);
       });
+      refreshStatus();
+      const timer = window.setInterval(refreshStatus, 15000);
+      return () => window.clearInterval(timer);
     } else if (activeStep.id === "pengujian") {
       const updatePengujian = (p: any) => {
         if (p) {
@@ -226,19 +226,20 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   }
 
   const goNext = () => {
-    const verifTypes = ["npp", "pengajuan-dana", "sp3", "pbj", "timeline", "pembayaran"];
+    // User PR hanya dapat mengajukan NPP dan Pengajuan Dana. Tahap setelahnya
+    // adalah proses internal admin dan bersifat view-only bagi user.
+    const userSubmitSteps = ["npp", "pengajuan-dana"];
+    const adminOnlySteps = ["sp3", "pbj", "contract"];
 
-    if (verifTypes.includes(activeStep.id) && isSubmitPoint && (verifStatus === "not_submitted" || verifStatus === "revisi")) {
-      const paymentType = allFd["pelunasan"]?.jenis?.toLowerCase() || "outsource";
-      const tipeToSubmit = activeStep.id === "pembayaran" ? paymentType : activeStep.id;
-
+    if (userSubmitSteps.includes(activeStep.id) && isSubmitPoint && (verifStatus === "not_submitted" || verifStatus === "revisi")) {
       // Save form data before submitting
       flashSave();
 
-      // Submit to Verifikasi Queue!
+// Submit to Verifikasi Queue!
       api.post(`/pengadaan/${item.id}/submit-step`, {
         stepId: activeStep.id,
-        tipe: tipeToSubmit
+        tipe: activeStep.id,
+        form_data: allFd
       }).then(() => {
         setVerifStatus("pending");
         setCatatanAdmin(null);
@@ -252,6 +253,8 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       });
       return; // Do not advance step yet!
     }
+
+    if (adminOnlySteps.includes(activeStep.id)) return;
 
     if (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian") {
       if (verifStatus === "not_submitted") {
@@ -285,7 +288,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       flashSave(nextSubs);
       return;
     } else if (activeStepIdx < steps.length - 1) {
-      if (verifTypes.includes(activeStep.id) && verifStatus !== "approved") {
+      if (userSubmitSteps.includes(activeStep.id) && verifStatus !== "approved") {
         return; // Cannot advance if verification required and not approved
       }
       setCompletedStepIds(p => {
@@ -445,7 +448,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                 <button onClick={() => flashSave()} className="px-4 h-[30px] rounded border border-[#252271] text-[11.5px] text-[#252271] font-medium hover:bg-[#252271]/5">Simpan</button>
 
                 {!isLast ? (
-                  <button onClick={goNext} disabled={(verifStatus === "pending" && isSubmitPoint) || (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian" && verifStatus !== "not_submitted" && verifStatus !== "approved")} className="px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-[#252271] hover:bg-[#1a1860] disabled:bg-gray-400 disabled:cursor-not-allowed">
+                  <button onClick={goNext} disabled={(["sp3", "pbj", "contract"].includes(activeStep.id)) || (verifStatus === "pending" && isSubmitPoint) || (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian" && verifStatus !== "not_submitted" && verifStatus !== "approved")} className="px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-[#252271] hover:bg-[#1a1860] disabled:bg-gray-400 disabled:cursor-not-allowed">
                     {getNextLabel()}
                   </button>
                 ) : item.status === "Selesai" || completedStepIds.has("contract") ? (
