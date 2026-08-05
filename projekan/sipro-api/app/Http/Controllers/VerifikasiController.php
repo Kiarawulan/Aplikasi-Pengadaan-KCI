@@ -72,6 +72,19 @@ class VerifikasiController extends Controller
         return response()->json($verifikasi);
     }
 
+    public function update(Request $request, Verifikasi $verifikasi)
+    {
+        $request->validate([
+            'status' => 'sometimes|in:pending,approved,revisi,rejected',
+            'catatan_admin' => 'nullable|string',
+        ]);
+
+        $verifikasi->fill($request->only(['status', 'catatan_admin']));
+        $verifikasi->save();
+
+        return response()->json($verifikasi);
+    }
+
     public function approve(Request $request, Verifikasi $verifikasi)
     {
         $admin = $request->user();

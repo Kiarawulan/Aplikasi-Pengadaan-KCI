@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
-import { VerifTable, FilterConfig } from "../../../components/admin/VerifTable";
-import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/AdminModal";
+import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
+import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/shared/AdminModal";
+import { DetailDocumentView } from "../../../components/user/pengadaan/DetailDocumentView";
 import { Plus, CheckCircle2, XCircle, FileWarning } from "lucide-react";
 import { useAuth } from "../../../store/authStore";
 import { getVerifRecords } from "../../../store/dataStore";
@@ -245,7 +246,7 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <ModalField label="Divisi" required>
-                <ModalSelect value={form.divisi} onChange={v => setForm(p => ({ ...p, divisi: v }))} options={DIVISI_OPTIONS} />
+                <ModalSelect value={form.divisi} onChange={v => setForm(p => ({ ...p, divisi: v }))} options={["CTIT", "Logistik", "HC", "Finance", "Operasional"]} />
               </ModalField>
               <ModalField label="Jenis Permohonan" required>
                 <ModalSelect value={form.jenisPermohonan} onChange={v => setForm(p => ({ ...p, jenisPermohonan: v }))} options={[{value:"Barang",label:"Barang"},{value:"Jasa",label:"Jasa"},{value:"Konstruksi",label:"Konstruksi"},{value:"Konsultansi",label:"Konsultansi"}]} />

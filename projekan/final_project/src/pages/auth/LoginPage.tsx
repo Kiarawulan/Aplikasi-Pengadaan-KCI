@@ -54,14 +54,10 @@ export function LoginPage() {
           <p className="text-gray-400 text-[13px]">Masuk ke akun Anda untuk melanjutkan</p>
         </div>
 
-        {/* Demo credentials hint */}
-        <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50/80 p-3">
-          <p className="text-[11px] font-semibold text-blue-700 mb-1.5 text-center">Demo Credentials</p>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10.5px] text-blue-600">
-            <span>Admin: admin@sipro.com</span><span className="text-blue-400">/ admin123</span>
-            <span>IT: it@sipro.com</span><span className="text-blue-400">/ it123</span>
-
-          </div>
+        <div className="mb-5 rounded-xl border border-[#252271]/10 bg-[#252271]/5 p-3 text-center">
+          <p className="text-[11px] font-semibold text-[#252271]">Kalau mau ngetes</p>
+          <p className="mt-1 text-[10.5px] text-[#252271]/60">admin@sipro.com     /admin123</p>
+          <p className="mt-1 text-[10.5px] text-[#252271]/60">it@sipro.com     /it123</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -73,7 +69,7 @@ export function LoginPage() {
               onChange={e => setEmail(e.target.value)}
               placeholder="email@perusahaan.com"
               required
-              className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-[13px] text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition-all"
+              className="w-full h-11 px-4 rounded-xl border borderz-gray-200 bg-white text-[13px] text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition-all"
               style={{ "--tw-ring-color": "#e6251c40" } as React.CSSProperties}
             />
           </div>

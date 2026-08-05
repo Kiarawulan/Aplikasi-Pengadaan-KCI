@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
-import { VerifTable, FilterConfig } from "../../../components/admin/VerifTable";
-import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/AdminModal";
+import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
+import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/shared/AdminModal";
 import { Plus, CheckCircle2, XCircle, FileWarning, Download, ChevronRight, Trash2 } from "lucide-react";
 import { useAuth } from "../../../store/authStore";
 

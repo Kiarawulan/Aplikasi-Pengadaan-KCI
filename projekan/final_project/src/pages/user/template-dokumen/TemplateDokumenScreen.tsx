@@ -1,5 +1,5 @@
 import { Search, Download } from "lucide-react";
-import { TopBar } from "@/components/layout/user/TopBar";
+import { TopBar } from "@/components/user/layout/TopBar";
 import { getTemplates } from "@/store/dataStore";
 
 
@@ -10,7 +10,7 @@ export function TemplateDokumenScreen() {
     <div>
       <TopBar title="Template Dokumen" />
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-        <div className="bg-[#272477] px-5 py-4 flex items-center justify-between">
+        <div className="bg-[#252271] px-5 py-4 flex items-center justify-between">
           <div><p className="text-white font-semibold text-[13px]">Daftar Template Dokumen</p><p className="text-white/50 text-[10.5px]">{docs.length} template tersedia</p></div>
           <div className="relative"><Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50" /><input className="bg-white/10 border border-white/20 pl-8 pr-3 py-1.5 rounded-xl text-[11px] focus:outline-none w-40 text-white placeholder-white/50" placeholder="Pencarian" /></div>
         </div>
@@ -40,5 +40,3 @@ export function TemplateDokumenScreen() {
     </div>
   );
 }
-
-

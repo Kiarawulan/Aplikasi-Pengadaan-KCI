@@ -1,0 +1,48 @@
+/* Shared visual language: deliberate flat surfaces, restrained glass, and palette-led motion. */
+:root { color: #252271; background: #f8f7fb; }
+
+html { scroll-behavior: smooth; }
+body { background: #f8f7fb; color: #252271; }
+
+button, a, input, select, textarea, [role="button"] {
+  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease,
+    box-shadow 180ms ease, transform 180ms cubic-bezier(.2,.8,.2,1), opacity 180ms ease;
+}
+
+button:not(:disabled), [role="button"] { cursor: pointer; }
+button:not(:disabled):active, [role="button"]:active { transform: scale(.97); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid #e6251c66; outline-offset: 2px;
+}
+
+input, select, textarea {
+  border-color: #2522712b !important;
+  background-color: #ffffff !important;
+  color: #252271 !important;
+  box-shadow: 0 1px 2px #2522710d;
+}
+input::placeholder, textarea::placeholder { color: #25227180 !important; }
+input:focus, select:focus, textarea:focus { border-color: #e6251c !important; box-shadow: 0 0 0 3px #e6251c1a !important; }
+
+/* Status colours are deliberately semantic, never inherited from the brand palette. */
+.status-badge { border: 1px solid transparent; }
+.status-success { background: #ecfdf3; border-color: #abefc6; color: #067647; }
+.status-progress { background: #eff8ff; border-color: #b2ddff; color: #175cd3; }
+.status-pending { background: #fffaeb; border-color: #fedf89; color: #b54708; }
+.status-danger { background: #fef3f2; border-color: #fecdca; color: #b42318; }
+.status-neutral { background: #f2f4f7; border-color: #d0d5dd; color: #475467; }
+
+/* Glass is reserved for overlays, filter bars, and elevated navigation. */
+.glass-panel { background: #ffffffd9; border: 1px solid #ffffffb3; box-shadow: 0 12px 32px #25227114; backdrop-filter: blur(14px); }
+
+@keyframes interface-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes soft-pulse { 50% { box-shadow: 0 0 0 6px #e6251c0d; } }
+
+main > *, .animate-enter { animation: interface-enter 380ms cubic-bezier(.2,.8,.2,1) both; }
+main > *:nth-child(2) { animation-delay: 40ms; }
+main > *:nth-child(3) { animation-delay: 80ms; }
+main > *:nth-child(4) { animation-delay: 120ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}

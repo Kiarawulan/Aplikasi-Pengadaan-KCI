@@ -29,15 +29,17 @@ Route::middleware('auth:sanctum')->group(function () {
     // RUP
     Route::get('/rup', [RupController::class, 'index']);
     Route::post('/rup', [RupController::class, 'store']);
-
-    // Dashboard
-    Route::get('/dashboard', [DashboardController::class, 'index']);
+    Route::put('/rup/{rup}', [RupController::class, 'update']);
+    Route::delete('/rup/{rup}', [RupController::class, 'destroy']);
 
     // Users
     Route::get('/users', [UserController::class, 'index']);
     Route::post('/users', [UserController::class, 'store']);
     Route::put('/users/{user}', [UserController::class, 'update']);
     Route::delete('/users/{user}', [UserController::class, 'destroy']);
+
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index']);
     Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword']);
     Route::post('/users/{user}/toggle-active', [UserController::class, 'toggleActive']);
 
@@ -61,6 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/verifikasi', [VerifikasiController::class, 'index']);
     Route::post('/verifikasi', [VerifikasiController::class, 'store']);
     Route::get('/verifikasi/{verifikasi}', [VerifikasiController::class, 'show']);
+    Route::put('/verifikasi/{verifikasi}', [VerifikasiController::class, 'update']);
     Route::post('/verifikasi/{verifikasi}/approve', [VerifikasiController::class, 'approve']);
     Route::post('/verifikasi/{verifikasi}/revisi', [VerifikasiController::class, 'revisi']);
     Route::post('/verifikasi/{verifikasi}/reject', [VerifikasiController::class, 'reject']);

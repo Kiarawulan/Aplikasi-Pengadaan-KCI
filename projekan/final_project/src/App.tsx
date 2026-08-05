@@ -1,19 +1,21 @@
 import { useState } from "react";
 import type { Screen, PengadaanItem } from "./types";
 import { AuthProvider, useAuth } from "./store/authStore";
-import { LoginPage } from "./pages/LoginPage";
+import { LoginPage } from "./pages/auth/LoginPage";
 import { AdminApp } from "./AdminApp";
-import { Sidebar } from "./components/layout/Sidebar";
-import { DashboardScreen } from "./pages/DashboardScreen";
-import { RupListScreen } from "./pages/RupListScreen";
-import { DaftarPengadaanScreen } from "./pages/DaftarPengadaanScreen";
-import { PurchaseRequestionScreen } from "./pages/PurchaseRequestionScreen";
-import { PrDetailScreen } from "./pages/PrDetailScreen";
-import { PdDetailScreen } from "./pages/PdDetailScreen";
-import { TemplateDokumenScreen } from "./pages/TemplateDokumenScreen";
-import { ProfileScreen } from "./pages/ProfileScreen";
-import { DaftarPengujianScreen } from "./pages/DaftarPengujianScreen";
-import { DaftarPembayaranScreen } from "./pages/DaftarPembayaranScreen";
+import { Sidebar } from "./components/user/layout/Sidebar";
+import {
+  DashboardScreen,
+  RupListScreen,
+  DaftarPengadaanScreen,
+  PurchaseRequestionScreen,
+  PrDetailScreen,
+  PdDetailScreen,
+  TemplateDokumenScreen,
+  ProfileScreen,
+  DaftarPengujianScreen,
+  DaftarPembayaranScreen,
+} from "./pages/user";
 
 // ─── User App (fully synchronized via Laravel MySQL API) ──────────────────────
 function UserApp() {

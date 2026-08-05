@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
 import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
-import { VerifTable, FilterConfig } from "../../../components/admin/VerifTable";
-import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/AdminModal";
+import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
+import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/shared/AdminModal";
 import { Plus, CheckCircle2, XCircle, FileWarning, Eye, Printer, Download, Trash2, Edit3, ChevronRight } from "lucide-react";
-import { Sp3DetailView } from "../../../components/pengadaan/Sp3DetailView";
-import { RupDetailView } from "../../../components/pengadaan/RupDetailView";
-import { TambahRupModal } from "../../../components/pengadaan/TambahRupModal";
-import { NppDetailView } from "../../../components/pengadaan/NppDetailView";
-import { PengujianDetailView } from "../../../components/pengadaan/PengujianDetailView";
+import { RupForm, NppForm, VendorForm } from "../../../types/forms";
+import { Sp3DetailView } from "../../../components/admin/verifikasi/Sp3DetailView";
+import { RupDetailView } from "../../../components/admin/verifikasi/RupDetailView";
+
+import { NppDetailView } from "../../../components/admin/verifikasi/NppDetailView";
+import { PengujianDetailView } from "../../../components/admin/verifikasi/PengujianDetailView";
 import { getVerifRecords, getRupList } from "../../../store/dataStore";
 
 type ScreenProps = {
@@ -62,6 +63,8 @@ const INITIAL_VENDORS = [
 // ─── Component ───────────────────────────────────────────────────────────────
 export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
   const [pengadaanList, setPengadaanList] = useState<any[]>([]);
+  const [rupList, setRupList] = useState<any[]>([]);
+  const [nppList, setNppList] = useState<any[]>([]);
   const [verifTasks, setVerifTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -196,27 +199,29 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
 
   const genericList = pengadaanList; // used for warehouse, harga, dll
 
-  const [showAdd, setShowAdd] = useState(false);
+
   const [showDetail, setShowDetail] = useState<any | null>(null);
+  const [showRevisionBox, setShowRevisionBox] = useState(false);
+  const [revisionNote, setRevisionNote] = useState("");
   const [showPbjProcess, setShowPbjProcess] = useState<any | null>(null);
   const [showContractProcess, setShowContractProcess] = useState<any | null>(null);
 
   // Forms
-  const [formRup, setFormRup] = useState({
+  const [formRup, setFormRup] = useState<RupForm>({
     pilihan: "Lebih 500 Juta", judul: "", capexOpex: "Capex", uraian: "", metode: "Pelelangan Umum",
     jenis: "Barang", kategori: "Investasi", tahunAnggaran: "2024", tahunRup: "2024", tipeKontrak: "Single Year",
     pbj: "Sarana", nilaiSebelumPajak: "", rkip: "Ya", tipePajak: "PPN 11%", nilaiPaket: "", targetLogistik: "",
     perkiraanWaktu: "", lokasi: "", volume: "", penyesuaian: ""
   });
 
-  const [formNpp, setFormNpp] = useState({
+  const [formNpp, setFormNpp] = useState<NppForm>({
     realisasi: "Timeline", timelineText: "", judul: "", metode: "Pelelangan Umum", vendor: "",
     nilaiPr: "", coa: "", typeTax: "PPN 11%", nilaiTax: "", jenisBarang: "Barang", kurs: "IDR", keterangan: "",
     prNo: "", prDate: "", prFile: "", rabNo: "", rabDate: "", rabFile: "",
     justNo: "", justDate: "", justFile: "", miNo: "", miDate: "", miFile: "", miPerihal: ""
   });
 
-  const [formVendor, setFormVendor] = useState({ name: "", code: "", country: "Indonesia", city: "", accountGroup: "", searchTerm: "", purchaseOrg: "", termOfPayment: "30 Hari", currency: "IDR", address: "" });
+  const [formVendor, setFormVendor] = useState<VendorForm>({ name: "", code: "", country: "Indonesia", city: "", accountGroup: "", searchTerm: "", purchaseOrg: "", termOfPayment: "30 Hari", currency: "IDR", address: "" });
 
   const getSubmenuInfo = () => {
     switch (activeSubItem) {
@@ -248,16 +253,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
 
   const { title, subtitle, mode } = getSubmenuInfo();
 
-  const handleAddSubmit = () => {
-    if (mode.startsWith("rup")) {
-      setRupList([{ id: `RUP-00${rupList.length+1}`, judul: formRup.judul || "Paket Pengadaan Baru", bebanBiaya: "CTI - INFORMATION TECHNOLOGY", pbj: formRup.pbj, sumberDana: "RKAP 2024", jenisKontrak: formRup.jenis, nilaiRkap: formRup.nilaiSebelumPajak ? `Rp ${formRup.nilaiSebelumPajak}` : "Rp 100.000.000", tahunRkap: formRup.tahunRup, typeTax: formRup.tipePajak, nilaiTax: "Rp 11.000.000", startDate: new Date().toISOString().split("T")[0], endDate: "2024-12-31", keterangan: formRup.uraian || "Keterangan RUP baru", date: new Date().toISOString().split("T")[0], status: "Submitted", vpDept: "VP IT", capexOpex: formRup.capexOpex, rkapKat: formRup.kategori }, ...rupList]);
-    } else if (mode.startsWith("npp")) {
-      setNppList([{ id: `NPP-00${nppList.length+1}`, sp3: `SP3-${Math.floor(Math.random()*9000)+1000}`, judul: formNpp.judul || "NPP Baru", rkap: formNpp.nilaiPr ? `Rp ${formNpp.nilaiPr}` : "Rp 100.000.000", dept: "CTIT", tax: formNpp.nilaiTax || "Rp 11.000.000", realisasi: formNpp.realisasi, vendor: formNpp.vendor || "PT Vendor Baru", date: new Date().toISOString().split("T")[0], coa: formNpp.coa || "5211101", jenisBarang: formNpp.jenisBarang, kurs: formNpp.kurs }, ...nppList]);
-    } else if (mode.startsWith("vendor")) {
-      setVendorList([{ code: formVendor.code || `VND-00${vendorList.length+1}`, name: formVendor.name || "PT Vendor Baru", street: formVendor.address || "Jl. Sudirman", country: formVendor.country, city: formVendor.city || "Jakarta", currency: formVendor.currency, accountGroup: formVendor.accountGroup || "Vendor Lokal", termOfPayment: formVendor.termOfPayment }, ...vendorList]);
-    }
-    setShowAdd(false);
-  };
+
 
   // Columns
   const rupColumns = [
@@ -345,15 +341,6 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
       <AdminTopBar title={title} subtitle={subtitle} />
 
       <div className="relative">
-        {(mode.startsWith("rup") || mode.startsWith("npp") || mode.startsWith("vendor")) && (
-          <div className="absolute right-5 top-4 z-10">
-            <button onClick={() => setShowAdd(true)} className="bg-[#252271] hover:bg-[#1a1753] text-white px-3 py-1.5 rounded-lg text-[11.5px] font-semibold flex items-center gap-1 shadow-sm transition-colors">
-              <Plus size={14} />
-              {mode.startsWith("rup") ? "Tambah RUP" : mode.startsWith("npp") ? "Create NPP" : "Add Vendor"}
-            </button>
-          </div>
-        )}
-
         {mode.startsWith("rup") && (
           <VerifTable
             columns={rupColumns} data={rupList} searchKeys={["judul", "bebanBiaya", "vpDept"]}
@@ -405,7 +392,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item));
               }
             }}
-            showVerifActions={true} showCrudActions={true} emptyMessage="Tidak ada data RUP."
+            showVerifActions={true} showCrudActions={false} emptyMessage="Tidak ada data RUP."
           />
         )}
 
@@ -457,7 +444,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
               }
             }}
             showVerifActions={true}
-            showCrudActions={true} emptyMessage="Tidak ada data NPP."
+            showCrudActions={false} emptyMessage="Tidak ada data NPP."
           />
         )}
 
@@ -509,7 +496,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
               }
             }}
             showVerifActions={true}
-            showCrudActions={true} emptyMessage="Tidak ada data SP3."
+            showCrudActions={false} emptyMessage="Tidak ada data SP3."
           />
         )}
 
@@ -604,7 +591,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                 alert("Hanya bisa bypass tahap Pengujian atau Pembayaran dari sini.");
               }
             }}
-            showCrudActions={true} emptyMessage="Tidak ada data Kontrak."
+            showCrudActions={false} emptyMessage="Tidak ada data Kontrak."
             approveLabel="Proses Kontrak"
           />
         )}
@@ -613,7 +600,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
           <VerifTable
             columns={jamlakColumns} data={jamlakList} searchKeys={["judul", "id"]}
             onView={(r) => setShowDetail({ type: "jamlak", item: r })}
-            showCrudActions={true} emptyMessage="Tidak ada data Jamlak."
+            showCrudActions={false} emptyMessage="Tidak ada data Jamlak."
           />
         )}
 
@@ -625,71 +612,6 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
           />
         )}
       </div>
-
-      {showAdd && mode.startsWith("rup") && (
-        <TambahRupModal
-          onClose={() => setShowAdd(false)}
-          onSubmit={(formData) => {
-            setRupList([
-              {
-                id: `RUP-00${rupList.length + 1}`,
-                judul: formData.namaPaket || "Paket Pengadaan Baru",
-                bebanBiaya: formData.bebanBiaya || "CTI - INFORMATION TECHNOLOGY",
-                pbj: formData.pbj || "Sarana",
-                sumberDana: "RKAP 2024",
-                jenisKontrak: formData.jenisPengadaan || "Barang",
-                nilaiRkap: formData.nilaiSebelumPajak ? `Rp ${formData.nilaiSebelumPajak}` : "Rp 800.000.000",
-                tahunRkap: formData.tahunRup || "2024",
-                typeTax: formData.tipePajak || "PPN 11%",
-                nilaiTax: formData.nilaiTax ? `Rp ${formData.nilaiTax}` : "Rp 88.000.000",
-                startDate: formData.targetLogistik || new Date().toISOString().split("T")[0],
-                endDate: formData.perkiraanWaktu || "2024-12-31",
-                keterangan: formData.uraian || "Keterangan RUP baru",
-                date: new Date().toISOString().split("T")[0],
-                status: "Submitted",
-                vpDept: "VP IT",
-                capexOpex: formData.opexCapex || "Capex",
-                rkapKat: formData.kategoriAnggaran || "Investasi",
-              },
-              ...rupList,
-            ]);
-            setShowAdd(false);
-          }}
-        />
-      )}
-
-      {showAdd && mode.startsWith("npp") && (
-        <AdminModal title="Create NPP" onClose={() => setShowAdd(false)} onSubmit={handleAddSubmit} submitLabel="Submit" width="max-w-2xl">
-          <div className="space-y-3">
-            <ModalField label="Realisasi" required>
-              <div className="flex gap-4 pt-1">
-                {["Timeline", "Diluar Timeline"].map(opt => (
-                  <label key={opt} className="flex items-center gap-1.5 text-[11.5px] cursor-pointer">
-                    <input type="radio" name="realisasiNpp" checked={formNpp.realisasi === opt} onChange={() => setFormNpp(p => ({ ...p, realisasi: opt }))} className="accent-[#252271]" />
-                    {opt}
-                  </label>
-                ))}
-              </div>
-            </ModalField>
-            <ModalField label="Judul Pengadaan" required><ModalInput value={formNpp.judul} onChange={v => setFormNpp(p => ({ ...p, judul: v }))} placeholder="Judul pengadaan..." /></ModalField>
-            <div className="grid grid-cols-2 gap-3">
-              <ModalField label="Metode" required><ModalSelect value={formNpp.metode} onChange={v => setFormNpp(p => ({ ...p, metode: v }))} options={[{ value: "Pelelangan Umum", label: "Pelelangan Umum" }, { value: "Penunjukan Langsung", label: "Penunjukan Langsung" }]} /></ModalField>
-              <ModalField label="Vendor Name" required><ModalInput value={formNpp.vendor} onChange={v => setFormNpp(p => ({ ...p, vendor: v }))} placeholder="PT Vendor..." /></ModalField>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <ModalField label="Nilai PR (Rp)" required><ModalInput type="number" value={formNpp.nilaiPr} onChange={v => setFormNpp(p => ({ ...p, nilaiPr: v }))} placeholder="150000000" /></ModalField>
-              <ModalField label="COA" required><ModalInput value={formNpp.coa} onChange={v => setFormNpp(p => ({ ...p, coa: v }))} placeholder="5211101" /></ModalField>
-            </div>
-            <hr className="border-gray-100" />
-            <p className="text-[11px] font-bold text-gray-700 uppercase">Lampiran Dokumen</p>
-            <div className="grid grid-cols-3 gap-2">
-              <ModalField label="Dokumen PR (No / Tanggal / File)"><ModalInput value={formNpp.prNo} onChange={v => setFormNpp(p => ({ ...p, prNo: v }))} placeholder="PR-001" /></ModalField>
-              <ModalField label="Dokumen RAB (No / Tanggal / File)"><ModalInput value={formNpp.rabNo} onChange={v => setFormNpp(p => ({ ...p, rabNo: v }))} placeholder="RAB-001" /></ModalField>
-              <ModalField label="Dokumen KAK / MI"><ModalInput value={formNpp.miNo} onChange={v => setFormNpp(p => ({ ...p, miNo: v }))} placeholder="KAK-001" /></ModalField>
-            </div>
-          </div>
-        </AdminModal>
-      )}
 
       {showDetail && (
         <AdminModal

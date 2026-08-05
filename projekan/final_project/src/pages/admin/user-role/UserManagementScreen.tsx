@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Eye, Trash2, Edit2, Search } from "lucide-react";
-import { AdminModal, ConfirmModal, ModalField, ModalInput, ModalSelect } from "@/components/admin/AdminModal";
+import { AdminModal, ConfirmModal, ModalField, ModalInput, ModalSelect } from "@/components/admin/shared/AdminModal";
 import { api } from "@/services/api";
 import type { AppUser, AppRole } from "@/types";
 import { useAuth, getUsers as getLocalUsers, getRoles as getLocalRoles, saveUsers } from "@/store/authStore";

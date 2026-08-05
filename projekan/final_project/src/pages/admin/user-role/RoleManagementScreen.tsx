@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Search, Edit2, Trash2 } from "lucide-react";
-import { AdminModal, ConfirmModal, ModalField, ModalInput, ModalSelect } from "@/components/admin/AdminModal";
-import { PermissionMatrix } from "@/components/admin/PermissionMatrix";
+import { AdminModal, ConfirmModal, ModalField, ModalInput, ModalSelect } from "@/components/admin/shared/AdminModal";
+import { PermissionMatrix } from "@/components/admin/shared/PermissionMatrix";
 import { getRoles, saveRoles, getUsers } from "@/store/authStore";
 import { generateId } from "@/store/dataStore";
 import { api } from "@/services/api";

@@ -3,14 +3,17 @@ import logoImg from "@/imports/UserDashboard/a1d658a5f37b0b6b958626283ef2524233d
 import group13Svg from "@/imports/Group13/svg-0k0x59k5bp";
 import group14Svg from "@/imports/Group14/svg-sivp8gfyg0";
 import { useAuth } from "./store/authStore";
-import { RoleManagementScreen } from "./pages/admin/RoleManagementScreen";
-import { UserManagementScreen } from "./pages/admin/UserManagementScreen";
-import { PermissionMatrix } from "./components/admin/PermissionMatrix";
-import { Sp3DetailView } from "./components/pengadaan/Sp3DetailView";
-import { RupDetailView } from "./components/pengadaan/RupDetailView";
-import { TambahRupModal } from "./components/pengadaan/TambahRupModal";
-import { NppDetailView } from "./components/pengadaan/NppDetailView";
-import { PengujianDetailView } from "./components/pengadaan/PengujianDetailView";
+import { RoleManagementScreen } from "./pages/admin/user-role/RoleManagementScreen";
+import { UserManagementScreen } from "./pages/admin/user-role/UserManagementScreen";
+import { AdminDashboardScreen } from "./pages/admin/dashboard/AdminDashboardScreen";
+import { TemplateDokumenAdminScreen } from "./pages/admin/template-dokumen/TemplateDokumenAdminScreen";
+import { MasterDataScreen } from "./pages/admin/master-data/MasterDataScreen";
+import { PermissionMatrix } from "./components/admin/shared/PermissionMatrix";
+import { Sp3DetailView } from "./components/admin/verifikasi/Sp3DetailView";
+import { RupDetailView } from "./components/admin/verifikasi/RupDetailView";
+import { TambahRupModal } from "./components/admin/verifikasi/TambahRupModal";
+import { NppDetailView } from "./components/admin/verifikasi/NppDetailView";
+import { PengujianDetailView } from "./components/admin/verifikasi/PengujianDetailView";
 import { api } from "./services/api";
 import { getRupList, getVerifRecords, updateRup, updateVerifRecord } from "./store/dataStore";
 import { PengadaanVerifScreen } from "./pages/admin/verifikasi/PengadaanVerifScreen";
@@ -38,7 +41,7 @@ const ICONS = {
   edit: "M10.1547 3.488L12.512 5.84533M11.1547 2.488C11.4673 2.1754 11.8912 1.99978 12.3333 1.99978C12.7754 1.99978 13.1994 2.1754 13.512 2.488C13.8246 2.8006 14.0002 3.22458 14.0002 3.66667C14.0002 4.10875 13.8246 4.53273 13.512 4.84533L4.33333 14.024H2V11.6427L11.1547 2.488Z",
 };
 
-type Page = "dashboard" | "manajemen-user" | "manajemen-role" | "tambah-role" | "verifikasi";
+type Page = "dashboard" | "manajemen-user" | "manajemen-role" | "tambah-role" | "verifikasi" | "template-dokumen" | "master-data";
 type Modal = null | "tambah-user" | "detail-user" | "tambah-role-modal";
 type VerifCategory = "pengajuan-dana" | "pengadaan" | "pengujian" | "pembayaran";
 type VerifDoc = "park-document" | "purchase-requisition";
@@ -124,7 +127,7 @@ interface SidebarProps {
 function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
   const { currentUser, logout } = useAuth();
   const userName = currentUser?.name || "Administrator";
-  const userEmail = currentUser?.email || "admin@sipro.com";
+  const userEmail = currentUser?.email || "admin@kci.co.id";
   const initial = userName.charAt(0).toUpperCase();
 
   const [userRoleOpen, setUserRoleOpen] = useState(
@@ -141,8 +144,8 @@ function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
       { path: ICONS.dashboard, p: "dashboard", active: page === "dashboard" },
       { path: ICONS.users, p: "manajemen-user", active: isUserRoleSection },
       { path: ICONS.clipboard, p: "verifikasi", active: isVerifikasiSection },
-      { path: ICONS.document, p: "dashboard", active: false },
-      { path: ICONS.database, p: "dashboard", active: false },
+      { path: ICONS.document, p: "template-dokumen", active: page === "template-dokumen" },
+      { path: ICONS.database, p: "master-data", active: page === "master-data" },
     ];
     return (
       <aside className="relative w-[56px] shrink-0 self-stretch bg-[#e6251c] overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">
@@ -305,16 +308,16 @@ function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
           <NavLink
             label="Template Dokumen"
             iconPath={ICONS.document}
-            active={false}
-            onClick={() => {}}
+            active={page === "template-dokumen"}
+            onClick={() => onNavigate("template-dokumen")}
           />
 
           {/* Master Data */}
           <NavLink
             label="Master Data"
             iconPath={ICONS.database}
-            active={false}
-            onClick={() => {}}
+            active={page === "master-data"}
+            onClick={() => onNavigate("master-data")}
           />
         </nav>
 
@@ -1139,6 +1142,7 @@ const PARK_DOC_ROWS = [
 ];
 
 type ParkDocRow = {
+  verif_id?: string;
   tanggal: string; noDok: string; judul: string;
   nominalPD: string; nominalKonversi: string; unit: string; status: string;
 };
@@ -1808,7 +1812,7 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
 function TambahRolePage({ onBack }: TambahRolePageProps) {
   const [roleName, setRoleName] = useState("");
   const [userType, setUserType] = useState("");
-  const [rolePerms, setRolePerms] = useState<RolePermissions>({
+  const [rolePerms, setRolePerms] = useState<any>({
     pengajuanDana: "editor",
     pengadaan: "editor",
     pengujian: "editor",
@@ -2029,10 +2033,10 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
       if (target.verif_id && !target.verif_id.startsWith("VR-RUP")) {
         await api.post(`/verifikasi/${target.verif_id}/approve`).catch(() => {});
       }
-      await api.put(`/rup/${target.idRup}`, { status: "Approved" }).catch(() => {});
-      updateRup(target.idRup, { status: "Approved" });
+      await api.put(`/rup/${target.idRup}`, { status: "approved" }).catch(() => {});
+      updateRup(target.idRup, { status: "approved" });
       if (target.verif_id) {
-        updateVerifRecord(target.verif_id, { status: "Approved" });
+        updateVerifRecord(target.verif_id, { status: "approved" });
       }
       fetchData();
       alert(`RUP ${target.idRup} (${target.nama || ''}) berhasil disetujui!`);
@@ -2260,7 +2264,7 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
 function PengadaanSubDocPage({ title }: { title: string }) {
   const [search, setSearch] = useState("");
 
-  const sampleData: Record<string, { headers: string[]; rows: (string | JSX.Element)[][] }> = {
+  const sampleData: Record<string, { headers: string[]; rows: (string | React.ReactNode)[][] }> = {
     "Jaminan Pelaksanaan": {
       headers: ["No. Jaminan", "No. Kontrak", "Nama Vendor", "Bank Penerbit", "Nilai Jaminan", "Masa Berlaku", "Status"],
       rows: [
@@ -3406,9 +3410,9 @@ const SAMPLE_PBJ_LIST = [
 ];
 
 const SAMPLE_PBJ_MEMO = [
-  { noSp3: "SP3-2024-001", judulPengadaan: "Pengadaan Server CTIT 2024", nomorMemoInternal: "MI-2024-001", tanggalMemo: "15-01-2024", status: "Approved" },
-  { noSp3: "SP3-2024-002", judulPengadaan: "Pengadaan Alat Logistik 2024", nomorMemoInternal: "MI-2024-002", tanggalMemo: "20-01-2024", status: "Approved" },
-  { noSp3: "SP3-2024-003", judulPengadaan: "Pengadaan Lisensi Software 2024", nomorMemoInternal: "MI-2024-003", tanggalMemo: "25-01-2024", status: "Approved" },
+  { noSp3: "SP3-2024-001", judulPengadaan: "Pengadaan Server CTIT 2024", nomorMemoInternal: "MI-2024-001", tanggalMemo: "15-01-2024", status: "approved" },
+  { noSp3: "SP3-2024-002", judulPengadaan: "Pengadaan Alat Logistik 2024", nomorMemoInternal: "MI-2024-002", tanggalMemo: "20-01-2024", status: "approved" },
+  { noSp3: "SP3-2024-003", judulPengadaan: "Pengadaan Lisensi Software 2024", nomorMemoInternal: "MI-2024-003", tanggalMemo: "25-01-2024", status: "approved" },
 ];
 
 function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-internal" }) {
@@ -5370,12 +5374,14 @@ export function AdminApp() {
 
       {/* Main content */}
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
-        {page === "dashboard" && <DashboardPage />}
+        {page === "dashboard" && <AdminDashboardScreen />}
         {page === "manajemen-user" && <UserManagementScreen />}
         {page === "manajemen-role" && <RoleManagementScreen />}
         {page === "tambah-role" && (
           <TambahRolePage onBack={() => handleNavigate("manajemen-role")} />
         )}
+        {page === "template-dokumen" && <TemplateDokumenAdminScreen />}
+        {page === "master-data" && <MasterDataScreen />}
         {page === "verifikasi" && verifCategory === "pengajuan-dana" && (
           <VerifikasiPage category={verifCategory} doc={verifDoc} />
         )}

@@ -18,7 +18,6 @@ export const RupDetailView: React.FC<RupDetailViewProps> = ({
   onBack,
   showActions = true,
 }) => {
-  // Original authentic RUP Information fields
   const infoFields: DetailDocumentField[] = [
     { label: "No. Timeline", value: item?.noTimeline || item?.id || 'OPICTI/2022/23' },
     { label: "Procurement Title", value: item?.procurementTitle || item?.judul || item?.nama || 'Pengadaan Outsource IT Helpdesk' },
@@ -36,17 +35,19 @@ export const RupDetailView: React.FC<RupDetailViewProps> = ({
   ];
 
   return (
-    <DetailDocumentView
-      title="Detail RUP (Rencana Umum Pengadaan)"
-      subtitle={`RUP - ${item?.noTimeline || item?.id || 'OPICTI/2022/23'}`}
-      status={item?.status || "Submitted Timeline"}
-      infoFields={infoFields}
-      files={[]} // RUP does not have file attachments, so no Berkas Pendukung section rendered!
-      onBack={onBack}
-      onApprove={onApprove}
-      onRevisi={onRevisi}
-      onReject={onReject}
-      showActions={showActions}
-    />
+    <div className="h-full max-h-screen overflow-y-auto">
+      <DetailDocumentView
+        title="Detail RUP (Rencana Umum Pengadaan)"
+        subtitle={`RUP - ${item?.noTimeline || item?.id || 'OPICTI/2022/23'}`}
+        status={item?.status || "Submitted Timeline"}
+        infoFields={infoFields}
+        files={[]} // RUP does not have file attachments, so no Berkas Pendukung section rendered!
+        onBack={onBack}
+        onApprove={onApprove}
+        onRevisi={onRevisi}
+        onReject={onReject}
+        showActions={showActions}
+      />
+    </div>
   );
 };

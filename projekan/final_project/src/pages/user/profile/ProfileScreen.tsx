@@ -1,5 +1,5 @@
 import { User, LogOut } from "lucide-react";
-import { TopBar } from "@/components/layout/user/TopBar";
+import { TopBar } from "@/components/user/layout/TopBar";
 import { useAuth } from "@/store/authStore";
 
 

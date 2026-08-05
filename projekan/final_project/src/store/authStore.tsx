@@ -9,6 +9,7 @@ export const DEFAULT_ROLES: AppRole[] = [
     name: "Admin",
     description: "Akses penuh ke seluruh fitur sistem",
     isSystem: true,
+    roleType: "admin",
     color: "#e6251c",
     createdAt: "2024-01-01",
     permissions: {
@@ -22,6 +23,7 @@ export const DEFAULT_ROLES: AppRole[] = [
     name: "Logistik",
     description: "Akses ke pengadaan dan kontrak",
     isSystem: true,
+    roleType: "user",
     color: "#252271",
     createdAt: "2024-01-01",
     permissions: {
@@ -35,6 +37,7 @@ export const DEFAULT_ROLES: AppRole[] = [
     name: "PBJ",
     description: "Akses ke proses pengadaan barang dan jasa",
     isSystem: true,
+    roleType: "user",
     color: "#16a34a",
     createdAt: "2024-01-01",
     permissions: {
@@ -48,6 +51,7 @@ export const DEFAULT_ROLES: AppRole[] = [
     name: "Finance",
     description: "Akses ke pembayaran dan pengajuan dana",
     isSystem: true,
+    roleType: "user",
     color: "#d97706",
     createdAt: "2024-01-01",
     permissions: {
@@ -61,6 +65,7 @@ export const DEFAULT_ROLES: AppRole[] = [
     name: "IT",
     description: "Akses terbatas untuk departemen IT",
     isSystem: false,
+    roleType: "admin",
     color: "#7c3aed",
     createdAt: "2024-01-01",
     permissions: {
@@ -164,6 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           name: apiUserData.role_name || 'User',
           description: '',
           isSystem: false,
+          roleType: apiUserData.is_admin ? 'admin' : 'user',
           color: apiUserData.role_color || '#64748b',
           createdAt: '',
           permissions: apiUserData.permissions,
@@ -236,6 +242,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             name: apiUserData.role_name || 'User',
             description: '',
             isSystem: false,
+            roleType: apiUserData.is_admin ? 'admin' : 'user',
             color: apiUserData.role_color || '#64748b',
             createdAt: '',
             permissions: apiUserData.permissions,

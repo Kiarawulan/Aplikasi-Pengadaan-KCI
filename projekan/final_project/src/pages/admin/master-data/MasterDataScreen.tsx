@@ -1,472 +1,587 @@
-import { useState } from "react";
-import { AdminTopBar } from "@/components/layout/admin/AdminTopBar";
-import { VerifTable } from "@/components/admin/VerifTable";
-import { AdminModal, ConfirmModal, ModalField, ModalInput, ModalSelect } from "@/components/admin/AdminModal";
-import { getVendors, addVendor, updateVendor, deleteVendor, getHargaSatuan, addHargaSatuan, updateHargaSatuan, deleteHargaSatuan, generateId, formatCurrency } from "@/store/dataStore";
-import type { Vendor, HargaSatuan } from "@/types";
+import { useState, useMemo } from "react";
+import { AdminTopBar } from "@/components/admin/layout/AdminTopBar";
+import { Plus, Search, Edit3, Trash2, X, Database, Building2, Briefcase, Users, MapPin, Banknote, Tag, FileStack, CalendarDays, Percent, CreditCard, FlaskConical, PenTool, Activity } from "lucide-react";
 
 
-type Tab = "vendor" | "harga-satuan" | "bank" | "biz" | "payment-type" | "warehouse" | "inklaring" | "jamlak";
+// ─── Types ─────────────────────────────────────────────────────────────────────
+interface MasterItem {
+  id: string;
+  [key: string]: any;
+}
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "vendor", label: "Vendor" },
-  { id: "harga-satuan", label: "Harga Satuan" },
-  { id: "bank", label: "Banks" },
-  { id: "biz", label: "Business Areas" },
-  { id: "payment-type", label: "Detail Pembayaran" },
-  { id: "warehouse", label: "Warehouse" },
-  { id: "inklaring", label: "Import Inklaring" },
-  { id: "jamlak", label: "Jaminan Pelaksanaan" },
+type TabId =
+  | "vendor" | "unit-kerja" | "department" | "direktorat"
+  | "jenis-pengadaan" | "metode-pengadaan" | "kategori-barang" | "jenis-kontrak"
+  | "tahun-anggaran" | "mata-uang" | "pajak" | "bank"
+  | "lokasi" | "penguji" | "jabatan-ttd" 
+  | "status-pengadaan" | "status-pengujian" | "status-pembayaran";
+
+interface TabDef {
+  id: TabId;
+  label: string;
+  icon: any;
+  group: string;
+}
+
+// ─── Tab Definitions ───────────────────────────────────────────────────────────
+const TABS: TabDef[] = [
+  { id: "vendor", label: "Vendor", icon: Building2, group: "Umum" },
+  { id: "unit-kerja", label: "Unit Kerja / Divisi", icon: Users, group: "Umum" },
+  { id: "department", label: "Department", icon: Briefcase, group: "Umum" },
+  { id: "direktorat", label: "Direktorat", icon: Building2, group: "Umum" },
+  { id: "jenis-pengadaan", label: "Jenis Pengadaan", icon: Tag, group: "Pengadaan" },
+  { id: "metode-pengadaan", label: "Metode Pengadaan", icon: FileStack, group: "Pengadaan" },
+  { id: "kategori-barang", label: "Kategori Barang/Jasa", icon: Database, group: "Pengadaan" },
+  { id: "jenis-kontrak", label: "Jenis Kontrak", icon: Briefcase, group: "Pengadaan" },
+  { id: "tahun-anggaran", label: "Tahun Anggaran", icon: CalendarDays, group: "Keuangan" },
+  { id: "mata-uang", label: "Mata Uang", icon: Banknote, group: "Keuangan" },
+  { id: "pajak", label: "Pajak", icon: Percent, group: "Keuangan" },
+  { id: "bank", label: "Bank", icon: CreditCard, group: "Keuangan" },
+  { id: "lokasi", label: "Lokasi", icon: MapPin, group: "Referensi" },
+  { id: "penguji", label: "Penguji", icon: FlaskConical, group: "Referensi" },
+  { id: "jabatan-ttd", label: "Jabatan Penandatangan", icon: PenTool, group: "Referensi" },
+  { id: "status-pengadaan", label: "Status Pengadaan", icon: Activity, group: "Status" },
+  { id: "status-pengujian", label: "Status Pengujian", icon: Activity, group: "Status" },
+  { id: "status-pembayaran", label: "Status Pembayaran", icon: Activity, group: "Status" },
 ];
 
-const KATEGORI_VENDOR = [
-  { value: "Teknologi", label: "Teknologi" }, { value: "Elektronik", label: "Elektronik" },
-  { value: "Furnitur", label: "Furnitur" }, { value: "General", label: "General" },
-  { value: "Jasa", label: "Jasa" }, { value: "Konstruksi", label: "Konstruksi" },
-];
+const TAB_GROUPS = ["Umum", "Pengadaan", "Keuangan", "Referensi", "Status"];
 
-const STATUS_VENDOR = [
-  { value: "aktif", label: "Aktif" }, { value: "blacklist", label: "Blacklist" }, { value: "non-aktif", label: "Non-Aktif" },
-];
-
-const KATEGORI_HARGA = [
-  { value: "IT Hardware", label: "IT Hardware" }, { value: "IT Supplies", label: "IT Supplies" },
-  { value: "Elektronik", label: "Elektronik" }, { value: "ATK", label: "ATK" },
-  { value: "Furnitur", label: "Furnitur" }, { value: "Jasa", label: "Jasa" },
-];
-
-// Mock C-FITS & Pengadaan Master Data
-const MOCK_BANKS = [
-  { id: "BNK-001", name: "Bank BNI", code: "009", address: "Jl. Jend. Sudirman Kav. 1, Jakarta", phone: "021-2511946", fax: "021-2511947", website: "www.bni.co.id" },
-  { id: "BNK-002", name: "Bank BRI", code: "002", address: "Jl. Jend. Sudirman No. 44-46, Jakarta", phone: "021-5751966", fax: "021-5700916", website: "www.bri.co.id" },
-  { id: "BNK-003", name: "Bank Mandiri", code: "008", address: "Jl. Jend. Gatot Subroto Kav. 36-38, Jakarta", phone: "021-5265000", fax: "021-5265008", website: "www.bankmandiri.co.id" },
-  { id: "BNK-004", name: "Bank BCA", code: "014", address: "Menara BCA, Jl. M.H. Thamrin No. 1, Jakarta", phone: "021-23588000", fax: "021-23588300", website: "www.bca.co.id" },
-];
-
-const MOCK_BIZ_AREAS = [
-  { id: "BIZ-001", name: "Area DAOP 1 Jakarta", code: "BIZ-JKT-01" },
-  { id: "BIZ-002", name: "Area Depo KRL Bogor", code: "BIZ-BGR-02" },
-  { id: "BIZ-003", name: "Area Depo KRL Depok", code: "BIZ-[#DPK]-03" },
-  { id: "BIZ-004", name: "Area Stasiun Juanda", code: "BIZ-JDA-04" },
-  { id: "BIZ-005", name: "Area Balai Yasa Manggarai", code: "BIZ-MRI-05" },
-];
-
-const MOCK_PAYMENT_TYPES = [
-  { id: "PAYT-001", typeName: "Outsource", detailName: "Gaji & Tunjangan Outsource" },
-  { id: "PAYT-002", typeName: "Outsource", detailName: "Penyedia Jasa Keamanan Stasiun" },
-  { id: "PAYT-003", typeName: "Non Outsource", detailName: "Maintenance & Pemeliharaan Sarana" },
-  { id: "PAYT-004", typeName: "Non Outsource", detailName: "Pengadaan IT Hardware & Server" },
-  { id: "PAYT-005", typeName: "UMD", detailName: "Uang Muka Dinas Perjalanan & Operasional" },
-];
-
-// Mock warehouse data
-const WAREHOUSE_TABS = [
-  { id: "card", label: "Kartu Stok" },
-  { id: "spare-part", label: "Spare Part" },
-  { id: "waste", label: "Waste" },
-];
-
-const MOCK_WAREHOUSE = {
-  card: [
-    { id: "WH-001", nama: "Laptop Dell Latitude 5540", stok: 5, satuan: "Unit", lokasi: "Rak A-1", kondisi: "Baik" },
-    { id: "WH-002", nama: 'Monitor LG 27 Inch', stok: 3, satuan: "Unit", lokasi: "Rak A-2", kondisi: "Baik" },
-    { id: "WH-003", nama: "Kertas A4 80gr", stok: 50, satuan: "Rim", lokasi: "Rak B-1", kondisi: "Baik" },
+// ─── Mock Data for each tab ────────────────────────────────────────────────────
+const MOCK_DATA: Record<TabId, MasterItem[]> = {
+  vendor: [
+    { id: "VND-001", nama: "PT Maju Bersama Teknologi", npwp: "01.234.567.8-901.234", kategori: "Teknologi", status: "Aktif", kontak: "Budi Santoso", telepon: "021-5551234" },
+    { id: "VND-002", nama: "CV Solusi Elektronik", npwp: "02.345.678.9-012.345", kategori: "Elektronik", status: "Aktif", kontak: "Andi Wijaya", telepon: "021-5552345" },
+    { id: "VND-003", nama: "PT Infrastruktur Nusantara", npwp: "03.456.789.0-123.456", kategori: "Konstruksi", status: "Aktif", kontak: "Siti Rahmawati", telepon: "021-5553456" },
+    { id: "VND-004", nama: "CV Jaya Abadi", npwp: "04.567.890.1-234.567", kategori: "General", status: "Non-Aktif", kontak: "Doni Prasetya", telepon: "021-5554567" },
   ],
-  "spare-part": [
-    { id: "SP-001", nama: "Baterai Laptop HP", stok: 10, satuan: "Pcs", lokasi: "Rak C-1", kondisi: "Baik" },
-    { id: "SP-002", nama: "Charger Dell 65W", stok: 7, satuan: "Pcs", lokasi: "Rak C-2", kondisi: "Baik" },
+  "unit-kerja": [
+    { id: "UK-001", nama: "Divisi CTIT", kode: "DIV-CTIT", kepala: "Ir. Ahmad Fauzi" },
+    { id: "UK-002", nama: "Divisi Logistik", kode: "DIV-LOG", kepala: "Drs. Budi Hartono" },
+    { id: "UK-003", nama: "Divisi Keuangan", kode: "DIV-KEU", kepala: "Citra Dewi, SE" },
+    { id: "UK-004", nama: "Divisi Operasional", kode: "DIV-OPS", kepala: "Doni Prasetya, MT" },
+    { id: "UK-005", nama: "Divisi SDM", kode: "DIV-SDM", kepala: "Eka Putri, MPsi" },
   ],
-  waste: [
-    { id: "WT-001", nama: "Laptop Rusak (EOL)", stok: 3, satuan: "Unit", lokasi: "Gudang Waste", kondisi: "Rusak" },
-    { id: "WT-002", nama: "Monitor CRT", stok: 5, satuan: "Unit", lokasi: "Gudang Waste", kondisi: "Rusak" },
+  department: [
+    { id: "DEPT-001", nama: "Dept. Pengadaan", kode: "PGD", divisi: "Logistik" },
+    { id: "DEPT-002", nama: "Dept. IT Infrastructure", kode: "ITIF", divisi: "CTIT" },
+    { id: "DEPT-003", nama: "Dept. Akuntansi", kode: "AKT", divisi: "Keuangan" },
+    { id: "DEPT-004", nama: "Dept. Perawatan", kode: "PRW", divisi: "Operasional" },
+  ],
+  direktorat: [
+    { id: "DIR-001", nama: "Direktorat Utama", kode: "DIRUTAMA" },
+    { id: "DIR-002", nama: "Direktorat Keuangan", kode: "DIRKEU" },
+    { id: "DIR-003", nama: "Direktorat Operasional", kode: "DIROPS" },
+    { id: "DIR-004", nama: "Direktorat Teknik", kode: "DIRTEK" },
+  ],
+  "jenis-pengadaan": [
+    { id: "JP-001", nama: "Pengadaan Barang", kode: "PB", keterangan: "Pengadaan barang fisik" },
+    { id: "JP-002", nama: "Pengadaan Jasa", kode: "PJ", keterangan: "Pengadaan jasa layanan" },
+    { id: "JP-003", nama: "Pengadaan Konstruksi", kode: "PK", keterangan: "Pengadaan pekerjaan konstruksi" },
+    { id: "JP-004", nama: "Pengadaan Jasa Konsultansi", kode: "PJK", keterangan: "Pengadaan jasa konsultan" },
+  ],
+  "metode-pengadaan": [
+    { id: "MP-001", nama: "Penunjukan Langsung", kode: "PL", batasNilai: "≤ 200 Juta" },
+    { id: "MP-002", nama: "Pemilihan Langsung", kode: "PML", batasNilai: "200 Juta - 5 Milyar" },
+    { id: "MP-003", nama: "Tender Terbuka", kode: "TT", batasNilai: "> 5 Milyar" },
+    { id: "MP-004", nama: "E-Purchasing", kode: "EP", batasNilai: "Sesuai Katalog" },
+  ],
+  "kategori-barang": [
+    { id: "KB-001", nama: "IT Hardware", kode: "ITH" },
+    { id: "KB-002", nama: "IT Software", kode: "ITS" },
+    { id: "KB-003", nama: "Elektronik", kode: "ELK" },
+    { id: "KB-004", nama: "ATK", kode: "ATK" },
+    { id: "KB-005", nama: "Furnitur", kode: "FRN" },
+    { id: "KB-006", nama: "Jasa Outsource", kode: "JOS" },
+    { id: "KB-007", nama: "Jasa Konstruksi", kode: "JKS" },
+  ],
+  "jenis-kontrak": [
+    { id: "JK-001", nama: "Kontrak Lump Sum", kode: "LS", keterangan: "Harga tetap" },
+    { id: "JK-002", nama: "Kontrak Harga Satuan", kode: "HS", keterangan: "Berdasarkan volume" },
+    { id: "JK-003", nama: "Kontrak Gabungan", kode: "GB", keterangan: "Kombinasi lump sum & satuan" },
+    { id: "JK-004", nama: "Kontrak Terima Jadi", kode: "TJ", keterangan: "Turnkey" },
+  ],
+  "tahun-anggaran": [
+    { id: "TA-001", nama: "Tahun Anggaran 2023", tahun: "2023", status: "Selesai" },
+    { id: "TA-002", nama: "Tahun Anggaran 2024", tahun: "2024", status: "Aktif" },
+    { id: "TA-003", nama: "Tahun Anggaran 2025", tahun: "2025", status: "Perencanaan" },
+  ],
+  "mata-uang": [
+    { id: "CUR-001", nama: "Rupiah", kode: "IDR", simbol: "Rp" },
+    { id: "CUR-002", nama: "US Dollar", kode: "USD", simbol: "$" },
+    { id: "CUR-003", nama: "Euro", kode: "EUR", simbol: "€" },
+    { id: "CUR-004", nama: "Japanese Yen", kode: "JPY", simbol: "¥" },
+  ],
+  pajak: [
+    { id: "TAX-001", nama: "PPN 11%", kode: "PPN11", persentase: "11%", keterangan: "Pajak Pertambahan Nilai" },
+    { id: "TAX-002", nama: "PPh 21", kode: "PPH21", persentase: "5-30%", keterangan: "Pajak Penghasilan Orang Pribadi" },
+    { id: "TAX-003", nama: "PPh 22", kode: "PPH22", persentase: "1.5%", keterangan: "Pajak Impor/Pengadaan" },
+    { id: "TAX-004", nama: "PPh 23", kode: "PPH23", persentase: "2%", keterangan: "Pajak Jasa & Sewa" },
+    { id: "TAX-005", nama: "PPh Final 4(2)", kode: "PPHF", persentase: "2-10%", keterangan: "Pajak Final Konstruksi" },
+  ],
+  bank: [
+    { id: "BNK-001", nama: "Bank BNI", kode: "009", alamat: "Jl. Jend. Sudirman Kav. 1, Jakarta" },
+    { id: "BNK-002", nama: "Bank BRI", kode: "002", alamat: "Jl. Jend. Sudirman No. 44-46, Jakarta" },
+    { id: "BNK-003", nama: "Bank Mandiri", kode: "008", alamat: "Jl. Jend. Gatot Subroto Kav. 36-38, Jakarta" },
+    { id: "BNK-004", nama: "Bank BCA", kode: "014", alamat: "Menara BCA, Jl. M.H. Thamrin No. 1, Jakarta" },
+  ],
+  lokasi: [
+    { id: "LOK-001", nama: "Kantor Pusat Jakarta", kode: "JKT-01", alamat: "Jl. Juanda No. 1, Jakarta Pusat" },
+    { id: "LOK-002", nama: "Depo Manggarai", kode: "MRI-01", alamat: "Jl. Manggarai Utara, Jakarta Selatan" },
+    { id: "LOK-003", nama: "Stasiun Bogor", kode: "BGR-01", alamat: "Jl. Mayor Oking, Bogor" },
+    { id: "LOK-004", nama: "Depo Depok", kode: "DPK-01", alamat: "Jl. Margonda Raya, Depok" },
+  ],
+  penguji: [
+    { id: "PGJ-001", nama: "Ir. Rudi Hartono", nip: "198501012010011001", bidang: "Elektrikal", sertifikasi: "Ahli Muda" },
+    { id: "PGJ-002", nama: "Dr. Sari Wulandari", nip: "198706152012012002", bidang: "Mekanikal", sertifikasi: "Ahli Madya" },
+    { id: "PGJ-003", nama: "Agus Setiawan, ST", nip: "199003202015011003", bidang: "IT", sertifikasi: "Ahli Muda" },
+  ],
+  "jabatan-ttd": [
+    { id: "JBT-001", nama: "Direktur Utama", kode: "DIRUT", level: "Direksi" },
+    { id: "JBT-002", nama: "Direktur Keuangan", kode: "DIRKEU", level: "Direksi" },
+    { id: "JBT-003", nama: "VP Pengadaan", kode: "VP-PGD", level: "Vice President" },
+    { id: "JBT-004", nama: "Manager Logistik", kode: "MGR-LOG", level: "Manager" },
+    { id: "JBT-005", nama: "Kepala Divisi CTIT", kode: "KADIV-CTIT", level: "Kepala Divisi" },
+  ],
+  "status-pengadaan": [
+    { id: "SP-001", nama: "Draft", kode: "DRAFT", warna: "#94a3b8", urutan: 1 },
+    { id: "SP-002", nama: "Diajukan", kode: "SUBMITTED", warna: "#f59e0b", urutan: 2 },
+    { id: "SP-003", nama: "Verifikasi", kode: "VERIFYING", warna: "#3b82f6", urutan: 3 },
+    { id: "SP-004", nama: "Disetujui", kode: "APPROVED", warna: "#22c55e", urutan: 4 },
+    { id: "SP-005", nama: "Ditolak", kode: "REJECTED", warna: "#ef4444", urutan: 5 },
+    { id: "SP-006", nama: "Revisi", kode: "REVISION", warna: "#8b5cf6", urutan: 6 },
+  ],
+  "status-pengujian": [
+    { id: "ST-001", nama: "Request", kode: "REQ", warna: "#94a3b8", urutan: 1 },
+    { id: "ST-002", nama: "Pelaksanaan", kode: "EXEC", warna: "#f59e0b", urutan: 2 },
+    { id: "ST-003", nama: "Upload BAHP", kode: "BAHP", warna: "#3b82f6", urutan: 3 },
+    { id: "ST-004", nama: "Selesai", kode: "DONE", warna: "#22c55e", urutan: 4 },
+  ],
+  "status-pembayaran": [
+    { id: "SB-001", nama: "Belum Verifikasi", kode: "UNVERIFIED", warna: "#94a3b8", urutan: 1 },
+    { id: "SB-002", nama: "Sudah Verifikasi", kode: "VERIFIED", warna: "#3b82f6", urutan: 2 },
+    { id: "SB-003", nama: "Siap Bayar", kode: "READY", warna: "#f59e0b", urutan: 3 },
+    { id: "SB-004", nama: "Terbayar", kode: "PAID", warna: "#22c55e", urutan: 4 },
   ],
 };
 
-const MOCK_INKLARING = [
-  { id: "INK-001", noContainer: "MSCU1234567", noBL: "BL-2024-001", asal: "China", barang: "Komponen Server", tanggal: "2024-02-15", status: "selesai" },
-  { id: "INK-002", noContainer: "MSCU7654321", noBL: "BL-2024-002", asal: "Japan", barang: "Mesin CNC", tanggal: "2024-03-01", status: "proses" },
-];
-
-const MOCK_JAMLAK = [
-  { id: "JML-001", vendor: "PT Maju Bersama Teknologi", kontrak: "KTR-2024-001", nilai: "Rp 7.500.000", berlaku: "2024-12-31", status: "aktif" },
-  { id: "JML-002", vendor: "CV Solusi Elektronik", kontrak: "KTR-2024-002", nilai: "Rp 2.500.000", berlaku: "2024-06-30", status: "kadaluarsa" },
-];
-
-// ─── Vendor Tab ────────────────────────────────────────────────────────────────
-function VendorTab() {
-  const [vendors, setVendors] = useState<Vendor[]>(() => getVendors());
-  const [showAdd, setShowAdd] = useState(false);
-  const [showEdit, setShowEdit] = useState<Vendor | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-
-  const emptyVendor = (): Vendor => ({
-    id: generateId("VND"), nama: "", npwp: "", alamat: "", kontakPerson: "", telepon: "", email: "", kategori: "General", status: "aktif", createdAt: new Date().toISOString().split("T")[0],
-  });
-  const [form, setForm] = useState<Vendor>(emptyVendor());
-  const [editForm, setEditForm] = useState<Vendor | null>(null);
-  const refresh = () => setVendors(getVendors());
-
-  const columns = [
-    { key: "vendor", label: "Nama Vendor", render: (v: Vendor) => (
-      <div><p className="font-semibold text-gray-800 text-[12px]">{v.nama}</p><p className="text-gray-400 text-[10px]">NPWP: {v.npwp}</p></div>
-    )},
-    { key: "kontak", label: "Kontak", render: (v: Vendor) => (
-      <div><p className="text-[11.5px] text-gray-700">{v.kontakPerson}</p><p className="text-gray-400 text-[10px]">{v.telepon}</p></div>
-    )},
-    { key: "kategori", label: "Kategori", render: (v: Vendor) => <span className="text-[11.5px] text-gray-600">{v.kategori}</span> },
-    { key: "status", label: "Status", render: (v: Vendor) => {
-      const cfg: Record<string, string> = { aktif: "bg-green-50 text-green-600", blacklist: "bg-red-50 text-red-600", "non-aktif": "bg-gray-100 text-gray-500" };
-      return <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-medium ${cfg[v.status]}`}>{v.status.charAt(0).toUpperCase() + v.status.slice(1)}</span>;
-    }},
-  ];
-
-  const VendorForm = ({ val, set }: { val: Vendor; set: (v: Vendor) => void }) => (
-    <div className="space-y-3">
-      <ModalField label="Nama Vendor" required><ModalInput value={val.nama} onChange={v => set({ ...val, nama: v })} /></ModalField>
-      <ModalField label="NPWP"><ModalInput value={val.npwp} onChange={v => set({ ...val, npwp: v })} placeholder="XX.XXX.XXX.X-XXX.XXX" /></ModalField>
-      <div className="grid grid-cols-2 gap-3">
-        <ModalField label="Kategori"><ModalSelect value={val.kategori} onChange={v => set({ ...val, kategori: v })} options={KATEGORI_VENDOR} /></ModalField>
-        <ModalField label="Status"><ModalSelect value={val.status} onChange={(v: string) => set({ ...val, status: v as Vendor["status"] })} options={STATUS_VENDOR} /></ModalField>
-      </div>
-      <ModalField label="Kontak Person"><ModalInput value={val.kontakPerson} onChange={v => set({ ...val, kontakPerson: v })} /></ModalField>
-      <div className="grid grid-cols-2 gap-3">
-        <ModalField label="Telepon"><ModalInput value={val.telepon} onChange={v => set({ ...val, telepon: v })} /></ModalField>
-        <ModalField label="Email"><ModalInput type="email" value={val.email} onChange={v => set({ ...val, email: v })} /></ModalField>
-      </div>
-      <ModalField label="Alamat"><ModalInput value={val.alamat} onChange={v => set({ ...val, alamat: v })} /></ModalField>
-    </div>
-  );
-
-  return (
-    <>
-      <VerifTable
-        columns={columns} data={vendors} searchKeys={["nama", "npwp", "kontakPerson"]}
-        onEdit={(v) => { setEditForm({ ...v }); setShowEdit(v); }}
-        onDelete={(v) => setDeleteId(v.id)}
-        onAdd={() => { setForm(emptyVendor()); setShowAdd(true); }}
-        addLabel="Tambah Vendor" showCrudActions={true}
-        filterOptions={[{ key: "status", label: "Status", options: STATUS_VENDOR }, { key: "kategori", label: "Kategori", options: KATEGORI_VENDOR }]}
-      />
-      {showAdd && (
-        <AdminModal title="Tambah Vendor" onClose={() => setShowAdd(false)} onSubmit={() => { addVendor(form); setShowAdd(false); setForm(emptyVendor()); refresh(); }} submitLabel="Tambah" width="max-w-lg">
-          <VendorForm val={form} set={setForm} />
-        </AdminModal>
-      )}
-      {showEdit && editForm && (
-        <AdminModal title="Edit Vendor" onClose={() => setShowEdit(null)} onSubmit={() => { updateVendor(editForm); setShowEdit(null); refresh(); }} submitLabel="Simpan" width="max-w-lg">
-          <VendorForm val={editForm} set={setEditForm as (v: Vendor) => void} />
-        </AdminModal>
-      )}
-      {deleteId && <ConfirmModal title="Hapus Vendor" message="Yakin ingin menghapus vendor ini?" onConfirm={() => { deleteVendor(deleteId); setDeleteId(null); refresh(); }} onClose={() => setDeleteId(null)} confirmLabel="Ya, Hapus" destructive />}
-    </>
-  );
+// ─── Column definitions per tab ────────────────────────────────────────────────
+interface ColDef {
+  key: string;
+  label: string;
+  render?: (item: MasterItem) => React.ReactNode;
 }
 
-// ─── Harga Satuan Tab ──────────────────────────────────────────────────────────
-function HargaSatuanTab() {
-  const [items, setItems] = useState<HargaSatuan[]>(() => getHargaSatuan());
-  const [showAdd, setShowAdd] = useState(false);
-  const [showEdit, setShowEdit] = useState<HargaSatuan | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-
-  const emptyItem = (): HargaSatuan => ({
-    id: generateId("HS"), namaBarang: "", satuan: "Unit", harga: 0, kategori: "IT Hardware", tahun: "2024", updatedAt: new Date().toISOString().split("T")[0],
-  });
-  const [form, setForm] = useState<HargaSatuan>(emptyItem());
-  const [editForm, setEditForm] = useState<HargaSatuan | null>(null);
-  const refresh = () => setItems(getHargaSatuan());
-
-  const SATUAN_OPTS = [{ value: "Unit", label: "Unit" }, { value: "Rim", label: "Rim" }, { value: "Pcs", label: "Pcs" }, { value: "Set", label: "Set" }, { value: "Meter", label: "Meter" }];
-  const TAHUN_OPTS = [{ value: "2023", label: "2023" }, { value: "2024", label: "2024" }, { value: "2025", label: "2025" }];
-
-  const columns = [
-    { key: "nama", label: "Nama Barang", render: (h: HargaSatuan) => <p className="font-semibold text-gray-800 text-[12px]">{h.namaBarang}</p> },
-    { key: "satuan", label: "Satuan", render: (h: HargaSatuan) => <span className="text-[11.5px] text-gray-600">{h.satuan}</span> },
-    { key: "harga", label: "Harga", render: (h: HargaSatuan) => <span className="font-semibold text-[#252271] text-[12px]">{formatCurrency(h.harga)}</span> },
-    { key: "kategori", label: "Kategori", render: (h: HargaSatuan) => <span className="bg-gray-100 text-gray-600 text-[10.5px] px-2 py-0.5 rounded-full">{h.kategori}</span> },
-    { key: "tahun", label: "Tahun", render: (h: HargaSatuan) => <span className="text-[11.5px] text-gray-500">{h.tahun}</span> },
-  ];
-
-  const HargaForm = ({ val, set }: { val: HargaSatuan; set: (v: HargaSatuan) => void }) => (
-    <div className="space-y-3">
-      <ModalField label="Nama Barang" required><ModalInput value={val.namaBarang} onChange={v => set({ ...val, namaBarang: v })} /></ModalField>
-      <div className="grid grid-cols-3 gap-3">
-        <ModalField label="Satuan"><ModalSelect value={val.satuan} onChange={v => set({ ...val, satuan: v })} options={SATUAN_OPTS} /></ModalField>
-        <ModalField label="Harga (Rp)"><ModalInput type="number" value={String(val.harga)} onChange={v => set({ ...val, harga: Number(v) })} /></ModalField>
-        <ModalField label="Tahun"><ModalSelect value={val.tahun} onChange={v => set({ ...val, tahun: v })} options={TAHUN_OPTS} /></ModalField>
-      </div>
-      <ModalField label="Kategori"><ModalSelect value={val.kategori} onChange={v => set({ ...val, kategori: v })} options={KATEGORI_HARGA} /></ModalField>
-    </div>
-  );
-
-  return (
-    <>
-      <VerifTable
-        columns={columns} data={items} searchKeys={["namaBarang", "kategori"]}
-        onEdit={(h) => { setEditForm({ ...h }); setShowEdit(h); }}
-        onDelete={(h) => setDeleteId(h.id)}
-        onAdd={() => { setForm(emptyItem()); setShowAdd(true); }}
-        addLabel="Tambah Harga" showCrudActions={true}
-        filterOptions={[{ key: "kategori", label: "Kategori", options: KATEGORI_HARGA }, { key: "tahun", label: "Tahun", options: [{ value: "2023", label: "2023" }, { value: "2024", label: "2024" }] }]}
-      />
-      {showAdd && (
-        <AdminModal title="Tambah Harga Satuan" onClose={() => setShowAdd(false)} onSubmit={() => { addHargaSatuan(form); setShowAdd(false); setForm(emptyItem()); refresh(); }} submitLabel="Tambah" width="max-w-md">
-          <HargaForm val={form} set={setForm} />
-        </AdminModal>
-      )}
-      {showEdit && editForm && (
-        <AdminModal title="Edit Harga Satuan" onClose={() => setShowEdit(null)} onSubmit={() => { updateHargaSatuan(editForm); setShowEdit(null); refresh(); }} submitLabel="Simpan" width="max-w-md">
-          <HargaForm val={editForm} set={setEditForm as (v: HargaSatuan) => void} />
-        </AdminModal>
-      )}
-      {deleteId && <ConfirmModal title="Hapus Harga Satuan" message="Yakin ingin menghapus data ini?" onConfirm={() => { deleteHargaSatuan(deleteId); setDeleteId(null); refresh(); }} onClose={() => setDeleteId(null)} confirmLabel="Ya, Hapus" destructive />}
-    </>
-  );
-}
-
-// ─── Bank Tab ──────────────────────────────────────────────────────────────────
-function BankTab() {
-  const [banks, setBanks] = useState(MOCK_BANKS);
-  const [showAdd, setShowAdd] = useState(false);
-  const [showEdit, setShowEdit] = useState<any>(null);
-  const [form, setForm] = useState({ name: "", code: "", address: "", phone: "", fax: "", website: "" });
-
-  const columns = [
-    { key: "code", label: "Kode Bank", render: (r: any) => <span className="font-mono font-bold text-gray-700 text-[11.5px]">{r.code}</span> },
-    { key: "name", label: "Nama Bank", render: (r: any) => (
-      <div><p className="font-semibold text-gray-800 text-[12px]">{r.name}</p><p className="text-gray-400 text-[10px]">{r.website}</p></div>
-    )},
-    { key: "address", label: "Alamat Bank", render: (r: any) => <span className="text-[11.5px] text-gray-600">{r.address}</span> },
-    { key: "contact", label: "Kontak", render: (r: any) => <span className="text-[11.5px] text-gray-500">{r.phone} / Fax: {r.fax}</span> },
-  ];
-
-  const handleSubmitAdd = () => {
-    setBanks([{ id: `BNK-${Math.floor(Math.random()*900)+100}`, name: form.name, code: form.code, address: form.address, phone: form.phone, fax: form.fax, website: form.website }, ...banks]);
-    setShowAdd(false);
-    setForm({ name: "", code: "", address: "", phone: "", fax: "", website: "" });
+function getColumns(tab: TabId): ColDef[] {
+  const statusBadge = (val: string) => {
+    const colors: Record<string, string> = { Aktif: "bg-green-50 text-green-600", "Non-Aktif": "bg-gray-100 text-gray-500", Selesai: "bg-blue-50 text-blue-600", Perencanaan: "bg-amber-50 text-amber-600" };
+    return <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-medium ${colors[val] || "bg-gray-100 text-gray-600"}`}>{val}</span>;
   };
 
-  return (
-    <>
-      <VerifTable
-        columns={columns} data={banks} searchKeys={["name", "code", "address"]}
-        onAdd={() => setShowAdd(true)} addLabel="Add Bank" showCrudActions={true}
-        onEdit={(r) => setShowEdit(r)}
-        onDelete={(r) => setBanks(banks.filter(b => b.id !== r.id))}
-      />
-      {showAdd && (
-        <AdminModal title="Add Bank" onClose={() => setShowAdd(false)} onSubmit={handleSubmitAdd} submitLabel="Submit" width="max-w-md">
-          <div className="space-y-3">
-            <ModalField label="Bank Name" required><ModalInput value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Bank BNI" /></ModalField>
-            <ModalField label="Bank Code" required><ModalInput value={form.code} onChange={v => setForm(p => ({ ...p, code: v }))} placeholder="009" /></ModalField>
-            <ModalField label="Bank Address"><ModalInput value={form.address} onChange={v => setForm(p => ({ ...p, address: v }))} placeholder="Jl. Jend. Sudirman..." /></ModalField>
-            <div className="grid grid-cols-2 gap-3">
-              <ModalField label="Telepon"><ModalInput value={form.phone} onChange={v => setForm(p => ({ ...p, phone: v }))} /></ModalField>
-              <ModalField label="Fax"><ModalInput value={form.fax} onChange={v => setForm(p => ({ ...p, fax: v }))} /></ModalField>
-            </div>
-            <ModalField label="Website"><ModalInput value={form.website} onChange={v => setForm(p => ({ ...p, website: v }))} placeholder="www.bank.co.id" /></ModalField>
+  switch (tab) {
+    case "vendor":
+      return [
+        { key: "nama", label: "Nama Vendor", render: (v) => <div><p className="font-semibold text-gray-800 text-[12px]">{v.nama}</p><p className="text-gray-400 text-[10px]">NPWP: {v.npwp}</p></div> },
+        { key: "kontak", label: "Kontak", render: (v) => <div><p className="text-[11.5px] text-gray-700">{v.kontak}</p><p className="text-gray-400 text-[10px]">{v.telepon}</p></div> },
+        { key: "kategori", label: "Kategori", render: (v) => <span className="bg-gray-100 text-gray-600 text-[10.5px] font-medium px-2 py-0.5 rounded-full">{v.kategori}</span> },
+        { key: "status", label: "Status", render: (v) => statusBadge(v.status) },
+      ];
+    case "unit-kerja":
+      return [
+        { key: "kode", label: "Kode", render: (v) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{v.kode}</span> },
+        { key: "nama", label: "Nama Unit Kerja", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+        { key: "kepala", label: "Kepala", render: (v) => <span className="text-[11.5px] text-gray-600">{v.kepala}</span> },
+      ];
+    case "department":
+      return [
+        { key: "kode", label: "Kode", render: (v) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{v.kode}</span> },
+        { key: "nama", label: "Nama Department", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+        { key: "divisi", label: "Divisi", render: (v) => <span className="bg-indigo-50 text-indigo-600 text-[10.5px] font-medium px-2 py-0.5 rounded-full">{v.divisi}</span> },
+      ];
+    case "direktorat":
+      return [
+        { key: "kode", label: "Kode", render: (v) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{v.kode}</span> },
+        { key: "nama", label: "Nama Direktorat", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+      ];
+    case "jenis-pengadaan":
+    case "jenis-kontrak":
+      return [
+        { key: "kode", label: "Kode", render: (v) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{v.kode}</span> },
+        { key: "nama", label: "Nama", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+        { key: "keterangan", label: "Keterangan", render: (v) => <span className="text-[11.5px] text-gray-500">{v.keterangan}</span> },
+      ];
+    case "metode-pengadaan":
+      return [
+        { key: "kode", label: "Kode", render: (v) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{v.kode}</span> },
+        { key: "nama", label: "Nama Metode", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+        { key: "batasNilai", label: "Batas Nilai", render: (v) => <span className="bg-amber-50 text-amber-700 text-[10.5px] font-semibold px-2 py-0.5 rounded-full">{v.batasNilai}</span> },
+      ];
+    case "kategori-barang":
+      return [
+        { key: "kode", label: "Kode", render: (v) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{v.kode}</span> },
+        { key: "nama", label: "Nama Kategori", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+      ];
+    case "tahun-anggaran":
+      return [
+        { key: "tahun", label: "Tahun", render: (v) => <span className="font-bold text-[#252271] text-[14px]">{v.tahun}</span> },
+        { key: "nama", label: "Nama", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+        { key: "status", label: "Status", render: (v) => statusBadge(v.status) },
+      ];
+    case "mata-uang":
+      return [
+        { key: "kode", label: "Kode", render: (v) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{v.kode}</span> },
+        { key: "nama", label: "Nama", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+        { key: "simbol", label: "Simbol", render: (v) => <span className="text-[14px] font-bold text-gray-700">{v.simbol}</span> },
+      ];
+    case "pajak":
+      return [
+        { key: "kode", label: "Kode", render: (v) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{v.kode}</span> },
+        { key: "nama", label: "Nama Pajak", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+        { key: "persentase", label: "Persentase", render: (v) => <span className="bg-red-50 text-red-600 text-[11px] font-bold px-2 py-0.5 rounded-full">{v.persentase}</span> },
+        { key: "keterangan", label: "Keterangan", render: (v) => <span className="text-[11.5px] text-gray-500">{v.keterangan}</span> },
+      ];
+    case "bank":
+      return [
+        { key: "kode", label: "Kode Bank", render: (v) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{v.kode}</span> },
+        { key: "nama", label: "Nama Bank", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+        { key: "alamat", label: "Alamat", render: (v) => <span className="text-[11.5px] text-gray-500">{v.alamat}</span> },
+      ];
+    case "lokasi":
+      return [
+        { key: "kode", label: "Kode", render: (v) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{v.kode}</span> },
+        { key: "nama", label: "Nama Lokasi", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+        { key: "alamat", label: "Alamat", render: (v) => <span className="text-[11.5px] text-gray-500">{v.alamat}</span> },
+      ];
+    case "penguji":
+      return [
+        { key: "nip", label: "NIP", render: (v) => <span className="font-mono text-[11px] text-gray-500">{v.nip}</span> },
+        { key: "nama", label: "Nama Penguji", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+        { key: "bidang", label: "Bidang", render: (v) => <span className="bg-teal-50 text-teal-600 text-[10.5px] font-medium px-2 py-0.5 rounded-full">{v.bidang}</span> },
+        { key: "sertifikasi", label: "Sertifikasi", render: (v) => <span className="bg-purple-50 text-purple-600 text-[10.5px] font-medium px-2 py-0.5 rounded-full">{v.sertifikasi}</span> },
+      ];
+    case "jabatan-ttd":
+      return [
+        { key: "kode", label: "Kode", render: (v) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{v.kode}</span> },
+        { key: "nama", label: "Jabatan", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+        { key: "level", label: "Level", render: (v) => <span className="bg-blue-50 text-blue-600 text-[10.5px] font-medium px-2 py-0.5 rounded-full">{v.level}</span> },
+      ];
+    case "status-pengadaan":
+    case "status-pengujian":
+    case "status-pembayaran":
+      return [
+        { key: "kode", label: "Kode", render: (v) => <span className="font-mono font-bold text-[11.5px]" style={{ color: v.warna }}>{v.kode}</span> },
+        { key: "nama", label: "Nama Status", render: (v) => (
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full" style={{ background: v.warna }} />
+            <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span>
           </div>
-        </AdminModal>
-      )}
-      {showEdit && (
-        <AdminModal title="Edit Master Bank" onClose={() => setShowEdit(null)} onSubmit={() => { setBanks(banks.map(b => b.id === showEdit.id ? showEdit : b)); setShowEdit(null); }} submitLabel="Update" width="max-w-md">
-          <div className="space-y-3">
-            <ModalField label="Bank Name" required><ModalInput value={showEdit.name} onChange={v => setShowEdit({ ...showEdit, name: v })} /></ModalField>
-            <ModalField label="Bank Code" required><ModalInput value={showEdit.code} onChange={v => setShowEdit({ ...showEdit, code: v })} /></ModalField>
-            <ModalField label="Bank Address"><ModalInput value={showEdit.address} onChange={v => setShowEdit({ ...showEdit, address: v })} /></ModalField>
-            <div className="grid grid-cols-2 gap-3">
-              <ModalField label="Telepon"><ModalInput value={showEdit.phone} onChange={v => setShowEdit({ ...showEdit, phone: v })} /></ModalField>
-              <ModalField label="Fax"><ModalInput value={showEdit.fax} onChange={v => setShowEdit({ ...showEdit, fax: v })} /></ModalField>
-            </div>
-            <ModalField label="Website"><ModalInput value={showEdit.website} onChange={v => setShowEdit({ ...showEdit, website: v })} /></ModalField>
-          </div>
-        </AdminModal>
-      )}
-    </>
-  );
+        )},
+        { key: "urutan", label: "Urutan", render: (v) => <span className="bg-gray-100 text-gray-600 text-[11px] font-bold px-2.5 py-0.5 rounded-full">{v.urutan}</span> },
+      ];
+    default:
+      return [
+        { key: "nama", label: "Nama", render: (v) => <span className="text-[12px]">{v.nama}</span> },
+      ];
+  }
 }
 
-// ─── Business Area Tab ─────────────────────────────────────────────────────────
-function BusinessAreaTab() {
-  const [areas, setAreas] = useState(MOCK_BIZ_AREAS);
-  const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: "", code: "" });
-
-  const columns = [
-    { key: "code", label: "Kode Area", render: (r: any) => <span className="font-mono font-bold text-gray-700 text-[11.5px]">{r.code}</span> },
-    { key: "name", label: "Nama Business Area", render: (r: any) => <span className="font-semibold text-gray-800 text-[12px]">{r.name}</span> },
-  ];
-
-  return (
-    <>
-      <VerifTable
-        columns={columns} data={areas} searchKeys={["name", "code"]}
-        onAdd={() => setShowAdd(true)} addLabel="Add Business Area" showCrudActions={true}
-        onDelete={(r) => setAreas(areas.filter(a => a.id !== r.id))}
-      />
-      {showAdd && (
-        <AdminModal title="Add Business Area" onClose={() => setShowAdd(false)} onSubmit={() => {
-          setAreas([{ id: `BIZ-${Math.floor(Math.random()*900)+100}`, name: form.name, code: form.code }, ...areas]);
-          setShowAdd(false); setForm({ name: "", code: "" });
-        }} submitLabel="Submit" width="max-w-md">
-          <div className="space-y-3">
-            <ModalField label="Business Area Name" required><ModalInput value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Area DAOP 1 Jakarta" /></ModalField>
-            <ModalField label="Business Area Code" required><ModalInput value={form.code} onChange={v => setForm(p => ({ ...p, code: v }))} placeholder="BIZ-JKT-01" /></ModalField>
-          </div>
-        </AdminModal>
-      )}
-    </>
-  );
+// ─── Form fields per tab ───────────────────────────────────────────────────────
+function getFormFields(tab: TabId): { key: string; label: string; type?: string; required?: boolean; options?: string[] }[] {
+  switch (tab) {
+    case "vendor":
+      return [
+        { key: "nama", label: "Nama Vendor", required: true },
+        { key: "npwp", label: "NPWP" },
+        { key: "kategori", label: "Kategori", options: ["Teknologi", "Elektronik", "Furnitur", "General", "Jasa", "Konstruksi"] },
+        { key: "status", label: "Status", options: ["Aktif", "Non-Aktif", "Blacklist"] },
+        { key: "kontak", label: "Kontak Person" },
+        { key: "telepon", label: "Telepon" },
+      ];
+    case "unit-kerja":
+      return [{ key: "nama", label: "Nama Unit Kerja", required: true }, { key: "kode", label: "Kode", required: true }, { key: "kepala", label: "Kepala" }];
+    case "department":
+      return [{ key: "nama", label: "Nama Department", required: true }, { key: "kode", label: "Kode", required: true }, { key: "divisi", label: "Divisi" }];
+    case "direktorat":
+      return [{ key: "nama", label: "Nama Direktorat", required: true }, { key: "kode", label: "Kode", required: true }];
+    case "jenis-pengadaan":
+    case "jenis-kontrak":
+      return [{ key: "nama", label: "Nama", required: true }, { key: "kode", label: "Kode", required: true }, { key: "keterangan", label: "Keterangan" }];
+    case "metode-pengadaan":
+      return [{ key: "nama", label: "Nama Metode", required: true }, { key: "kode", label: "Kode", required: true }, { key: "batasNilai", label: "Batas Nilai" }];
+    case "kategori-barang":
+      return [{ key: "nama", label: "Nama Kategori", required: true }, { key: "kode", label: "Kode", required: true }];
+    case "tahun-anggaran":
+      return [{ key: "nama", label: "Nama", required: true }, { key: "tahun", label: "Tahun", required: true }, { key: "status", label: "Status", options: ["Aktif", "Perencanaan", "Selesai"] }];
+    case "mata-uang":
+      return [{ key: "nama", label: "Nama Mata Uang", required: true }, { key: "kode", label: "Kode", required: true }, { key: "simbol", label: "Simbol", required: true }];
+    case "pajak":
+      return [{ key: "nama", label: "Nama Pajak", required: true }, { key: "kode", label: "Kode", required: true }, { key: "persentase", label: "Persentase" }, { key: "keterangan", label: "Keterangan" }];
+    case "bank":
+      return [{ key: "nama", label: "Nama Bank", required: true }, { key: "kode", label: "Kode Bank", required: true }, { key: "alamat", label: "Alamat" }];
+    case "lokasi":
+      return [{ key: "nama", label: "Nama Lokasi", required: true }, { key: "kode", label: "Kode", required: true }, { key: "alamat", label: "Alamat" }];
+    case "penguji":
+      return [{ key: "nama", label: "Nama Penguji", required: true }, { key: "nip", label: "NIP" }, { key: "bidang", label: "Bidang" }, { key: "sertifikasi", label: "Sertifikasi" }];
+    case "jabatan-ttd":
+      return [{ key: "nama", label: "Nama Jabatan", required: true }, { key: "kode", label: "Kode", required: true }, { key: "level", label: "Level", options: ["Direksi", "Vice President", "Kepala Divisi", "Manager", "Staff"] }];
+    case "status-pengadaan":
+    case "status-pengujian":
+    case "status-pembayaran":
+      return [{ key: "nama", label: "Nama Status", required: true }, { key: "kode", label: "Kode", required: true }, { key: "warna", label: "Warna (hex)" }, { key: "urutan", label: "Urutan", type: "number" }];
+    default:
+      return [{ key: "nama", label: "Nama", required: true }];
+  }
 }
 
-// ─── Payment Type Tab ──────────────────────────────────────────────────────────
-function PaymentTypeTab() {
-  const [types, setTypes] = useState(MOCK_PAYMENT_TYPES);
-  const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ typeName: "Outsource", detailName: "" });
+// ─── Generic Add/Edit Modal ────────────────────────────────────────────────────
+function MasterModal({ title, fields, initial, onSave, onClose }: {
+  title: string;
+  fields: ReturnType<typeof getFormFields>;
+  initial?: MasterItem;
+  onSave: (data: Record<string, any>) => void;
+  onClose: () => void;
+}) {
+  const [form, setForm] = useState<Record<string, any>>(() => {
+    const init: Record<string, any> = {};
+    fields.forEach(f => { init[f.key] = initial?.[f.key] || ""; });
+    return init;
+  });
 
-  const columns = [
-    { key: "typeName", label: "Nama Type Pembayaran", render: (r: any) => (
-      <span className="font-bold text-[#252271] text-[11.5px] bg-[#252271]/5 px-2.5 py-1 rounded-lg">{r.typeName}</span>
-    )},
-    { key: "detailName", label: "Nama Detail Type Pembayaran", render: (r: any) => <span className="font-medium text-gray-800 text-[12px]">{r.detailName}</span> },
-  ];
-
-  return (
-    <>
-      <VerifTable
-        columns={columns} data={types} searchKeys={["typeName", "detailName"]}
-        onAdd={() => setShowAdd(true)} addLabel="Add Payment Type" showCrudActions={true}
-        onDelete={(r) => setTypes(types.filter(t => t.id !== r.id))}
-      />
-      {showAdd && (
-        <AdminModal title="Add Payment Type" onClose={() => setShowAdd(false)} onSubmit={() => {
-          setTypes([{ id: `PAYT-${Math.floor(Math.random()*900)+100}`, typeName: form.typeName, detailName: form.detailName }, ...types]);
-          setShowAdd(false); setForm({ typeName: "Outsource", detailName: "" });
-        }} submitLabel="Submit" width="max-w-md">
-          <div className="space-y-3">
-            <ModalField label="Payment Type" required>
-              <ModalSelect value={form.typeName} onChange={v => setForm(p => ({ ...p, typeName: v }))}
-                options={[{ value: "Outsource", label: "Outsource" }, { value: "Non Outsource", label: "Non Outsource" }, { value: "UMD", label: "UMD" }]} />
-            </ModalField>
-            <ModalField label="Detail Payment Type" required>
-              <ModalInput value={form.detailName} onChange={v => setForm(p => ({ ...p, detailName: v }))} placeholder="Gaji & Tunjangan..." />
-            </ModalField>
-          </div>
-        </AdminModal>
-      )}
-    </>
-  );
-}
-
-// ─── Warehouse Tab ─────────────────────────────────────────────────────────────
-function WarehouseTab() {
-  const [activeWH, setActiveWH] = useState<"card" | "spare-part" | "waste">("card");
-  const data = MOCK_WAREHOUSE[activeWH];
-
-  const columns = [
-    { key: "nama", label: "Nama Barang", render: (r: (typeof data)[0]) => <p className="font-semibold text-gray-800 text-[12px]">{r.nama}</p> },
-    { key: "stok", label: "Stok", render: (r: (typeof data)[0]) => <span className="font-bold text-[#252271] text-[13px]">{r.stok} {r.satuan}</span> },
-    { key: "lokasi", label: "Lokasi", render: (r: (typeof data)[0]) => <span className="text-[11.5px] text-gray-600">{r.lokasi}</span> },
-    { key: "kondisi", label: "Kondisi", render: (r: (typeof data)[0]) => (
-      <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-medium ${r.kondisi === "Baik" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>{r.kondisi}</span>
-    )},
-  ];
+  const canSubmit = fields.filter(f => f.required).every(f => form[f.key]?.toString().trim());
 
   return (
-    <div>
-      <div className="flex gap-2 mb-4">
-        {WAREHOUSE_TABS.map(t => (
-          <button key={t.id} onClick={() => setActiveWH(t.id as any)}
-            className={`px-4 py-1.5 rounded-xl text-[12px] font-medium transition-all ${activeWH === t.id ? "text-white" : "text-gray-500 bg-gray-100 hover:bg-gray-200"}`}
-            style={activeWH === t.id ? { background: "linear-gradient(75deg, #e6251c, #ff7676)" } : {}}>
-            {t.label}
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+          <h3 className="text-[18px] font-bold text-[#252271]">{title}</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center">
+            <X size={16} className="text-gray-400" />
           </button>
-        ))}
+        </div>
+        <div className="px-6 py-5 space-y-3.5 max-h-[60vh] overflow-y-auto">
+          {fields.map(f => (
+            <div key={f.key}>
+              <label className="text-[11.5px] font-semibold text-gray-500 mb-1 block">
+                {f.label} {f.required && <span className="text-red-400">*</span>}
+              </label>
+              {f.options ? (
+                <select
+                  value={form[f.key] || f.options[0]}
+                  onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                  className="w-full h-10 rounded-xl border border-gray-200 px-4 text-[12.5px] text-gray-800 outline-none focus:border-[#252271] cursor-pointer"
+                >
+                  {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              ) : (
+                <input
+                  type={f.type || "text"}
+                  value={form[f.key]}
+                  onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                  className="w-full h-10 rounded-xl border border-gray-200 px-4 text-[12.5px] text-gray-800 outline-none focus:border-[#252271]"
+                  placeholder={`Masukkan ${f.label.toLowerCase()}...`}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="px-6 pb-6 pt-3 flex justify-end gap-3 border-t border-gray-100">
+          <button onClick={onClose} className="px-5 py-2.5 rounded-xl text-[12.5px] font-medium text-gray-500 hover:bg-gray-100">Batal</button>
+          <button
+            onClick={() => onSave(form)}
+            disabled={!canSubmit}
+            className="px-6 py-2.5 rounded-xl text-[12.5px] font-semibold text-white bg-gradient-to-b from-[#e6251c] to-[#c20f06] hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+          >
+            Simpan
+          </button>
+        </div>
       </div>
-      <VerifTable columns={columns as any} data={data} searchKeys={["nama", "lokasi"] as any} showCrudActions={false} emptyMessage="Tidak ada data" />
     </div>
   );
 }
 
-// ─── Inklaring Tab ─────────────────────────────────────────────────────────────
-function InklaringTab() {
-  const columns = [
-    { key: "no", label: "No Container", render: (r: typeof MOCK_INKLARING[0]) => <span className="font-mono text-[12px]">{r.noContainer}</span> },
-    { key: "bl", label: "No BL", render: (r: typeof MOCK_INKLARING[0]) => <span className="text-[11.5px]">{r.noBL}</span> },
-    { key: "asal", label: "Asal", render: (r: typeof MOCK_INKLARING[0]) => <span className="text-[11.5px]">{r.asal}</span> },
-    { key: "barang", label: "Barang", render: (r: typeof MOCK_INKLARING[0]) => <span className="font-semibold text-[11.5px]">{r.barang}</span> },
-    { key: "tanggal", label: "Tanggal", render: (r: typeof MOCK_INKLARING[0]) => <span className="text-[11.5px] text-gray-500">{r.tanggal}</span> },
-    { key: "status", label: "Status", render: (r: typeof MOCK_INKLARING[0]) => (
-      <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-medium ${r.status === "selesai" ? "bg-green-50 text-green-600" : "bg-amber-50 text-amber-600"}`}>
-        {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
-      </span>
-    )},
-  ];
-
+// ─── Confirm Delete ────────────────────────────────────────────────────────────
+function ConfirmDeleteModal({ onConfirm, onClose }: { onConfirm: () => void; onClose: () => void }) {
   return (
-    <div>
-      <div className="flex justify-end mb-3">
-        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-medium border border-gray-200 text-gray-600 hover:bg-gray-50">
-          📥 Import Excel
-        </button>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-6 text-center" onClick={e => e.stopPropagation()}>
+        <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+          <Trash2 size={24} className="text-red-500" />
+        </div>
+        <h3 className="text-[16px] font-bold text-gray-800 mb-1">Hapus Data?</h3>
+        <p className="text-[12px] text-gray-400 mb-5">Data yang dihapus tidak bisa dipulihkan.</p>
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-gray-200 text-gray-500 text-[12.5px] font-medium hover:bg-gray-50">Batal</button>
+          <button onClick={onConfirm} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-[12.5px] font-semibold hover:bg-red-600">Ya, Hapus</button>
+        </div>
       </div>
-      <VerifTable columns={columns as any} data={MOCK_INKLARING as any} searchKeys={["noContainer", "noBL", "barang"] as any} showCrudActions={false} emptyMessage="Tidak ada data inklaring" />
     </div>
   );
-}
-
-// ─── Jamlak Tab ────────────────────────────────────────────────────────────────
-function JamlakTab() {
-  const columns = [
-    { key: "vendor", label: "Vendor", render: (r: typeof MOCK_JAMLAK[0]) => <span className="font-semibold text-[12px]">{r.vendor}</span> },
-    { key: "kontrak", label: "No Kontrak", render: (r: typeof MOCK_JAMLAK[0]) => <span className="font-mono text-[11.5px]">{r.kontrak}</span> },
-    { key: "nilai", label: "Nilai Jaminan", render: (r: typeof MOCK_JAMLAK[0]) => <span className="font-semibold text-[12px] text-[#252271]">{r.nilai}</span> },
-    { key: "berlaku", label: "Berlaku s/d", render: (r: typeof MOCK_JAMLAK[0]) => <span className="text-[11.5px] text-gray-500">{r.berlaku}</span> },
-    { key: "status", label: "Status", render: (r: typeof MOCK_JAMLAK[0]) => (
-      <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-medium ${r.status === "aktif" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-500"}`}>
-        {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
-      </span>
-    )},
-  ];
-
-  return <VerifTable columns={columns as any} data={MOCK_JAMLAK as any} searchKeys={["vendor", "kontrak"] as any} showCrudActions={false} emptyMessage="Tidak ada data jaminan" />;
 }
 
 // ─── Master Data Screen ────────────────────────────────────────────────────────
 export function MasterDataScreen() {
-  const [activeTab, setActiveTab] = useState<Tab>("vendor");
+  const [activeTab, setActiveTab] = useState<TabId>("vendor");
+  const [allData, setAllData] = useState<Record<TabId, MasterItem[]>>(MOCK_DATA);
+  const [search, setSearch] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [showEdit, setShowEdit] = useState<MasterItem | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const TAB_CONTENT: Record<Tab, React.ReactNode> = {
-    vendor: <VendorTab />,
-    "harga-satuan": <HargaSatuanTab />,
-    bank: <BankTab />,
-    biz: <BusinessAreaTab />,
-    "payment-type": <PaymentTypeTab />,
-    warehouse: <WarehouseTab />,
-    inklaring: <InklaringTab />,
-    jamlak: <JamlakTab />,
+  const currentTabDef = TABS.find(t => t.id === activeTab)!;
+  const columns = useMemo(() => getColumns(activeTab), [activeTab]);
+  const formFields = useMemo(() => getFormFields(activeTab), [activeTab]);
+  const data = allData[activeTab] || [];
+
+  const filtered = useMemo(() => {
+    if (!search) return data;
+    const q = search.toLowerCase();
+    return data.filter(item => Object.values(item).some(v => String(v).toLowerCase().includes(q)));
+  }, [data, search]);
+
+  const handleAdd = (formData: Record<string, any>) => {
+    const prefix = activeTab.split("-").map(w => w[0].toUpperCase()).join("");
+    const newItem: MasterItem = {
+      id: `${prefix}-${String(data.length + 1).padStart(3, "0")}`,
+      ...formData,
+    };
+    setAllData(prev => ({ ...prev, [activeTab]: [newItem, ...prev[activeTab]] }));
+    setShowAdd(false);
+  };
+
+  const handleEdit = (formData: Record<string, any>) => {
+    if (!showEdit) return;
+    setAllData(prev => ({
+      ...prev,
+      [activeTab]: prev[activeTab].map(item => item.id === showEdit.id ? { ...item, ...formData } : item),
+    }));
+    setShowEdit(null);
+  };
+
+  const handleDelete = () => {
+    if (!deleteId) return;
+    setAllData(prev => ({
+      ...prev,
+      [activeTab]: prev[activeTab].filter(item => item.id !== deleteId),
+    }));
+    setDeleteId(null);
   };
 
   return (
-    <div>
-      <AdminTopBar title="Master Data" />
+    <div className="flex-1 min-h-0 overflow-auto bg-[#f8fafc] select-none">
+      <div className="max-w-[1280px] mx-auto px-6 py-6">
+        <AdminTopBar title="Master Data" subtitle="Kelola data referensi sistem" />
 
-      {/* Tab switcher */}
-      <div className="flex gap-2 mb-5 flex-wrap">
-        {TABS.map(t => (
+        {/* Tab Groups */}
+        <div className="space-y-3 mb-6">
+          {TAB_GROUPS.map(group => {
+            const groupTabs = TABS.filter(t => t.group === group);
+            return (
+              <div key={group}>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 pl-1">{group}</p>
+                <div className="flex gap-2 flex-wrap">
+                  {groupTabs.map(t => {
+                    const Icon = t.icon;
+                    const isActive = activeTab === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => { setActiveTab(t.id); setSearch(""); }}
+                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11.5px] font-medium transition-all ${
+                          isActive
+                            ? "text-white shadow-md"
+                            : "text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                        }`}
+                        style={isActive ? { background: "linear-gradient(75deg, #e6251c, #ff7676)" } : {}}
+                      >
+                        <Icon size={13} className={isActive ? "text-white" : "text-gray-400"} />
+                        {t.label}
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-0.5 ${
+                          isActive ? "bg-white/25 text-white" : "bg-gray-100 text-gray-500"
+                        }`}>
+                          {(allData[t.id] || []).length}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Search + Add */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+            <input
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="h-9 pl-9 pr-4 rounded-xl border border-gray-200 bg-white text-[12px] text-gray-700 outline-none focus:border-[#252271] w-64"
+              placeholder={`Cari ${currentTabDef.label.toLowerCase()}...`}
+            />
+          </div>
           <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={`px-4 py-2 rounded-xl text-[12.5px] font-medium transition-all ${activeTab === t.id ? "text-white shadow-sm" : "text-gray-500 bg-white border border-gray-200 hover:bg-gray-50"}`}
-            style={activeTab === t.id ? { background: "linear-gradient(75deg, #e6251c, #ff7676)" } : {}}
+            onClick={() => setShowAdd(true)}
+            className="h-9 px-4 rounded-xl text-[12px] font-semibold text-white bg-gradient-to-b from-[#e6251c] to-[#c20f06] flex items-center gap-1.5 hover:brightness-110 active:scale-95 shrink-0"
           >
-            {t.label}
+            <Plus size={14} /> Tambah {currentTabDef.label}
           </button>
-        ))}
+        </div>
+
+        {/* Table */}
+        <div className="bg-white rounded-[20px] shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-[#252271] flex text-[11px] font-bold text-white uppercase tracking-wider">
+            {columns.map(col => (
+              <div key={col.key} className="flex-1 px-5 py-3">{col.label}</div>
+            ))}
+            <div className="w-28 px-3 py-3 text-right">Aksi</div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="py-16 text-center">
+              <Database size={40} className="mx-auto text-gray-200 mb-3" />
+              <p className="text-[13px] text-gray-400">Tidak ada data ditemukan</p>
+            </div>
+          ) : (
+            filtered.map((item, i) => (
+              <div key={item.id} className={`flex items-center hover:bg-[#fafbff] transition-colors group ${i > 0 ? "border-t border-gray-100" : ""}`}>
+                {columns.map(col => (
+                  <div key={col.key} className="flex-1 px-5 py-3">
+                    {col.render ? col.render(item) : <span className="text-[12px] text-gray-700">{item[col.key]}</span>}
+                  </div>
+                ))}
+                <div className="w-28 px-3 py-3 flex items-center justify-end gap-1">
+                  <button onClick={() => setShowEdit(item)} className="p-1.5 rounded-lg hover:bg-indigo-50 transition-colors" title="Edit">
+                    <Edit3 size={14} className="text-indigo-500" />
+                  </button>
+                  <button onClick={() => setDeleteId(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Hapus">
+                    <Trash2 size={14} className="text-red-400" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
-      {TAB_CONTENT[activeTab]}
+      {/* Modals */}
+      {showAdd && (
+        <MasterModal
+          title={`Tambah ${currentTabDef.label}`}
+          fields={formFields}
+          onSave={handleAdd}
+          onClose={() => setShowAdd(false)}
+        />
+      )}
+      {showEdit && (
+        <MasterModal
+          title={`Edit ${currentTabDef.label}`}
+          fields={formFields}
+          initial={showEdit}
+          onSave={handleEdit}
+          onClose={() => setShowEdit(null)}
+        />
+      )}
+      {deleteId && <ConfirmDeleteModal onConfirm={handleDelete} onClose={() => setDeleteId(null)} />}
     </div>
   );
 }

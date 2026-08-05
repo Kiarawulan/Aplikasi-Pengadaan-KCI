@@ -42,4 +42,31 @@ class RupController extends Controller
 
         return response()->json($rup, 201);
     }
+
+    public function update(Request $request, Rup $rup)
+    {
+        $request->validate([
+            'nama' => 'sometimes|string',
+            'jenis' => 'sometimes|string',
+            'metode' => 'sometimes|string',
+            'nilai' => 'sometimes|string',
+            'departemen' => 'sometimes|string',
+            'status' => 'sometimes|string',
+            'progress' => 'sometimes|string',
+        ]);
+
+        $rup->fill($request->only([
+            'nama', 'jenis', 'metode', 'nilai', 'departemen', 'status', 'progress',
+        ]));
+        $rup->save();
+
+        return response()->json($rup);
+    }
+
+    public function destroy(Rup $rup)
+    {
+        $rup->delete();
+
+        return response()->json(['message' => 'RUP berhasil dihapus']);
+    }
 }

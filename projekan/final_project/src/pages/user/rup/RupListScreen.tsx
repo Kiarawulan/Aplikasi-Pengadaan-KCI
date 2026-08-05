@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, X, Check, Edit2, Eye } from "lucide-react";
-import { TopBar } from "@/components/layout/user/TopBar";
+import { TopBar } from "@/components/user/layout/TopBar";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { useAuth } from "@/store/authStore";
 import { getRupList, addRup, updateRup, addVerifRecord, generateId, getVerifRecords, updateVerifRecord } from "@/store/dataStore";

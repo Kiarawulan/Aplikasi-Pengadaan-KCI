@@ -288,7 +288,7 @@ export function AdminSidebar({
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="text-white text-[11.5px] font-semibold truncate">{currentUser?.name || "Administrator"}</span>
-                <span className="text-white/70 text-[10px] truncate">{currentUser?.email || "admin@sipro.com"}</span>
+                <span className="text-white/70 text-[10px] truncate">{currentUser?.email || "admin@kci.co.id"}</span>
               </div>
             </div>
             <button

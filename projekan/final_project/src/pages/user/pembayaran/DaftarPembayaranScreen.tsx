@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Search, Eye, Clock } from "lucide-react";
 import type { PengadaanItem } from "@/types";
 import { PARK_STEPS } from "@/constants/steps";
-import { TopBar } from "@/components/layout/user/TopBar";
+import { TopBar } from "@/components/user/layout/TopBar";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { api } from "@/services/api";
 import { Plus } from "lucide-react";
@@ -38,7 +38,7 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
         } else {
           // PRs go to payment-request, outsource, or non-outsource
           if (!isPrFlow) return false;
-          const allFd = item.formData || JSON.parse(item.form_data || '{}');
+          const allFd = item.formData || JSON.parse(item.formData || '{}');
           const paymentType = allFd["pelunasan"]?.jenis?.toLowerCase() || (item.nama.toLowerCase().includes("payment request") ? "payment-request" : (item.nama.toLowerCase().includes("non") ? "non-outsource" : "outsource"));
           return paymentType === type;
         }
