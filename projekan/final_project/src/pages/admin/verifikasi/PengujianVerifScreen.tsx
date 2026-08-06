@@ -3,6 +3,7 @@ import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/shared/AdminModal";
+import { FileUploadInput } from "../../../components/common/FileUploadInput";
 import { Plus, CheckCircle2, XCircle, FileWarning, Eye, BarChart3, TrendingUp, ShieldCheck } from "lucide-react";
 
 type ScreenProps = {
@@ -66,6 +67,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
   const [showAddKontrak, setShowAddKontrak] = useState(false);
   const [showAddRequest, setShowAddRequest] = useState(false);
   const [showReviewDetail, setShowReviewDetail] = useState<any | null>(null);
+  const [bahpFileName, setBahpFileName] = useState("");
 
   const [formKontrak, setFormKontrak] = useState({
     judul: "", nominal: "", vendor: "", jenisBarang: "Sparepart", kurs: "IDR", tglKontrak: "", noPerjanjian: "", tglPerjanjian: ""
@@ -345,6 +347,16 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
                     <span className="font-semibold text-gray-700">{r.v}</span>
                   </div>
                 ))}
+
+                <div className="pt-2">
+                  <FileUploadInput
+                    label="Upload Surat BAHP Signed (Tahap Pengujian)"
+                    pengadaanId={showReviewDetail.pengadaan_id || showReviewDetail.pengadaanId || showReviewDetail.id || showReviewDetail.kontrakNo}
+                    stage="bahp-signed"
+                    value={bahpFileName}
+                    onChange={(v) => setBahpFileName(v)}
+                  />
+                </div>
 
                 <div className="pt-3 border-t border-gray-100 flex gap-2 justify-end">
                   <button onClick={() => setConfirmDialog({ type: "verifikasi", text: "Verifikasi Pengujian Disetujui?", show: true })} className="bg-green-600 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1">

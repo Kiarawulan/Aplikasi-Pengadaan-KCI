@@ -527,49 +527,69 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                     <button onClick={() => onNavigate("dashboard")} className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-gray-700 font-medium bg-gray-100 border border-gray-300 hover:bg-gray-200">
                       Kembali ke Dashboard
                     </button>
-                    <button onClick={() => {
-                      if (activeStep.id === "pengujian") {
-                        setShowPrPaymentModal(true);
-                      } else if (activeStep.id === "pembayaran") {
-                        onNavigate("dashboard");
-                      } else {
-                        const pIdx = steps.findIndex(s => s.id === "pengujian");
-                        if (pIdx !== -1) {
-                          setActiveStepIdx(pIdx);
-                          setActiveSubIdx(0);
-                        }
-                        if (onSelectItem) {
-                          onSelectItem(item, "pr-detail", "daftar-pengujian");
+                    <button
+                      disabled={activeStep.id === "pembayaran" && verifStatus !== "approved"}
+                      onClick={() => {
+                        if (activeStep.id === "pengujian") {
+                          setShowPrPaymentModal(true);
+                        } else if (activeStep.id === "pembayaran") {
+                          if (verifStatus !== "approved") return;
+                          onNavigate("dashboard");
                         } else {
-                          onNavigate("daftar-pengujian");
+                          const pIdx = steps.findIndex(s => s.id === "pengujian");
+                          if (pIdx !== -1) {
+                            setActiveStepIdx(pIdx);
+                            setActiveSubIdx(0);
+                          }
+                          if (onSelectItem) {
+                            onSelectItem(item, "pr-detail", "daftar-pengujian");
+                          } else {
+                            onNavigate("daftar-pengujian");
+                          }
                         }
-                      }
-                    }} className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-blue-600 hover:bg-blue-700">
+                      }}
+                      className={`flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium transition-all ${
+                        activeStep.id === "pembayaran" && verifStatus !== "approved"
+                          ? "bg-gray-300 cursor-not-allowed opacity-60"
+                          : "bg-blue-600 hover:bg-blue-700"
+                      }`}
+                      title={activeStep.id === "pembayaran" && verifStatus !== "approved" ? "Pembayaran belum diverifikasi oleh admin" : ""}
+                    >
                       <Check size={12} /> {activeStep.id === "pengujian" ? "Lanjut Pembayaran" : activeStep.id === "pembayaran" ? "Pembayaran Selesai!" : "Lanjut ke Pengujian"}
                     </button>
                   </div>
                 ) : (
-                  <button onClick={() => {
-                    setCompletedStepIds(p => {
-                      const next = new Set([...p, activeStep.id]);
-                      let nextStep = activeStep.id;
-                      let nextStatus = "Selesai";
-                      if (activeStep.id === "contract") {
-                        nextStep = "pengujian";
-                        nextStatus = "Proses Pengujian";
-                      } else if (activeStep.id === "pengujian") {
-                        nextStep = "pembayaran";
-                        nextStatus = "Proses Pembayaran";
-                      }
+                  <button
+                    disabled={activeStep.id === "pembayaran" && verifStatus !== "approved"}
+                    onClick={() => {
+                      if (activeStep.id === "pembayaran" && verifStatus !== "approved") return;
+                      setCompletedStepIds(p => {
+                        const next = new Set([...p, activeStep.id]);
+                        let nextStep = activeStep.id;
+                        let nextStatus = "Selesai";
+                        if (activeStep.id === "contract") {
+                          nextStep = "pengujian";
+                          nextStatus = "Proses Pengujian";
+                        } else if (activeStep.id === "pengujian") {
+                          nextStep = "pembayaran";
+                          nextStatus = "Proses Pembayaran";
+                        }
 
-                      updatePengadaanItem({ ...item, completedSteps: Array.from(next) as any, currentStep: nextStep, status: nextStatus });
-                      return next;
-                    });
-                    flashSave();
-                    if (activeStep.id === "pengujian") {
-                      setShowPrPaymentModal(true);
-                    }
-                  }} className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-green-600 hover:bg-green-700">
+                        updatePengadaanItem({ ...item, completedSteps: Array.from(next) as any, currentStep: nextStep, status: nextStatus });
+                        return next;
+                      });
+                      flashSave();
+                      if (activeStep.id === "pengujian") {
+                        setShowPrPaymentModal(true);
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium transition-all ${
+                      activeStep.id === "pembayaran" && verifStatus !== "approved"
+                        ? "bg-gray-300 cursor-not-allowed opacity-60"
+                        : "bg-green-600 hover:bg-green-700"
+                    }`}
+                    title={activeStep.id === "pembayaran" && verifStatus !== "approved" ? "Pembayaran belum diverifikasi oleh admin" : ""}
+                  >
                     <Check size={12} /> Selesai
                   </button>
                 )}

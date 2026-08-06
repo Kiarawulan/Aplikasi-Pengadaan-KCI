@@ -98,20 +98,20 @@ function FinanceVerifModal({
   const labelTipe = tipe === "non-outsource" ? "Non-Outsource" : "Outsource";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 py-6 px-4">
-      <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-[#fafafa] rounded-t-2xl">
+        <div className="flex items-center justify-between px-6 py-3.5 border-b border-gray-100 bg-[#fafafa] shrink-0">
           <div>
-            <h1 className="text-[#252271] text-[24px] font-extrabold leading-normal">Verification</h1>
-            <p className="text-[12px] text-gray-500 font-medium">
+            <h1 className="text-[#252271] text-[22px] font-extrabold leading-normal">Verification</h1>
+            <p className="text-[11.5px] text-gray-500 font-medium">
               Pembayaran &gt; Payment Approve &gt; {labelTipe} &gt; <span className="font-bold text-[#252271]">Detail</span>
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-[22px] font-light">✕</button>
         </div>
 
-        <div className="px-6 py-5 space-y-6">
+        <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1">
           {/* Status Steps */}
           <div>
             <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">STATUS PROSES PEMBAYARAN</p>
@@ -354,32 +354,32 @@ function FinanceVerifModal({
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="flex gap-2 justify-end px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-100 bg-white">
+        {/* Fixed Sticky Footer Actions */}
+        <div className="flex items-center justify-between px-6 py-3.5 border-t border-gray-200 bg-white shrink-0 shadow-lg">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-100 bg-white cursor-pointer">
             Kembali
           </button>
           {onAction && (
-            <>
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => { onClose(); onAction("revisi", item); }}
-                className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-1.5 shadow-sm"
+                className="px-3.5 py-2 rounded-xl text-[12px] font-semibold bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
                 <FileWarning size={14} /> Minta Revisi
               </button>
               <button
                 onClick={() => { onClose(); onAction("reject", item); }}
-                className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-red-600 text-white hover:bg-red-700 flex items-center gap-1.5 shadow-sm"
+                className="px-3.5 py-2 rounded-xl text-[12px] font-semibold bg-red-600 text-white hover:bg-red-700 flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
                 <XCircle size={14} /> Tolak Pembayaran
               </button>
               <button
                 onClick={() => { onClose(); onAction("approve", item); }}
-                className="px-5 py-2 rounded-xl text-[12px] font-semibold bg-green-600 text-white hover:bg-green-700 flex items-center gap-1.5 shadow-sm"
+                className="px-5 py-2 rounded-xl text-[12px] font-bold bg-[#16a34a] hover:bg-[#15803d] text-white flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
               >
-                <CheckCircle2 size={14} /> Setujui (Approve)
+                <CheckCircle2 size={15} /> Setujui &amp; Verifikasi (Approve)
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -432,13 +432,13 @@ function UmdSubmissionModal({
   const status = item.status || "pending";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 py-6 px-4">
-      <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-[#fafafa] rounded-t-2xl">
+        <div className="flex items-center justify-between px-6 py-3.5 border-b border-gray-100 bg-[#fafafa] shrink-0">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-[#252271] text-[22px] font-extrabold leading-normal">Detail Pengajuan UMD (Hasil Isian User)</h1>
+              <h1 className="text-[#252271] text-[20px] font-extrabold leading-normal">Detail Pengajuan UMD (Hasil Isian User)</h1>
               <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase ${status === "approved" || status === "Selesai" ? "bg-green-100 text-green-700" :
                   status === "revisi" ? "bg-purple-100 text-purple-700" :
                     status === "rejected" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
@@ -446,14 +446,14 @@ function UmdSubmissionModal({
                 {status}
               </span>
             </div>
-            <p className="text-[12px] text-gray-500 font-medium mt-0.5">
+            <p className="text-[11.5px] text-gray-500 font-medium mt-0.5">
               Pembayaran &gt; Payment Approve &gt; UMD &gt; <span className="font-bold text-[#252271]">Hasil Isian Form User</span>
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-[22px] font-light">✕</button>
         </div>
 
-        <div className="px-6 py-5 space-y-6">
+        <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1">
           {/* Submission Form */}
           <div>
             <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">1. SUBMISSION FORM UMD</p>
@@ -564,32 +564,32 @@ function UmdSubmissionModal({
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="flex gap-2 justify-end px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-100 bg-white">
+        {/* Fixed Sticky Footer Actions */}
+        <div className="flex items-center justify-between px-6 py-3.5 border-t border-gray-200 bg-white shrink-0 shadow-lg">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-100 bg-white cursor-pointer">
             Kembali
           </button>
           {onAction && (
-            <>
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => { onClose(); onAction("revisi", item); }}
-                className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-1.5 shadow-sm"
+                className="px-3.5 py-2 rounded-xl text-[12px] font-semibold bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
                 <FileWarning size={14} /> Minta Revisi
               </button>
               <button
                 onClick={() => { onClose(); onAction("reject", item); }}
-                className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-red-600 text-white hover:bg-red-700 flex items-center gap-1.5 shadow-sm"
+                className="px-3.5 py-2 rounded-xl text-[12px] font-semibold bg-red-600 text-white hover:bg-red-700 flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
                 <XCircle size={14} /> Tolak UMD
               </button>
               <button
                 onClick={() => { onClose(); onAction("approve", item); }}
-                className="px-5 py-2 rounded-xl text-[12px] font-semibold bg-green-600 text-white hover:bg-green-700 flex items-center gap-1.5 shadow-sm"
+                className="px-5 py-2 rounded-xl text-[12px] font-bold bg-[#16a34a] hover:bg-[#15803d] text-white flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
               >
-                <CheckCircle2 size={14} /> Setujui UMD (Approve)
+                <CheckCircle2 size={15} /> Setujui UMD (Approve)
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -732,20 +732,33 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
     const { type, item } = confirmAction;
 
     try {
-      if (item.verif_id) {
+      let targetVerifId = item.verif_id;
+      if (!targetVerifId) {
+        const createRes = await api.post('/verifikasi', {
+          pengadaanId: item.id,
+          pengadaanNama: item.nama,
+          departemen: item.departemen || 'CTIT',
+          nominal: item.nominal || 'Rp 0',
+          tipe: item.tipe || 'pembayaran',
+          submitBy: 'User'
+        });
+        targetVerifId = createRes.data?.id;
+      }
+
+      if (targetVerifId) {
         if (type === "approve") {
-          await api.post(`/verifikasi/${item.verif_id}/approve`);
+          await api.post(`/verifikasi/${targetVerifId}/approve`);
         } else if (type === "revisi") {
-          await api.post(`/verifikasi/${item.verif_id}/revisi`, { catatan: catatanText || 'Perlu revisi' });
+          await api.post(`/verifikasi/${targetVerifId}/revisi`, { catatan: catatanText || 'Perlu revisi' });
         } else {
-          await api.post(`/verifikasi/${item.verif_id}/reject`, { catatan: catatanText || 'Ditolak Admin' });
+          await api.post(`/verifikasi/${targetVerifId}/reject`, { catatan: catatanText || 'Ditolak Admin' });
         }
       } else {
-        // No verif record, update pengadaan status directly
         await api.put(`/pengadaan/${item.id}`, {
-          status: type === 'approve' ? 'Sudah Diverifikasi' : type === 'revisi' ? 'Perlu Revisi' : 'Ditolak Admin'
+          status: type === 'approve' ? 'approved' : type === 'revisi' ? 'revision_required' : 'rejected'
         });
       }
+      alert(`Pembayaran berhasil ${type === 'approve' ? 'disetujui (Approved)' : type === 'revisi' ? 'diminta revisi' : 'ditolak'}.`);
       fetchPengadaanData();
     } catch (err) {
       console.error('Gagal melakukan aksi verifikasi:', err);
@@ -822,12 +835,12 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
           searchKeys={["nama", "noSp3", "noKontrak", "namaVendor", "departemen"]}
           dateKey="tgl" topFilters={topFiltersPayment}
           onView={(r) => (r.tipe === "umd" || isUmd) ? setShowUmd(r) : setShowVerif(r)}
-          onApprove={(r) => (r.tipe === "umd" || isUmd) ? setShowUmd(r) : setShowVerif(r)}
+          onApprove={(r) => handleAction("approve", r)}
           onRevisi={(r) => handleAction("revisi", r)}
           onReject={(r) => handleAction("reject", r)}
           showVerifActions={true} showCrudActions={true}
           emptyMessage="Tidak ada data pembayaran."
-          approveLabel={isUmd ? "Form UMD" : "Verifikasi"}
+          approveLabel="Setujui"
         />
       </div>
 

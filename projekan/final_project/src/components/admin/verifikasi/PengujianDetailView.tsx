@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { DetailDocumentView, DetailDocumentField, DetailDocumentFile } from '@/components/user/pengadaan/DetailDocumentView';
+import { FileUploadInput } from '@/components/common/FileUploadInput';
 
 interface PengujianDetailViewProps {
   item?: any;
@@ -19,6 +20,7 @@ export const PengujianDetailView: React.FC<PengujianDetailViewProps> = ({
   showActions = true,
 }) => {
   const [activeTab, setActiveTab] = useState<'informasi' | 'checklist'>('informasi');
+  const [bahpFile, setBahpFile] = useState("");
 
   // Interactive Checklist rows state
   const [checklistRows, setChecklistRows] = useState([
@@ -69,34 +71,50 @@ export const PengujianDetailView: React.FC<PengujianDetailViewProps> = ({
     { label: "Dokumen MI", fileName: "Dokumen_MI_NO_IP003.pdf", size: "1.1 MB", isMandatory: true, status: "Selesai" },
     { label: "File Justifikasi Penunjukan", fileName: item?.fileJustifikasi || "-", status: item?.fileJustifikasi ? "Selesai" : "Belum Upload" },
     { label: "Dokumen Amandemen", fileName: item?.dokumenAmandemen || "-", status: item?.dokumenAmandemen ? "Selesai" : "Belum Upload" },
-    { label: "Dokumen BAHP", fileName: item?.dokumenBahp || "-", status: item?.dokumenBahp ? "Selesai" : "Belum Upload" },
+    { label: "Dokumen BAHP", fileName: item?.dokumenBahp || bahpFile || "-", status: (item?.dokumenBahp || bahpFile) ? "Selesai" : "Belum Upload" },
     { label: "Dokumen BAST", fileName: item?.dokumenBast || "-", status: item?.dokumenBast ? "Selesai" : "Belum Upload" },
   ];
 
   const tabsNav = (
-    <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
-      <button
-        type="button"
-        onClick={() => setActiveTab('informasi')}
-        className={`px-4 py-2 text-[12.5px] font-bold rounded-lg transition-all cursor-pointer ${
-          activeTab === 'informasi'
-            ? 'bg-[#252271] text-white shadow-xs'
-            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-        }`}
-      >
-        Informasi Pengujian
-      </button>
-      <button
-        type="button"
-        onClick={() => setActiveTab('checklist')}
-        className={`px-4 py-2 text-[12.5px] font-bold rounded-lg transition-all cursor-pointer ${
-          activeTab === 'checklist'
-            ? 'bg-[#252271] text-white shadow-xs'
-            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-        }`}
-      >
-        Checklist
-      </button>
+    <div className="flex flex-col gap-3 border-b border-gray-200 pb-3">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab('informasi')}
+          className={`px-4 py-2 text-[12.5px] font-bold rounded-lg transition-all cursor-pointer ${
+            activeTab === 'informasi'
+              ? 'bg-[#252271] text-white shadow-xs'
+              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+          }`}
+        >
+          Informasi Pengujian
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('checklist')}
+          className={`px-4 py-2 text-[12.5px] font-bold rounded-lg transition-all cursor-pointer ${
+            activeTab === 'checklist'
+              ? 'bg-[#252271] text-white shadow-xs'
+              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+          }`}
+        >
+          Checklist
+        </button>
+      </div>
+
+      <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-3.5 mt-1">
+        <p className="text-[12px] font-bold text-[#252271] mb-1.5 flex items-center gap-1.5">
+          <span>📄</span> Upload Surat BAHP Signed (Admin)
+        </p>
+        <FileUploadInput
+          label="Dokumen Surat BAHP Signed"
+          required
+          pengadaanId={item?.pengadaan_id || item?.pengadaanId || item?.id}
+          stage="bahp-signed"
+          value={bahpFile}
+          onChange={(v) => setBahpFile(v)}
+        />
+      </div>
     </div>
   );
 

@@ -181,15 +181,15 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
             <FieldInput label="Judul Pengadaan" disabled value={item?.nama || "Judul Pengadaan"} />
             <FieldInput label="Dokumen Kontrak" disabled value="Tersedia dari tahap sebelumnya" />
             <FieldInput label="Dokumen KAK/RKS" disabled value="Tersedia dari tahap sebelumnya" />
-            <FileUploadInput label="Amandemen (Opsional)" value={f("fileAmandemen")} onChange={u("fileAmandemen")} />
+            <FileUploadInput label="Amandemen (Opsional)" pengadaanId={item?.id} stage="amandemen" value={f("fileAmandemen")} onChange={u("fileAmandemen")} />
             
             <FieldInput label="Tanggal Pengujian" type="date" required value={f("tanggalPengujian")} onChange={u("tanggalPengujian")} />
             <FieldInput label="Nomor Delivery Order" type="number" required value={f("noDO")} onChange={u("noDO")} />
             <FieldInput label="Assign To" required value={f("assignTo")} onChange={u("assignTo")} />
             
-            <FileUploadInput label="Dokumen MI" required value={f("fileMI")} onChange={u("fileMI")} />
-            <FileUploadInput label="Surat Permohonan Pengujian" required value={f("filePermohonan")} onChange={u("filePermohonan")} />
-            <FileUploadInput label="Dokumen Pendukung" required value={f("filePendukung")} onChange={u("filePendukung")} />
+            <FileUploadInput label="Dokumen MI" required pengadaanId={item?.id} stage="dokumen-mi" value={f("fileMI")} onChange={u("fileMI")} />
+            <FileUploadInput label="Surat Permohonan Pengujian" required pengadaanId={item?.id} stage="permohonan-pengujian" value={f("filePermohonan")} onChange={u("filePermohonan")} />
+            <FileUploadInput label="Dokumen Pendukung" required pengadaanId={item?.id} stage="dokumen-pendukung" value={f("filePendukung")} onChange={u("filePendukung")} />
             
             {/* Using text area instead of dynamic add file buttons for simplicity */}
             <FieldInput label="Catatan (Opsional)" type="textarea" span2 value={f("catatan")} onChange={u("catatan")} />

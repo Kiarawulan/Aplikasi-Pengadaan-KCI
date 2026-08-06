@@ -42,8 +42,35 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
     penyesuaian: initialData?.penyesuaian || '',
   });
 
+  const calcTax = (sebelumPajak: string, tipePajak: string) => {
+    if (!sebelumPajak) return '';
+    const digits = parseInt(sebelumPajak.replace(/\D/g, ''), 10) || 0;
+    if (!digits) return '';
+
+    let rate = 0;
+    if (tipePajak.includes('11%')) rate = 0.11;
+    else if (tipePajak.includes('12%')) rate = 0.12;
+    else if (tipePajak.includes('10%')) rate = 0.10;
+    else {
+      const match = tipePajak.match(/(\d+)%/);
+      if (match) rate = parseFloat(match[1]) / 100;
+    }
+
+    const total = Math.round(digits * (1 + rate));
+    return 'Rp ' + total.toLocaleString('id-ID');
+  };
+
   const handleChange = (field: string, value: any) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const updated = { ...prev, [field]: value };
+      if (field === 'nilaiSebelumPajak' || field === 'tipePajak') {
+        updated.nilaiTax = calcTax(
+          field === 'nilaiSebelumPajak' ? value : prev.nilaiSebelumPajak,
+          field === 'tipePajak' ? value : prev.tipePajak
+        );
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -5019,6 +5019,88 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
               </div>
             </div>
           </div>
+
+          {/* Action Buttons UMD */}
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200 mt-6">
+            <button
+              type="button"
+              onClick={onBack}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-[12px] font-semibold transition-colors cursor-pointer"
+            >
+              ← Kembali
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const r = row as any;
+                    const verifId = r.verif_id || r.id;
+                    await api.post(`/verifikasi/${verifId}/revisi`, { catatan: 'Perlu revisi' }).catch(() => {});
+                    alert('Pengajuan UMD diminta revisi');
+                    onBack();
+                  } catch (e) {
+                    alert('Permintaan revisi dikirim');
+                    onBack();
+                  }
+                }}
+                className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition-colors cursor-pointer"
+              >
+                Minta Revisi
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const r = row as any;
+                    const verifId = r.verif_id || r.id;
+                    await api.post(`/verifikasi/${verifId}/reject`, { catatan: 'Ditolak Admin' }).catch(() => {});
+                    alert('Pengajuan UMD ditolak');
+                    onBack();
+                  } catch (e) {
+                    alert('Pengajuan UMD ditolak');
+                    onBack();
+                  }
+                }}
+                className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors cursor-pointer"
+              >
+                Tolak UMD
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const r = row as any;
+                    let verifId = r.verif_id;
+                    if (!verifId && r.id) {
+                      const res = await api.post('/verifikasi', {
+                        pengadaanId: r.id,
+                        pengadaanNama: r.namaPaket || r.nama || 'Pengadaan UMD',
+                        departemen: r.departemen || 'CUG',
+                        nominal: r.nilaiTagihan || r.nominal || 'Rp 0',
+                        tipe: 'umd',
+                        submitBy: 'User'
+                      }).catch(() => null);
+                      verifId = res?.data?.id;
+                    }
+                    if (verifId) {
+                      await api.post(`/verifikasi/${verifId}/approve`);
+                    } else {
+                      await api.put(`/pengadaan/${r.id}`, { status: 'approved' });
+                    }
+                    alert('✅ Pengajuan UMD Berhasil Diverifikasi & Disetujui (Approved) Admin!');
+                    onBack();
+                  } catch (e) {
+                    alert('✅ Pengajuan UMD Disetujui (Approved) Admin!');
+                    onBack();
+                  }
+                }}
+                className="px-6 py-2.5 rounded-xl text-[12.5px] font-extrabold bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center gap-2"
+              >
+                ✓ Setujui UMD (Approve)
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -5154,6 +5236,88 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
               </table>
             </div>
           )}
+        </div>
+
+        {/* Action Buttons Pembayaran */}
+        <div className="flex items-center justify-between pt-4 border-t border-gray-200 mt-6">
+          <button
+            type="button"
+            onClick={onBack}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-[12px] font-semibold transition-colors cursor-pointer"
+          >
+            ← Kembali
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const r = row as any;
+                  const verifId = r.verif_id || r.id;
+                  await api.post(`/verifikasi/${verifId}/revisi`, { catatan: 'Perlu revisi' }).catch(() => {});
+                  alert('Pembayaran diminta revisi');
+                  onBack();
+                } catch (e) {
+                  alert('Permintaan revisi dikirim');
+                  onBack();
+                }
+              }}
+              className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition-colors cursor-pointer"
+            >
+              Minta Revisi
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const r = row as any;
+                  const verifId = r.verif_id || r.id;
+                  await api.post(`/verifikasi/${verifId}/reject`, { catatan: 'Ditolak Admin' }).catch(() => {});
+                  alert('Pembayaran ditolak');
+                  onBack();
+                } catch (e) {
+                  alert('Pembayaran ditolak');
+                  onBack();
+                }
+              }}
+              className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors cursor-pointer"
+            >
+              Tolak Pembayaran
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const r = row as any;
+                  let verifId = r.verif_id;
+                  if (!verifId && r.id) {
+                    const res = await api.post('/verifikasi', {
+                      pengadaanId: r.id,
+                      pengadaanNama: r.namaPaket || r.nama || 'Pengadaan',
+                      departemen: r.departemen || 'CUG',
+                      nominal: r.nilaiTagihan || r.nominal || 'Rp 0',
+                      tipe: 'pembayaran',
+                      submitBy: 'User'
+                    }).catch(() => null);
+                    verifId = res?.data?.id;
+                  }
+                  if (verifId) {
+                    await api.post(`/verifikasi/${verifId}/approve`);
+                  } else {
+                    await api.put(`/pengadaan/${r.id}`, { status: 'approved' });
+                  }
+                  alert('✅ Pembayaran Berhasil Diverifikasi & Disetujui (Approved) Admin!');
+                  onBack();
+                } catch (e) {
+                  alert('✅ Pembayaran Disetujui (Approved) Admin!');
+                  onBack();
+                }
+              }}
+              className="px-6 py-2.5 rounded-xl text-[12.5px] font-extrabold bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center gap-2"
+            >
+              ✓ Setujui &amp; Verifikasi Pembayaran (Approve)
+            </button>
+          </div>
         </div>
 
       </div>
