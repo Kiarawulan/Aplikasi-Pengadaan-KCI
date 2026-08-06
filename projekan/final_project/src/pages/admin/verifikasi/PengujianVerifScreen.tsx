@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
-import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/shared/AdminModal";
+import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/shared/AdminModal";
 import { FileUploadInput } from "../../../components/common/FileUploadInput";
 import { Plus, CheckCircle2, XCircle, FileWarning, Eye, BarChart3, TrendingUp, ShieldCheck } from "lucide-react";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
@@ -375,11 +375,59 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
           )}
 
           {confirmDialog.show && (
-            <AdminModal title={confirmDialog.type.toUpperCase()} onClose={() => setConfirmDialog({ type: "verifikasi", text: "", show: false })} onSubmit={() => { setConfirmDialog({ type: "verifikasi", text: "", show: false }); setShowReviewDetail(null); }} submitLabel="Proses" width="max-w-sm">
+            <AdminModal
+              title={confirmDialog.type === "kelengkapan" ? "CATATAN REVISI" : confirmDialog.type.toUpperCase()}
+              onClose={() => setConfirmDialog({ type: "verifikasi", text: "", show: false })}
+              onSubmit={async () => {
+                if (!showReviewDetail) return;
+                const pengadaanId = showReviewDetail.pengadaan_id || showReviewDetail.pengadaanId || showReviewDetail.id;
+                const catatan = actionReason.trim() || (confirmDialog.type === "kelengkapan" ? "Perlu revisi kelengkapan dokumen pengujian." : confirmDialog.type === "reject" ? "Pengujian ditolak oleh admin." : "Disetujui.");
+
+                try {
+                  const resVerif = await api.get(`/verifikasi?pengadaan_id=${pengadaanId}`).catch(() => ({ data: [] }));
+                  const verifList = Array.isArray(resVerif.data) ? resVerif.data : [];
+                  let verif = verifList.find((v: any) => v.tipe === "pengujian");
+
+                  if (!verif && pengadaanId) {
+                    const createRes = await api.post("/verifikasi", {
+                      pengadaanId: pengadaanId,
+                      pengadaanNama: showReviewDetail.nama || showReviewDetail.judul || "Pengadaan",
+                      departemen: showReviewDetail.departemen || "CTIT",
+                      nominal: showReviewDetail.nominal || "—",
+                      tipe: "pengujian",
+                      submitBy: "User",
+                    }).catch(() => null);
+                    if (createRes?.data) verif = createRes.data;
+                  }
+
+                  const verifId = verif?.id || `VR-${pengadaanId}`;
+
+                  if (confirmDialog.type === "kelengkapan" || confirmDialog.type === "revisi") {
+                    await api.post(`/verifikasi/${verifId}/revisi`, { catatan });
+                    alert("Catatan revisi pengujian berhasil dikirim ke user.");
+                  } else if (confirmDialog.type === "reject") {
+                    await api.post(`/verifikasi/${verifId}/reject`, { catatan });
+                    alert("Pengujian berhasil ditolak.");
+                  } else {
+                    await api.post(`/verifikasi/${verifId}/approve`);
+                    alert("Pengujian berhasil diverifikasi.");
+                  }
+                  fetchPengadaanData();
+                } catch (err: any) {
+                  alert(err?.response?.data?.message || "Gagal memproses tindakan pengujian.");
+                } finally {
+                  setConfirmDialog({ type: "verifikasi", text: "", show: false });
+                  setShowReviewDetail(null);
+                  setActionReason("");
+                }
+              }}
+              submitLabel="Kirim ke User"
+              width="max-w-sm"
+            >
               <div className="space-y-3">
                 <p className="text-[12px] text-gray-600">{confirmDialog.text}</p>
-                <ModalField label="Catatan / Alasan">
-                  <ModalInput value={actionReason} onChange={v => setActionReason(v)} placeholder="Catatan..." />
+                <ModalField label="Catatan / Alasan untuk User">
+                  <ModalTextarea value={actionReason} onChange={v => setActionReason(v)} placeholder="Tuliskan catatan perbaikan untuk user..." rows={4} />
                 </ModalField>
               </div>
             </AdminModal>

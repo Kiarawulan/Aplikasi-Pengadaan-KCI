@@ -140,70 +140,71 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
   // Check verification status from backend & local
   useEffect(() => {
-    const verifTypes = ["npp", "pengajuan-dana", "sp3", "pbj", "contract", "pembayaran"];
-    if (verifTypes.includes(activeStep.id)) {
-      const refreshStatus = () => api.get(`/pengadaan/${item.id}/step-status?stepId=${activeStep.id}`).then(res => {
-        setVerifStatus(res.data.status);
-        setCatatanAdmin(res.data.catatanAdmin || null);
-        if (res.data.verifikasi?.id) {
-          setVerifId(res.data.verifikasi.id);
-        } else {
-          setVerifId(null);
+    let isSubscribed = true;
+    setVerifStatus("not_submitted");
+    setCatatanAdmin(null);
+    setVerifId(null);
+
+    const refreshStatus = async () => {
+      try {
+        const res = await api.get(`/verifikasi?pengadaan_id=${item.id}`);
+        if (!isSubscribed) return;
+        const list = Array.isArray(res.data) ? res.data : [];
+
+        const matched = list.find((v: any) => {
+          if (activeStep.id === "pengajuan-dana") {
+            return v.tipe === "pengajuan-dana" || v.tipe === "purchase-requisition" || v.tipe === "park-dokumen";
+          }
+          if (activeStep.id === "pembayaran") {
+            return ["pembayaran", "umd", "outsource", "non-outsource", "payment-request"].includes(v.tipe);
+          }
+          return v.tipe === activeStep.id;
+        });
+
+        if (matched) {
+          setVerifStatus(matched.status || "pending");
+          setCatatanAdmin(matched.catatan_admin || matched.catatan || null);
+          setVerifId(matched.id);
+          if (matched.status === "approved") {
+            setCompletedStepIds(prev => new Set([...prev, activeStep.id]));
+          }
+          return;
         }
-        if (res.data.status === "approved") {
-          setCompletedStepIds(prev => new Set([...prev, activeStep.id]));
+
+        if (activeStep.id === "pengujian") {
+          try {
+            const pujRes = await api.get("/pengujian");
+            if (!isSubscribed) return;
+            const pujList = Array.isArray(pujRes.data) ? pujRes.data : [];
+            const matchedPuj = pujList.find((x: any) => x.pengadaan_id === item.id);
+            if (matchedPuj) {
+              setPengujianId(matchedPuj.id);
+              const statusLower = matchedPuj.status?.toLowerCase();
+              if (statusLower === "selesai" || statusLower === "approved" || statusLower === "completed") {
+                setVerifStatus("approved");
+                setCompletedStepIds(prev => new Set([...prev, "pengujian"]));
+              } else {
+                setVerifStatus("pending");
+              }
+              return;
+            }
+          } catch (e) { }
         }
-      }).catch(() => {
+
         setVerifStatus("not_submitted");
-        setCatatanAdmin(null);
-        setVerifId(null);
-      });
-      refreshStatus();
-      const timer = window.setInterval(refreshStatus, 15000);
-      return () => window.clearInterval(timer);
-    } else if (activeStep.id === "pengujian") {
-      const updatePengujian = (p: any) => {
-        if (p) {
-          setPengujianId(p.id);
-          const statusLower = p.status?.toLowerCase();
-
-          if (statusLower === "selesai" || statusLower === "approved" || statusLower === "completed") {
-            setVerifStatus("approved");
-          } else {
-            setVerifStatus("pending");
-          }
-
-          setCompletedSubs(prev => {
-            const next = new Set(prev);
-            if (statusLower === "diproses" || statusLower === "approved" || statusLower === "selesai" || statusLower === "completed") {
-              next.add("pengujian.request-pengujian");
-            }
-            if (statusLower === "selesai" || statusLower === "completed") {
-              next.add("pengujian.hasil-pengujian");
-            }
-            return next;
-          });
-
-          if (statusLower === "diproses" || statusLower === "approved" || statusLower === "selesai" || statusLower === "completed") {
-            setActiveSubIdx(1);
-          }
-          if (statusLower === "approved" || statusLower === "selesai" || statusLower === "completed") {
-            setCompletedStepIds((previous) => new Set([...previous, "pengujian"]));
-          }
-        } else {
+      } catch (e) {
+        if (isSubscribed) {
           setVerifStatus("not_submitted");
         }
-      };
+      }
+    };
 
-      api.get("/pengujian").then(res => {
-        const p = res.data.find((x: any) => x.nama === item.nama);
-        updatePengujian(p || getPengujianList().find(x => x.nama === item.nama));
-      }).catch(() => {
-        updatePengujian(getPengujianList().find(x => x.nama === item.nama));
-      });
-    } else {
-      setVerifStatus("not_submitted");
-    }
+    refreshStatus();
+    const timer = window.setInterval(refreshStatus, 10000);
+    return () => {
+      isSubscribed = false;
+      window.clearInterval(timer);
+    };
   }, [activeStep.id, item.id]);
 
   const isDone = (idx: number) => completedStepIds.has(steps[idx].id);
@@ -261,22 +262,27 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       return; // Do not advance step yet!
     }
 
-    if (adminOnlySteps.includes(activeStep.id)) return;
+    if (adminOnlySteps.includes(activeStep.id) && verifStatus !== "approved") return;
 
     if (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian") {
-      if (verifStatus === "not_submitted") {
+      if (verifStatus === "not_submitted" || verifStatus === "revisi" || verifStatus === "rejected") {
         const p = {
           id: generateId("PUJ"),
+          pengadaan_id: item.id,
           nama: item.nama,
           pemohon: currentUser?.name || "User",
           departemen: item.departemen || "CTIT",
           tanggal: new Date().toISOString().split("T")[0],
           status: "pending",
-          catatan: "Request pengujian otomatis dari Purchase Requisition",
+          catatan: "Request pengujian dari Purchase Requisition",
         };
         api.post("/pengujian", p).catch(() => { });
+        if (verifId) {
+          api.put(`/verifikasi/${verifId}`, { status: "pending", catatan_admin: null }).catch(() => { });
+        }
         savePengujianList([...getPengujianList(), p]);
         setVerifStatus("pending");
+        setCatatanAdmin(null);
         const curSubId = activeSubStep?.id ?? activeStep.id;
         setCompletedSubs(p => new Set([...p, `${activeStep.id}.${curSubId}`]));
         flashSave();
@@ -537,7 +543,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                 <button onClick={() => flashSave()} className="px-4 h-[30px] rounded border border-[#252271] text-[11.5px] text-[#252271] font-medium hover:bg-[#252271]/5">Simpan</button>
 
                 {!isLast ? (
-                  <button onClick={goNext} disabled={(["sp3", "pbj", "contract"].includes(activeStep.id)) || (verifStatus === "pending" && isSubmitPoint) || (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian" && verifStatus !== "not_submitted" && verifStatus !== "approved")} className="px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-[#252271] hover:bg-[#1a1860] disabled:bg-gray-400 disabled:cursor-not-allowed">
+                  <button onClick={goNext} disabled={(["sp3", "pbj", "contract"].includes(activeStep.id) && verifStatus !== "approved") || (verifStatus === "pending" && isSubmitPoint) || (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian" && verifStatus !== "not_submitted" && verifStatus !== "approved")} className="px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-[#252271] hover:bg-[#1a1860] disabled:bg-gray-400 disabled:cursor-not-allowed">
                     {getNextLabel()}
                   </button>
                 ) : item.status === "Selesai" || completedStepIds.has("contract") ? (

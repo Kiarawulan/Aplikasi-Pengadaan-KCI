@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { FileWarning, XCircle } from "lucide-react";
 import logoImg from "@/imports/UserDashboard/a1d658a5f37b0b6b958626283ef2524233d0a35d.png";
 import group13Svg from "@/imports/Group13/svg-0k0x59k5bp";
 import group14Svg from "@/imports/Group14/svg-sivp8gfyg0";
@@ -2116,11 +2117,10 @@ const NPP_ROWS: NppRow[] = [
 ];
 
 function NppDetailPage({ row, onBack }: { row: NppRow; onBack: () => void }) {
-  const process = async (action: "approve" | "revisi" | "reject") => {
+  const process = async (action: "approve" | "revisi" | "reject", note?: string) => {
     const verifId = (row as any).verif_id;
     if (!verifId) return alert("ID verifikasi NPP tidak ditemukan.");
-    const catatan = action === "approve" ? undefined : prompt(action === "revisi" ? "Catatan revisi:" : "Alasan penolakan:");
-    if (action !== "approve" && !catatan) return;
+    const catatan = note?.trim() || (action === "revisi" ? "Mohon perbaiki dokumen yang diajukan." : action === "reject" ? "Pengajuan ditolak oleh Admin." : undefined);
     try {
       await api.post(`/verifikasi/${verifId}/${action}`, catatan ? { catatan } : undefined);
       alert(action === "approve" ? "NPP berhasil disetujui!" : action === "revisi" ? "Catatan revisi telah dikirim!" : "NPP berhasil ditolak.");
@@ -2149,8 +2149,8 @@ function NppDetailPage({ row, onBack }: { row: NppRow; onBack: () => void }) {
           <NppDetailView
             item={row}
             onApprove={() => process("approve")}
-            onRevisi={() => process("revisi")}
-            onReject={() => process("reject")}
+            onRevisi={(note) => process("revisi", note)}
+            onReject={(note) => process("reject", note)}
           />
         </div>
       </div>
@@ -2358,23 +2358,22 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
                 fetchData();
                 setView("list");
               }}
-              onReject={async () => {
-                const notes = prompt("Masukkan alasan penolakan:") || "RUP ditolak oleh admin";
-                if (notes === null) return;
+              onReject={async (notes?: string) => {
+                const rejectNotes = notes?.trim() || "RUP ditolak oleh admin";
                 try {
                   const resVerif = await api.get('/verifikasi').catch(() => ({ data: [] }));
                   const verifList = resVerif.data || [];
                   const matchedVerif = verifList.find((v: any) => v.pengadaan_id === selectedRow?.idRup || v.id === selectedRow?.verif_id);
                   if (matchedVerif) {
-                    await api.post(`/verifikasi/${matchedVerif.id}/reject`, { catatan: notes }).catch(() => { });
+                    await api.post(`/verifikasi/${matchedVerif.id}/reject`, { catatan: rejectNotes }).catch(() => { });
                   } else if (selectedRow?.verif_id) {
-                    await api.post(`/verifikasi/${selectedRow.verif_id}/reject`, { catatan: notes }).catch(() => { });
+                    await api.post(`/verifikasi/${selectedRow.verif_id}/reject`, { catatan: rejectNotes }).catch(() => { });
                   }
                 } catch (e) { }
 
-                updateVerifRecord(selectedRow?.verif_id, { status: "rejected", catatanAdmin: notes });
-                await api.put(`/rup/${selectedRow.idRup}`, { status: "rejected", catatan_admin: notes }).catch(() => { });
-                updateRup(selectedRow.idRup, { status: "rejected", catatanAdmin: notes });
+                updateVerifRecord(selectedRow?.verif_id, { status: "rejected", catatanAdmin: rejectNotes });
+                await api.put(`/rup/${selectedRow.idRup}`, { status: "rejected", catatan_admin: rejectNotes }).catch(() => { });
+                updateRup(selectedRow.idRup, { status: "rejected", catatanAdmin: rejectNotes });
                 fetchData();
                 alert("RUP berhasil ditolak.");
                 setView("list");
@@ -2879,7 +2878,6 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
   const [view, setView] = useState<"list" | "detail">("list");
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const [showDelete, setShowDelete] = useState(false);
-  const [showApprove, setShowApprove] = useState(false);
   const [showRevisi, setShowRevisi] = useState(false);
   const [showReject, setShowReject] = useState(false);
   const [actionNote, setActionNote] = useState("");
@@ -2899,16 +2897,18 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
   });
 
   const submitAction = async (action: "approve" | "revisi" | "reject") => {
-    if (!selectedRow?.verif_id) return;
+    if (!selectedRow?.verif_id) { alert("ID verifikasi tidak ditemukan."); return; }
     try {
       await processVerification(selectedRow.verif_id, action, actionNote);
       setActionNote("");
-      setShowApprove(false);
       setShowRevisi(false);
       setShowReject(false);
       setView("list");
     } catch (error: any) {
-      alert(error?.response?.data?.message || "Proses SP3 gagal disimpan.");
+      console.error("SP3 Submit Action Error:", error?.response || error);
+      const serverMsg = error?.response?.data?.message || error?.response?.data?.error || (typeof error?.response?.data === 'string' ? error.response.data : null);
+      const msg = serverMsg || error?.message || "Proses SP3 gagal disimpan.";
+      alert(`Gagal (${error?.response?.status || 'Error'}): ${msg}`);
     }
   };
 
@@ -3095,7 +3095,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
               </p>
               <div className="flex items-center gap-[10px]">
                 <span className={`inline-flex items-center border text-[10.5px] font-medium px-[8px] py-[2.75px] rounded-full ${isSp3Verified ? "bg-slate-100 border-slate-300 text-slate-500" : "bg-[#f0f9ff] border-[#0069a8] text-[#0069a8]"}`}>{isSp3Verified ? "Sudah Diverifikasi" : selectedRow.status || "Submitted SP3"}</span>
-                <button disabled={isSp3Verified} onClick={() => setShowApprove(true)} className={`h-[36px] px-[20px] text-[13px] font-bold rounded-[8px] transition-all shadow-sm ${isSp3Verified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700 active:scale-95"}`}>{isSp3Verified ? "✓ Sudah Diverifikasi" : "Verifikasi & Setujui"}</button>
+                <button disabled={isSp3Verified} onClick={() => submitAction("approve")} className={`h-[36px] px-[20px] text-[13px] font-bold rounded-[8px] transition-all shadow-sm ${isSp3Verified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700 active:scale-95"}`}>{isSp3Verified ? "✓ Sudah Diverifikasi" : "Verifikasi & Setujui"}</button>
               </div>
             </div>
           </div>
@@ -3114,50 +3114,41 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
           </div>
         </div>
 
-        {showApprove && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-[15px] w-[450px] overflow-hidden shadow-2xl">
-              <div className="bg-[#252271] px-[24px] py-[12px]"><p className="text-white text-[14px] font-bold">Approve SP3</p></div>
-              <div className="p-[32px] flex flex-col gap-[16px]">
-                <p className="text-[#0f172a] text-[14px] text-center">Apakah kamu yakin ingin menyetujui SP3 ini?</p>
-                <div className="flex gap-[12px] justify-center">
-                  <button onClick={() => setShowApprove(false)} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
-                  <button onClick={() => submitAction("approve")} className="px-[24px] py-[8px] rounded-[8px] bg-green-600 text-white text-[13px] font-medium hover:bg-green-700 transition-colors active:scale-95">Setujui</button>
-                </div>
+          {/* Inline Revisi Box */}
+          {showRevisi && (
+            <div className="mx-[44px] mb-[16px] bg-amber-50 border border-amber-300 rounded-[12px] p-[16px]">
+              <p className="text-[#92400e] text-[12px] font-bold mb-[8px]">Tuliskan Catatan Revisi:</p>
+              <textarea
+                autoFocus
+                value={actionNote}
+                onChange={(e) => setActionNote(e.target.value)}
+                className="w-full h-[80px] border border-amber-300 rounded-[8px] px-[12px] py-[8px] text-[13px] outline-none focus:border-amber-500 resize-none transition-colors"
+                placeholder="Catatan revisi..."
+              />
+              <div className="flex gap-[10px] justify-end mt-[10px]">
+                <button onClick={() => { setShowRevisi(false); setActionNote(""); }} className="px-[16px] py-[7px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[12px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
+                <button disabled={!actionNote.trim()} onClick={() => submitAction("revisi")} className="px-[16px] py-[7px] rounded-[8px] bg-amber-500 text-white text-[12px] font-medium hover:bg-amber-600 disabled:bg-amber-200 disabled:cursor-not-allowed transition-colors active:scale-95">Kirim Revisi</button>
               </div>
             </div>
-          </div>
-        )}
-        {showRevisi && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-[15px] w-[450px] overflow-hidden shadow-2xl">
-              <div className="bg-amber-500 px-[24px] py-[12px]"><p className="text-white text-[14px] font-bold">Revisi SP3</p></div>
-              <div className="p-[32px] flex flex-col gap-[16px]">
-                <p className="text-[#0f172a] text-[14px] text-center">Tuliskan catatan revisi untuk User:</p>
-                <textarea value={actionNote} onChange={(event) => setActionNote(event.target.value)} className="w-full h-[90px] border border-amber-300 rounded-[8px] px-[12px] py-[8px] text-[13px] outline-none focus:border-amber-500 resize-none transition-colors" placeholder="Catatan revisi..." />
-                <div className="flex gap-[12px] justify-center">
-                  <button onClick={() => { setShowRevisi(false); setActionNote(""); }} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
-                  <button disabled={!actionNote.trim()} onClick={() => submitAction("revisi")} className="px-[24px] py-[8px] rounded-[8px] bg-amber-500 text-white text-[13px] font-medium hover:bg-amber-600 disabled:bg-amber-200 disabled:cursor-not-allowed transition-colors active:scale-95">Kirim Revisi</button>
-                </div>
+          )}
+
+          {/* Inline Reject Box */}
+          {showReject && (
+            <div className="mx-[44px] mb-[16px] bg-red-50 border border-red-300 rounded-[12px] p-[16px]">
+              <p className="text-[#991b1b] text-[12px] font-bold mb-[8px]">Tuliskan Alasan Penolakan:</p>
+              <textarea
+                autoFocus
+                value={actionNote}
+                onChange={(e) => setActionNote(e.target.value)}
+                className="w-full h-[80px] border border-red-300 rounded-[8px] px-[12px] py-[8px] text-[13px] outline-none focus:border-red-500 resize-none transition-colors"
+                placeholder="Alasan penolakan..."
+              />
+              <div className="flex gap-[10px] justify-end mt-[10px]">
+                <button onClick={() => { setShowReject(false); setActionNote(""); }} className="px-[16px] py-[7px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[12px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
+                <button disabled={!actionNote.trim()} onClick={() => submitAction("reject")} className="px-[16px] py-[7px] rounded-[8px] bg-red-600 text-white text-[12px] font-medium hover:bg-red-700 disabled:bg-red-200 disabled:cursor-not-allowed transition-colors active:scale-95">Tolak Dokumen</button>
               </div>
             </div>
-          </div>
-        )}
-        {showReject && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-[15px] w-[450px] overflow-hidden shadow-2xl">
-              <div className="bg-[#cc0000] px-[24px] py-[12px]"><p className="text-white text-[14px] font-bold">Reject SP3</p></div>
-              <div className="p-[32px] flex flex-col gap-[16px]">
-                <p className="text-[#0f172a] text-[14px] text-center">Masukkan alasan penolakan:</p>
-                <textarea value={actionNote} onChange={(event) => setActionNote(event.target.value)} className="w-full h-[90px] border border-[#d1d5dc] rounded-[8px] px-[12px] py-[8px] text-[13px] outline-none focus:border-[#252271] resize-none transition-colors" placeholder="Alasan reject..." />
-                <div className="flex gap-[12px] justify-center">
-                  <button onClick={() => { setShowReject(false); setActionNote(""); }} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
-                  <button disabled={!actionNote.trim()} onClick={() => submitAction("reject")} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] disabled:bg-red-200 disabled:cursor-not-allowed transition-colors active:scale-95">Tolak</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+          )}
       </div>
     );
   }
@@ -4658,7 +4649,7 @@ type PengujianRequestRow = {
   status: string;
 };
 
-function DetailPengujianPage({ item, isKontrak, onBack, onProcess, onUploadBahp }: { item: any; isKontrak: boolean; onBack: () => void; onProcess?: (action: "approve" | "revisi" | "reject") => Promise<void>; onUploadBahp?: (file: File) => Promise<void> }) {
+function DetailPengujianPage({ item, isKontrak, onBack, onProcess, onUploadBahp }: { item: any; isKontrak: boolean; onBack: () => void; onProcess?: (action: "approve" | "revisi" | "reject", note?: string) => Promise<void>; onUploadBahp?: (file: File) => Promise<void> }) {
   const titleName = isKontrak ? (item as PengujianKontrakRow).namaPaket : (item as PengujianRequestRow).namaPengujian;
   const docNo = isKontrak ? (item as PengujianKontrakRow).idNpp : (item as PengujianRequestRow).noRequest;
   const vendorOrDept = isKontrak ? (item as PengujianKontrakRow).vendor : (item as PengujianRequestRow).pemohon;
@@ -4676,8 +4667,8 @@ function DetailPengujianPage({ item, isKontrak, onBack, onProcess, onUploadBahp 
         item={itemProp}
         onBack={onBack}
         onApprove={() => { if (onProcess) onProcess("approve").catch((error: any) => alert(error?.response?.data?.message || "Pengujian gagal diverifikasi.")); }}
-        onReject={() => { if (onProcess) onProcess("reject").catch((error: any) => alert(error?.response?.data?.message || "Pengujian gagal ditolak.")); }}
-        onRevisi={() => { if (onProcess) onProcess("revisi").catch((error: any) => alert(error?.response?.data?.message || "Catatan revisi gagal dikirim.")); }}
+        onReject={(note) => { if (onProcess) onProcess("reject", note).catch((error: any) => alert(error?.response?.data?.message || "Pengujian gagal ditolak.")); }}
+        onRevisi={(note) => { if (onProcess) onProcess("revisi", note).catch((error: any) => alert(error?.response?.data?.message || "Catatan revisi gagal dikirim.")); }}
       />
       {!isKontrak && onUploadBahp && <div className="px-6 pb-6 -mt-4 bg-[#f8fafc]"><label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#252271] text-white text-[12px] font-bold cursor-pointer hover:bg-[#1a1860]">Unggah Surat BAHP Signed<input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) onUploadBahp(file).catch((error: any) => alert(error?.response?.data?.message || "Surat BAHP gagal diunggah.")); event.target.value = ""; }} /></label></div>}
     </div>
@@ -4902,10 +4893,9 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
   });
   const requestRows = queueRows;
 
-  const processSelected = async (action: "approve" | "revisi" | "reject") => {
+  const processSelected = async (action: "approve" | "revisi" | "reject", note?: string) => {
     if (!selectedItem?.verif_id) return;
-    const catatan = action === "approve" ? undefined : window.prompt("Masukkan catatan untuk User:") || undefined;
-    if (action !== "approve" && !catatan) return;
+    const catatan = action === "approve" ? undefined : note?.trim() || (action === "revisi" ? "Mohon perbaiki dokumen pengujian." : "Pengujian ditolak oleh Admin.");
     await processVerification(selectedItem.verif_id, action, catatan);
     await refresh();
     setView("list");
@@ -5164,8 +5154,51 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
 
   const UMD_SYARAT = ["G64", "Surat Pernyataan", "Surat Pernyataan Keabsahan Dokumen"];
 
+  const [showRevisiBox, setShowRevisiBox] = useState(false);
+  const [showRejectBox, setShowRejectBox] = useState(false);
+  const [actionNote, setActionNote] = useState("");
+
   const [syarat, setSyarat] = useState((isUmd ? UMD_SYARAT : SYARAT_LIST).map(d => ({ doc: d, syarat: false, ada: false, ket: "" })));
   const [syaratLain, setSyaratLain] = useState<{ doc: string; syarat: boolean; ada: boolean; ket: string }[]>([]);
+
+  const handleProcessPayment = async (action: "revisi" | "reject") => {
+    const note = actionNote.trim();
+    if (!note) {
+      alert(`Harap masukkan catatan ${action === "revisi" ? "revisi" : "penolakan"}.`);
+      return;
+    }
+    const r = row as any;
+    const pengadaanId = r.pengadaan_id || r.pengadaanId || r.id || r.noPembayaran || r.noKontrak;
+
+    try {
+      const resList = await api.get(`/verifikasi?pengadaan_id=${pengadaanId}`).catch(() => ({ data: [] }));
+      const list = Array.isArray(resList.data) ? resList.data : [];
+      let matched = list.find((v: any) => ["pembayaran", "umd", "outsource", "non-outsource", "payment-request"].includes(v.tipe));
+
+      if (!matched && pengadaanId) {
+        const createRes = await api.post('/verifikasi', {
+          pengadaanId: pengadaanId,
+          pengadaanNama: r.namaPaket || r.nama || 'Pengadaan Pembayaran',
+          departemen: r.departemen || r.dept || 'CTIT',
+          nominal: r.nilaiTagihan || r.nominal || 'Rp 0',
+          tipe: isUmd ? 'umd' : isNonOutsource ? 'non-outsource' : 'pembayaran',
+          submitBy: 'User'
+        }).catch(() => null);
+        if (createRes?.data) matched = createRes.data;
+      }
+
+      const verifId = matched?.id || r.verif_id || `VR-${pengadaanId}`;
+
+      await api.post(`/verifikasi/${verifId}/${action}`, { catatan: note });
+      alert(action === "revisi" ? "Catatan revisi pembayaran berhasil dikirim ke user!" : "Pembayaran berhasil ditolak!");
+      setShowRevisiBox(false);
+      setShowRejectBox(false);
+      setActionNote("");
+      onBack();
+    } catch (e: any) {
+      alert(e.response?.data?.message || `Gagal ${action === "revisi" ? "mengirim revisi" : "menolak pembayaran"}.`);
+    }
+  };
 
   const toggleSyarat = (i: number, field: "syarat" | "ada") => {
     setSyarat(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: !s[field] } : s));
@@ -5314,36 +5347,14 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={async () => {
-                  try {
-                    const r = row as any;
-                    const verifId = r.verif_id || r.id;
-                    await api.post(`/verifikasi/${verifId}/revisi`, { catatan: 'Perlu revisi' }).catch(() => { });
-                    alert('Pengajuan UMD diminta revisi');
-                    onBack();
-                  } catch (e) {
-                    alert('Permintaan revisi dikirim');
-                    onBack();
-                  }
-                }}
+                onClick={() => { setActionNote(""); setShowRejectBox(false); setShowRevisiBox(!showRevisiBox); }}
                 className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition-colors cursor-pointer"
               >
                 Minta Revisi
               </button>
               <button
                 type="button"
-                onClick={async () => {
-                  try {
-                    const r = row as any;
-                    const verifId = r.verif_id || r.id;
-                    await api.post(`/verifikasi/${verifId}/reject`, { catatan: 'Ditolak Admin' }).catch(() => { });
-                    alert('Pengajuan UMD ditolak');
-                    onBack();
-                  } catch (e) {
-                    alert('Pengajuan UMD ditolak');
-                    onBack();
-                  }
-                }}
+                onClick={() => { setActionNote(""); setShowRevisiBox(false); setShowRejectBox(!showRejectBox); }}
                 className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors cursor-pointer"
               >
                 Tolak UMD
@@ -5383,6 +5394,58 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
               </button>
             </div>
           </div>
+
+          {showRevisiBox && (
+            <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mt-4 animate-in fade-in-0">
+              <p className="text-[12px] font-bold text-purple-900 mb-2 flex items-center gap-1.5">
+                <FileWarning size={15} className="text-purple-600" />
+                Catatan Revisi UMD untuk User:
+              </p>
+              <textarea
+                autoFocus
+                value={actionNote}
+                onChange={(e) => setActionNote(e.target.value)}
+                placeholder="Tuliskan catatan perbaikan dokumen UMD untuk user..."
+                className="w-full h-[85px] bg-white border border-purple-300 rounded-lg p-3 text-[12px] text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400 mb-3 resize-none"
+              />
+              <div className="flex gap-2 justify-end">
+                <button type="button" onClick={() => setShowRevisiBox(false)} className="px-4 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-[11.5px] font-semibold hover:bg-gray-50 cursor-pointer">Batal</button>
+                <button
+                  type="button"
+                  onClick={() => handleProcessPayment("revisi")}
+                  className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-[11.5px] font-bold hover:bg-purple-700 shadow-sm cursor-pointer"
+                >
+                  Kirim Catatan Revisi
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showRejectBox && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-4 animate-in fade-in-0">
+              <p className="text-[12px] font-bold text-red-900 mb-2 flex items-center gap-1.5">
+                <XCircle size={15} className="text-red-600" />
+                Alasan Penolakan UMD untuk User:
+              </p>
+              <textarea
+                autoFocus
+                value={actionNote}
+                onChange={(e) => setActionNote(e.target.value)}
+                placeholder="Tuliskan alasan penolakan UMD..."
+                className="w-full h-[85px] bg-white border border-red-300 rounded-lg p-3 text-[12px] text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-400 mb-3 resize-none"
+              />
+              <div className="flex gap-2 justify-end">
+                <button type="button" onClick={() => setShowRejectBox(false)} className="px-4 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-[11.5px] font-semibold hover:bg-gray-50 cursor-pointer">Batal</button>
+                <button
+                  type="button"
+                  onClick={() => handleProcessPayment("reject")}
+                  className="px-4 py-1.5 bg-red-600 text-white rounded-lg text-[11.5px] font-bold hover:bg-red-700 shadow-sm cursor-pointer"
+                >
+                  Kirim Penolakan UMD
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -5506,36 +5569,14 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={async () => {
-                try {
-                  const r = row as any;
-                  const verifId = r.verif_id || r.id;
-                  await api.post(`/verifikasi/${verifId}/revisi`, { catatan: 'Perlu revisi' }).catch(() => { });
-                  alert('Pembayaran diminta revisi');
-                  onBack();
-                } catch (e) {
-                  alert('Permintaan revisi dikirim');
-                  onBack();
-                }
-              }}
+              onClick={() => { setActionNote(""); setShowRejectBox(false); setShowRevisiBox(!showRevisiBox); }}
               className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition-colors cursor-pointer"
             >
               Minta Revisi
             </button>
             <button
               type="button"
-              onClick={async () => {
-                try {
-                  const r = row as any;
-                  const verifId = r.verif_id || r.id;
-                  await api.post(`/verifikasi/${verifId}/reject`, { catatan: 'Ditolak Admin' }).catch(() => { });
-                  alert('Pembayaran ditolak');
-                  onBack();
-                } catch (e) {
-                  alert('Pembayaran ditolak');
-                  onBack();
-                }
-              }}
+              onClick={() => { setActionNote(""); setShowRevisiBox(false); setShowRejectBox(!showRejectBox); }}
               className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors cursor-pointer"
             >
               Tolak Pembayaran
@@ -5576,6 +5617,57 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
           </div>
         </div>
 
+        {showRevisiBox && (
+          <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mt-4 animate-in fade-in-0">
+            <p className="text-[12px] font-bold text-purple-900 mb-2 flex items-center gap-1.5">
+              <FileWarning size={15} className="text-purple-600" />
+              Catatan Revisi Pembayaran untuk User:
+            </p>
+            <textarea
+              autoFocus
+              value={actionNote}
+              onChange={(e) => setActionNote(e.target.value)}
+              placeholder="Tuliskan catatan perbaikan dokumen pembayaran yang harus dilengkapi oleh user..."
+              className="w-full h-[85px] bg-white border border-purple-300 rounded-lg p-3 text-[12px] text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400 mb-3 resize-none"
+            />
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setShowRevisiBox(false)} className="px-4 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-[11.5px] font-semibold hover:bg-gray-50 cursor-pointer">Batal</button>
+              <button
+                type="button"
+                onClick={() => handleProcessPayment("revisi")}
+                className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-[11.5px] font-bold hover:bg-purple-700 shadow-sm cursor-pointer"
+              >
+                Kirim Catatan Revisi
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showRejectBox && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-4 animate-in fade-in-0">
+            <p className="text-[12px] font-bold text-red-900 mb-2 flex items-center gap-1.5">
+              <XCircle size={15} className="text-red-600" />
+              Alasan Penolakan Pembayaran untuk User:
+            </p>
+            <textarea
+              autoFocus
+              value={actionNote}
+              onChange={(e) => setActionNote(e.target.value)}
+              placeholder="Tuliskan alasan penolakan dokumen pembayaran..."
+              className="w-full h-[85px] bg-white border border-red-300 rounded-lg p-3 text-[12px] text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-400 mb-3 resize-none"
+            />
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setShowRejectBox(false)} className="px-4 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-[11.5px] font-semibold hover:bg-gray-50 cursor-pointer">Batal</button>
+              <button
+                type="button"
+                onClick={() => handleProcessPayment("reject")}
+                className="px-4 py-1.5 bg-red-600 text-white rounded-lg text-[11.5px] font-bold hover:bg-red-700 shadow-sm cursor-pointer"
+              >
+                Kirim Penolakan Pembayaran
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

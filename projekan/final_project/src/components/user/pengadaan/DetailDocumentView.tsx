@@ -32,8 +32,8 @@ export interface DetailDocumentViewProps {
   tracking?: DetailDocumentTracking[];
   onBack?: () => void;
   onApprove?: () => void;
-  onRevisi?: () => void;
-  onReject?: () => void;
+  onRevisi?: (note?: string) => void;
+  onReject?: (note?: string) => void;
   showActions?: boolean;
   extraTabs?: React.ReactNode;
   pengadaanId?: string;
@@ -57,6 +57,8 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
 }) => {
   const [showRevisionBox, setShowRevisionBox] = useState(false);
   const [revisionNote, setRevisionNote] = useState("");
+  const [showRejectBox, setShowRejectBox] = useState(false);
+  const [rejectNote, setRejectNote] = useState("");
 
   const actualTracking: DetailDocumentTracking[] = tracking;
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
@@ -130,7 +132,7 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
             {/* Revisi Button */}
             <button
               type="button"
-              onClick={() => setShowRevisionBox(!showRevisionBox)}
+              onClick={() => { setShowRevisionBox(!showRevisionBox); setShowRejectBox(false); }}
               className="px-3 py-1 rounded-lg border border-amber-500 bg-amber-50/60 text-[#d97706] hover:bg-amber-100 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
             >
               <Edit3 size={12} />
@@ -141,7 +143,7 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
             {onReject && (
               <button
                 type="button"
-                onClick={onReject}
+                onClick={() => { setShowRejectBox(!showRejectBox); setShowRevisionBox(false); }}
                 className="px-3 py-1 rounded-lg border border-red-300 bg-red-50 text-[#dc2626] hover:bg-red-100 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
               >
                 <X size={12} />
@@ -170,6 +172,7 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
             Tuliskan Catatan Revisi Dokumen Ini:
           </p>
           <textarea
+            autoFocus
             value={revisionNote}
             onChange={(e) => setRevisionNote(e.target.value)}
             placeholder="Tuliskan catatan perbaikan atau alasan revisi di sini..."
@@ -177,7 +180,7 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
           />
           <div className="flex gap-2 justify-end">
             <button
-              onClick={() => setShowRevisionBox(false)}
+              onClick={() => { setShowRevisionBox(false); setRevisionNote(""); }}
               className="px-2.5 py-1 bg-white border border-gray-300 text-gray-600 rounded-lg text-[10.5px] font-semibold hover:bg-gray-50 cursor-pointer"
             >
               Batal
@@ -185,14 +188,49 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
             <button
               onClick={() => {
                 if (!revisionNote.trim()) { alert("Harap isi catatan revisi."); return; }
-                if (onRevisi) onRevisi();
-                alert("Catatan revisi berhasil dikirim!");
+                if (onRevisi) onRevisi(revisionNote);
                 setShowRevisionBox(false);
                 setRevisionNote("");
               }}
               className="px-3 py-1 bg-[#d97706] text-white rounded-lg text-[10.5px] font-bold hover:bg-[#b45309] cursor-pointer"
             >
               Kirim Revisi
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Catatan Penolakan Textarea Drawer */}
+      {showRejectBox && (
+        <div className="mb-4 bg-red-50/90 border border-red-300 rounded-lg p-3 animate-in fade-in-0 duration-150">
+          <p className="text-[#991b1b] text-[11px] font-bold mb-1.5 flex items-center gap-1.5">
+            <X size={12} className="text-red-500" />
+            Tuliskan Alasan Penolakan Dokumen Ini:
+          </p>
+          <textarea
+            autoFocus
+            value={rejectNote}
+            onChange={(e) => setRejectNote(e.target.value)}
+            placeholder="Tuliskan alasan penolakan di sini..."
+            className="w-full h-[55px] bg-white border border-red-300 rounded-lg p-2 text-[11px] text-gray-800 focus:border-red-500 outline-none mb-2"
+          />
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => { setShowRejectBox(false); setRejectNote(""); }}
+              className="px-2.5 py-1 bg-white border border-gray-300 text-gray-600 rounded-lg text-[10.5px] font-semibold hover:bg-gray-50 cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              onClick={() => {
+                if (!rejectNote.trim()) { alert("Harap isi alasan penolakan."); return; }
+                if (onReject) onReject(rejectNote);
+                setShowRejectBox(false);
+                setRejectNote("");
+              }}
+              className="px-3 py-1 bg-red-500 text-white rounded-lg text-[10.5px] font-bold hover:bg-red-700 cursor-pointer"
+            >
+              Tolak Dokumen
             </button>
           </div>
         </div>

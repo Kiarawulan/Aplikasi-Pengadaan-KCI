@@ -5,8 +5,8 @@ import { FileUploadInput } from '@/components/common/FileUploadInput';
 interface PengujianDetailViewProps {
   item?: any;
   onApprove?: () => void;
-  onRevisi?: () => void;
-  onReject?: () => void;
+  onRevisi?: (catatan?: string) => void;
+  onReject?: (catatan?: string) => void;
   onBack?: () => void;
   showActions?: boolean;
 }

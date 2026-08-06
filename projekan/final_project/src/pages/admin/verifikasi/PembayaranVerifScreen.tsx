@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
-import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/shared/AdminModal";
+import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/shared/AdminModal";
 import { Plus, CheckCircle2, XCircle, FileWarning, Download, ChevronRight, Trash2 } from "lucide-react";
 import { useAuth } from "../../../store/authStore";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
@@ -881,10 +881,20 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
       )}
 
       {confirmAction && (
-        <AdminModal title={`Konfirmasi ${confirmAction.type.toUpperCase()}`} onClose={() => setConfirmAction(null)} onSubmit={executeAction} submitLabel="Proses" width="max-w-sm">
+        <AdminModal
+          title={confirmAction.type === "revisi" ? "CATATAN REVISI PEMBAYARAN" : confirmAction.type === "reject" ? "ALASAN PENOLAKAN PEMBAYARAN" : "KONFIRMASI PERSETUJUAN"}
+          onClose={() => setConfirmAction(null)}
+          onSubmit={executeAction}
+          submitLabel="Kirim ke User"
+          width="max-w-md"
+        >
           <div className="space-y-3">
             <p className="text-[12px] text-gray-600">Proses pembayaran <strong>{confirmAction.item.nama}</strong> menjadi <strong className="uppercase">{confirmAction.type}</strong>?</p>
-            <ModalField label="Catatan (Opsional)"><ModalInput value={catatanText} onChange={v => setCatatanText(v)} placeholder="Alasan/catatan..." /></ModalField>
+            {confirmAction.type !== "approve" && (
+              <ModalField label="Catatan / Alasan untuk User">
+                <ModalTextarea autoFocus value={catatanText} onChange={v => setCatatanText(v)} placeholder="Tuliskan catatan perbaikan atau alasan penolakan untuk user..." rows={4} />
+              </ModalField>
+            )}
           </div>
         </AdminModal>
       )}

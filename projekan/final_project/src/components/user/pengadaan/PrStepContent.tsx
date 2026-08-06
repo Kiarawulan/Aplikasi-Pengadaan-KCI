@@ -19,18 +19,12 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
 }) {
   const { currentUser } = useAuth();
   const [signedDocuments, setSignedDocuments] = useState<any[]>([]);
-  const [vendorOptions, setVendorOptions] = useState<string[]>([]);
-
   useEffect(() => {
     if (!item?.id) return;
     api.get(`/pengadaan/${item.id}/documents`)
       .then((response) => setSignedDocuments(response.data?.data || []))
       .catch(() => setSignedDocuments([]));
   }, [item?.id]);
-
-  useEffect(() => {
-    api.get("/vendors/options").then((response) => setVendorOptions((response.data || []).map((vendor: any) => vendor.nama).filter(Boolean))).catch(() => setVendorOptions([]));
-  }, []);
 
   const downloadDocument = async (document: any) => {
     const response = await api.get(`/documents/${document.id}/download`, { responseType: "blob" });
@@ -67,7 +61,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
       <div className="mb-3"><p className="text-[11.5px] font-medium text-[#0a0a0a] mb-1">Realisasi</p><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-[13px] h-[13px] rounded-[2px] border border-[#767676] bg-white shrink-0 cursor-pointer" checked={f("realisasi") === "true"} onChange={(e) => u("realisasi")(e.target.checked ? "true" : "false")} /><p className="text-[11.5px]">Tandai sebagai realisasi</p></label></div>
       <div className="grid grid-cols-2 gap-x-[12px] gap-y-[12px]">
         <FieldInput label="Metode" type="select" required value={f("metode")} onChange={u("metode")} />
-        <FieldInput label="Vendor Name" type="select" options={vendorOptions} required value={f("vendor")} onChange={u("vendor")} />
+        <FieldInput label="Vendor Name" placeholder="Nama vendor..." required value={f("vendor")} onChange={u("vendor")} />
         <FieldInput label="Nilai PR" placeholder="0" type="number" required value={f("nilaiPr")} onChange={u("nilaiPr")} />
         <FieldInput label="COA" placeholder="Kode akun..." required value={f("coa")} onChange={u("coa")} />
         <FieldInput label="Jenis Barang" type="select" required value={f("jenisBarang")} onChange={u("jenisBarang")} />
@@ -150,7 +144,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
   if (step === "pbj") return <InternalProcessView kind="pbj" item={item} />;
   if (step === "contract") return <InternalProcessView kind="contract" item={item} />;
   if (step === "pengujian") {
-    const pengujianItem = getPengujianList().find(x => x.nama === item?.nama);
+    const pengujianItem = getPengujianList().find(x => x.pengadaan_id === item?.id);
     let statusLabel = "Belum Diajukan";
     if (pengujianItem?.status === "selesai") statusLabel = "Selesai Pengujian";
     else if (pengujianItem?.status === "diproses" || pengujianItem?.status === "approved") statusLabel = "Dalam Proses";

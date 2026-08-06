@@ -215,6 +215,25 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
   const [revisionNote, setRevisionNote] = useState("");
   const [showPbjProcess, setShowPbjProcess] = useState<any | null>(null);
   const [showContractProcess, setShowContractProcess] = useState<any | null>(null);
+  const [actionModal, setActionModal] = useState<{ item: any; type: "revisi" | "reject"; docType: string; notes: string } | null>(null);
+
+  const submitActionModal = async () => {
+    if (!actionModal) return;
+    const { item, type, docType, notes } = actionModal;
+    const catatan = notes.trim() || (type === "revisi" ? "Mohon lakukan perbaikan dokumen." : "Pengajuan ditolak oleh Admin.");
+    const endpoint = type === "revisi" ? "revisi" : "reject";
+    const label = docType.toUpperCase();
+    const successMsg = type === "revisi" ? `${label} berhasil direvisi.` : `${label} berhasil ditolak.`;
+    try {
+      await api.post(`/verifikasi/${item.verif_id}/${endpoint}`, { catatan });
+      fetchData();
+      alert(successMsg);
+    } catch (e: any) {
+      alert(e.response?.data?.message || `Gagal ${type === "revisi" ? "merevisi" : "menolak"}.`);
+    } finally {
+      setActionModal(null);
+    }
+  };
 
   const handleDelete = async (row: any) => {
     if (!row.verif_id || !confirm(`Hapus ${row.tipe || 'data'} ini? Data tahap, antrean verifikasi, dan riwayat terkait akan dihapus.`)) return;
@@ -371,6 +390,47 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
 
   return (
     <div className="space-y-4">
+      {/* ─── Action Modal (Revisi / Tolak) ─── */}
+      {actionModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-[#252271] text-[16px] font-extrabold mb-1">
+              {actionModal.type === "revisi" ? "Catatan Revisi" : "Alasan Penolakan"}
+            </h3>
+            <p className="text-[#6b7280] text-[12px] mb-4">
+              {actionModal.type === "revisi"
+                ? "Tuliskan catatan perbaikan yang harus dilakukan oleh user."
+                : "Tuliskan alasan penolakan dokumen ini."}
+            </p>
+            <textarea
+              autoFocus
+              value={actionModal.notes}
+              onChange={(e) => setActionModal((prev) => prev ? { ...prev, notes: e.target.value } : prev)}
+              placeholder={actionModal.type === "revisi" ? "Masukkan catatan revisi..." : "Masukkan alasan penolakan..."}
+              className="w-full h-[100px] border border-gray-200 rounded-xl px-3 py-2.5 text-[12px] text-gray-800 focus:border-[#252271] focus:ring-2 focus:ring-[#252271]/10 outline-none resize-none mb-4"
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setActionModal(null)}
+                className="px-5 py-2 rounded-xl border border-gray-200 text-[12px] font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={submitActionModal}
+                className={`px-5 py-2 rounded-xl text-[12px] font-bold text-white transition-colors ${
+                  actionModal.type === "revisi"
+                    ? "bg-amber-500 hover:bg-amber-600"
+                    : "bg-red-500 hover:bg-red-600"
+                }`}
+              >
+                {actionModal.type === "revisi" ? "Kirim Revisi" : "Tolak"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AdminTopBar title={title} subtitle={subtitle} />
 
       <div className="relative">
@@ -396,32 +456,16 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                 alert("Gagal menyetujui RUP.");
               }
             }}
-            onRevisi={async (r) => {
+            onRevisi={(r) => {
               if (r.verif_id) {
-                const notes = prompt("Masukkan catatan revisi:");
-                if (notes === null) return;
-                try {
-                  await api.post(`/verifikasi/${r.verif_id}/revisi`, { catatan: notes || "Revisi dari Admin" });
-                  fetchData();
-                  alert("RUP berhasil direvisi.");
-                } catch (e: any) {
-                  alert(e.response?.data?.message || "Gagal merevisi.");
-                }
+                setActionModal({ item: r, type: "revisi", docType: "rup", notes: "" });
               } else {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Revisi" } : item));
               }
             }}
-            onReject={async (r) => {
+            onReject={(r) => {
               if (r.verif_id) {
-                const notes = prompt("Masukkan alasan penolakan:");
-                if (notes === null) return;
-                try {
-                  await api.post(`/verifikasi/${r.verif_id}/reject`, { catatan: notes || "Ditolak oleh Admin" });
-                  fetchData();
-                  alert("RUP berhasil ditolak.");
-                } catch (e: any) {
-                  alert(e.response?.data?.message || "Gagal menolak.");
-                }
+                setActionModal({ item: r, type: "reject", docType: "rup", notes: "" });
               } else {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item));
               }
@@ -450,32 +494,16 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Approved" } : item));
               }
             }}
-            onRevisi={async (r) => {
+            onRevisi={(r) => {
               if (r.verif_id) {
-                const notes = prompt("Masukkan catatan revisi:");
-                if (notes === null) return;
-                try {
-                  await api.post(`/verifikasi/${r.verif_id}/revisi`, { catatan: notes || "Revisi dari Admin" });
-                  fetchData();
-                  alert("NPP berhasil direvisi.");
-                } catch (e: any) {
-                  alert(e.response?.data?.message || "Gagal merevisi.");
-                }
+                setActionModal({ item: r, type: "revisi", docType: "npp", notes: "" });
               } else {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Revisi" } : item));
               }
             }}
-            onReject={async (r) => {
+            onReject={(r) => {
               if (r.verif_id) {
-                const notes = prompt("Masukkan alasan penolakan:");
-                if (notes === null) return;
-                try {
-                  await api.post(`/verifikasi/${r.verif_id}/reject`, { catatan: notes || "Ditolak oleh Admin" });
-                  fetchData();
-                  alert("NPP berhasil ditolak.");
-                } catch (e: any) {
-                  alert(e.response?.data?.message || "Gagal menolak.");
-                }
+                setActionModal({ item: r, type: "reject", docType: "npp", notes: "" });
               } else {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item));
               }
@@ -504,32 +532,16 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Approved" } : item));
               }
             }}
-            onRevisi={async (r) => {
+            onRevisi={(r) => {
               if (r.verif_id) {
-                const notes = prompt("Masukkan catatan revisi:");
-                if (notes === null) return;
-                try {
-                  await api.post(`/verifikasi/${r.verif_id}/revisi`, { catatan: notes || "Revisi dari Admin" });
-                  fetchData();
-                  alert("SP3 berhasil direvisi.");
-                } catch (e: any) {
-                  alert(e.response?.data?.message || "Gagal merevisi.");
-                }
+                setActionModal({ item: r, type: "revisi", docType: "sp3", notes: "" });
               } else {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Revisi" } : item));
               }
             }}
-            onReject={async (r) => {
+            onReject={(r) => {
               if (r.verif_id) {
-                const notes = prompt("Masukkan alasan penolakan:");
-                if (notes === null) return;
-                try {
-                  await api.post(`/verifikasi/${r.verif_id}/reject`, { catatan: notes || "Ditolak oleh Admin" });
-                  fetchData();
-                  alert("SP3 berhasil ditolak.");
-                } catch (e: any) {
-                  alert(e.response?.data?.message || "Gagal menolak.");
-                }
+                setActionModal({ item: r, type: "reject", docType: "sp3", notes: "" });
               } else {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item));
               }
@@ -558,32 +570,16 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Approved" } : item));
               }
             }}
-            onRevisi={async (r) => {
+            onRevisi={(r) => {
               if (r.verif_id) {
-                const notes = prompt("Masukkan catatan revisi:");
-                if (notes === null) return;
-                try {
-                  await api.post(`/verifikasi/${r.verif_id}/revisi`, { catatan: notes || "Revisi dari Admin" });
-                  fetchData();
-                  alert("PBJ berhasil direvisi.");
-                } catch (e: any) {
-                  alert(e.response?.data?.message || "Gagal merevisi.");
-                }
+                setActionModal({ item: r, type: "revisi", docType: "pbj", notes: "" });
               } else {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Revisi" } : item));
               }
             }}
-            onReject={async (r) => {
+            onReject={(r) => {
               if (r.verif_id) {
-                const notes = prompt("Masukkan alasan penolakan:");
-                if (notes === null) return;
-                try {
-                  await api.post(`/verifikasi/${r.verif_id}/reject`, { catatan: notes || "Ditolak oleh Admin" });
-                  fetchData();
-                  alert("PBJ berhasil ditolak.");
-                } catch (e: any) {
-                  alert(e.response?.data?.message || "Gagal menolak.");
-                }
+                setActionModal({ item: r, type: "reject", docType: "pbj", notes: "" });
               } else {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Rejected" } : item));
               }
