@@ -3168,7 +3168,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
 // ─── Process Stepper ──────────────────────────────────────────────────────────
 function ProcessStepper({ steps, activeStep, onStep }: { steps: string[]; activeStep: number; onStep: (i: number) => void }) {
   return (
-    <div className="flex items-start gap-0 overflow-x-auto pb-[4px]">
+    <div className="flex items-start gap-0 overflow-x-auto overscroll-x-contain pb-[10px]">
       {steps.map((label, i) => {
         const done = i < activeStep;
         const active = i === activeStep;
@@ -3307,7 +3307,7 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
     }],
   );
 
-  const defaultAttachments: Record<number, { name: string; size: string; date: string }[]> = {};
+  const defaultAttachments: Record<number, { name: string; size: string; date: string; documentType?: string }[]> = {};
 
   const initialFields: Record<number, { label: string; value: string; type?: string }[]> = {
     0: [
@@ -3400,6 +3400,14 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
       },
     }));
   };
+
+  const updateVendorRow = (index: number, key: "vendorName" | "picName" | "vendorAddress" | "phoneNumber" | "emailCorporate" | "attendance" | "description", value: string) => {
+    setVendorRows((previous) => previous.map((vendor, vendorIndex) => vendorIndex === index ? { ...vendor, [key]: value } : vendor));
+  };
+
+  const addVendorRow = () => setVendorRows((previous) => [...previous, {
+    vendorName: "", picName: "", vendorAddress: "", phoneNumber: "", emailCorporate: "", attendance: "Tidak", description: "",
+  }]);
 
   const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>, documentType = "Lampiran") => {
     if (e.target.files && e.target.files[0]) {
@@ -3527,8 +3535,8 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
 
         {/* Step detail card */}
         <div className="bg-white border border-[#e5e7eb] rounded-[16px] p-[24px] mb-[20px]">
-          <div className="flex items-center justify-between mb-[16px]">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-[10px] mb-[16px]">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
               <h3 className="text-[#252271] text-[15px] font-bold">
                 {PBJ_STEP_TITLES[activeStep]} {isEditing && <span className="text-amber-600 text-[12px] font-semibold ml-2">(Mode Edit Aktif)</span>}
               </h3>
@@ -3548,12 +3556,12 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
               {vendorRows.map((vendor, vendorIndex) => (
                 <div key={vendorIndex} className="border-l-2 border-[#cc0000] pl-[14px] py-[6px]">
                   <p className="text-[#475569] text-[12px] font-bold mb-[14px]">Vendor Information</p>
-                  <div className="grid grid-cols-2 gap-x-[48px] gap-y-[12px]">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-[48px] gap-y-[12px]">
                     {([
                       ["Vendor Name", "vendorName"], ["Phone Number", "phoneNumber"],
                       ["PIC Name", "picName"], ["Email Corporate", "emailCorporate"],
                       ["Vendor Address", "vendorAddress"],
-                    ] as const).map(([label, key]) => <div key={key} className="grid grid-cols-[130px_1fr] items-center gap-[12px]"><span className="text-[11px] font-semibold text-[#64748b]">{label}:</span>{isEditing ? <input value={vendor[key]} onChange={(event) => updateVendorRow(vendorIndex, key, event.target.value)} className="h-[32px] border-b border-[#cbd5e1] bg-transparent px-[4px] text-[12px] outline-none focus:border-[#252271]" /> : <span className="text-[12px] font-medium text-[#334155]">{vendor[key] || "Belum diisi"}</span>}</div>)}
+                    ] as const).map(([label, key]) => <div key={key} className="grid grid-cols-1 sm:grid-cols-[130px_minmax(0,1fr)] items-center gap-x-[12px] gap-y-[4px]"><span className="text-[11px] font-semibold text-[#64748b]">{label}:</span>{isEditing ? <input value={vendor[key]} onChange={(event) => updateVendorRow(vendorIndex, key, event.target.value)} className="min-w-0 h-[32px] border-b border-[#cbd5e1] bg-transparent px-[4px] text-[12px] outline-none focus:border-[#252271]" /> : <span className="min-w-0 break-words text-[12px] font-medium text-[#334155]">{vendor[key] || "Belum diisi"}</span>}</div>)}
                   </div>
                 </div>
               ))}
@@ -3567,20 +3575,20 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
                   <tbody>{vendorRows.map((vendor, vendorIndex) => <tr key={vendorIndex} className="border-b border-[#f1f5f9]"><td className="px-[8px] py-[12px]">{vendorIndex + 1}</td><td className="px-[8px] py-[12px]">{vendor.vendorName || "Belum diisi"}</td><td className="px-[8px] py-[12px]"><div className="flex justify-center gap-[18px]">{["Ya", "Tidak"].map((option) => <label key={option} className="flex items-center gap-[5px]"><input type="radio" name={`attendance-${vendorIndex}`} checked={vendor.attendance === option} disabled={!isEditing} onChange={() => updateVendorRow(vendorIndex, "attendance", option)} />{option}</label>)}</div></td><td className="px-[8px] py-[12px]">{isEditing ? <input value={vendor.description} onChange={(event) => updateVendorRow(vendorIndex, "description", event.target.value)} className="w-full h-[30px] border-b border-[#cbd5e1] bg-transparent outline-none focus:border-[#252271]" /> : vendor.description || "Belum diisi"}</td></tr>)}</tbody>
                 </table>
               </div>
-              <div className="mt-[18px] grid grid-cols-2 gap-x-[32px] gap-y-[12px]">
+              <div className="mt-[18px] grid grid-cols-1 xl:grid-cols-2 gap-x-[32px] gap-y-[12px]">
                 {(initialFields[activeStep] || []).filter((field) => field.label !== "No" && field.label !== "Peserta Tender" && !field.label.startsWith("Kehadiran") && field.label !== "Keterangan").map((field, fieldIndex) => {
                   const originalIndex = initialFields[activeStep].findIndex((entry) => entry.label === field.label);
                   const currentVal = getFieldValue(activeStep, originalIndex, field.value);
-                  return <div key={fieldIndex} className="grid grid-cols-[220px_1fr] items-center gap-[12px]"><span className="text-[11px] font-semibold text-[#64748b]">{field.label}:</span>{isEditing ? <input type={field.type === "date" ? "date" : "text"} value={currentVal} onChange={(event) => updateFieldValue(activeStep, originalIndex, event.target.value)} className="h-[32px] border-b border-[#cbd5e1] bg-transparent px-[4px] text-[12px] outline-none focus:border-[#252271]" /> : <span className="text-[12px] font-medium text-[#334155]">{currentVal || "Belum diisi"}</span>}</div>;
+                  return <div key={fieldIndex} className="grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] items-center gap-x-[12px] gap-y-[4px]"><span className="text-[11px] font-semibold text-[#64748b]">{field.label}:</span>{isEditing ? <input type={field.type === "date" ? "date" : "text"} value={currentVal} onChange={(event) => updateFieldValue(activeStep, originalIndex, event.target.value)} className="min-w-0 h-[32px] border-b border-[#cbd5e1] bg-transparent px-[4px] text-[12px] outline-none focus:border-[#252271]" /> : <span className="min-w-0 break-words text-[12px] font-medium text-[#334155]">{currentVal || "Belum diisi"}</span>}</div>;
                 })}
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-x-[48px] gap-y-[14px] mb-[20px]">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-[48px] gap-y-[14px] mb-[20px]">
               {(initialFields[activeStep] || []).filter((field) => field.label !== "No" && field.label !== "No.").map((field, fieldIndex) => {
                 const originalIndex = initialFields[activeStep].findIndex((entry) => entry === field);
                 const currentVal = getFieldValue(activeStep, originalIndex, field.value);
-                return <div key={fieldIndex} className="grid grid-cols-[190px_1fr] items-center gap-[12px] py-[4px]"><span className="text-[11px] font-semibold text-[#64748b]">{field.label}:</span>{isEditing && field.type === "boolean" ? <div className="flex gap-[16px]">{["Ya", "Tidak"].map((option) => <label key={option} className="flex items-center gap-[5px] text-[12px]"><input type="radio" checked={currentVal === option} onChange={() => updateFieldValue(activeStep, originalIndex, option)} />{option}</label>)}</div> : isEditing ? <input type={field.type === "date" ? "date" : "text"} value={currentVal} onChange={(event) => updateFieldValue(activeStep, originalIndex, event.target.value)} className="h-[32px] border-b border-[#cbd5e1] bg-transparent px-[4px] text-[12px] outline-none focus:border-[#252271]" /> : <span className="text-[12px] font-medium text-[#334155]">{currentVal || "Belum diisi"}</span>}</div>;
+                return <div key={fieldIndex} className="grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)] items-center gap-x-[12px] gap-y-[4px] py-[4px]"><span className="text-[11px] font-semibold text-[#64748b]">{field.label}:</span>{isEditing && field.type === "boolean" ? <div className="flex gap-[16px]">{["Ya", "Tidak"].map((option) => <label key={option} className="flex items-center gap-[5px] text-[12px]"><input type="radio" name={`pbj-${activeStep}-${originalIndex}`} checked={currentVal === option} onChange={() => updateFieldValue(activeStep, originalIndex, option)} />{option}</label>)}</div> : isEditing ? <input type={field.type === "date" ? "date" : "text"} value={currentVal} onChange={(event) => updateFieldValue(activeStep, originalIndex, event.target.value)} className="min-w-0 h-[32px] border-b border-[#cbd5e1] bg-transparent px-[4px] text-[12px] outline-none focus:border-[#252271]" /> : <span className="min-w-0 break-words text-[12px] font-medium text-[#334155]">{currentVal || "Belum diisi"}</span>}</div>;
               })}
             </div>
           )}
@@ -3931,7 +3939,7 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
   const [fieldValues, setFieldValues] = useState<Record<number, Record<number, string>>>(savedProgress.fieldValues || {});
   const [customFiles, setCustomFiles] = useState<Record<number, { name: string; size: string; date: string; documentType?: string }[]>>(savedProgress.customFiles || {});
 
-  const defaultContractAttachments: Record<number, { name: string; size: string; date: string }[]> = {};
+  const defaultContractAttachments: Record<number, { name: string; size: string; date: string; documentType?: string }[]> = {};
 
   const initialContractFields: Record<number, { label: string; value: string; type?: string }[]> = {
     0: [
@@ -3976,14 +3984,6 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
       { label: "Uncontrolled Days", value: "" }, { label: "Total Hari Kerja", value: "" }, { label: "Catatan", value: "" },
     ],
   };
-
-  const updateVendorRow = (index: number, key: "vendorName" | "picName" | "vendorAddress" | "phoneNumber" | "emailCorporate" | "attendance" | "description", value: string) => {
-    setVendorRows((previous) => previous.map((vendor, vendorIndex) => vendorIndex === index ? { ...vendor, [key]: value } : vendor));
-  };
-
-  const addVendorRow = () => setVendorRows((previous) => [...previous, {
-    vendorName: "", picName: "", vendorAddress: "", phoneNumber: "", emailCorporate: "", attendance: "Tidak", description: "",
-  }]);
 
   const getFieldValue = (step: number, idx: number, fallback: string) => {
     return fieldValues[step]?.[idx] !== undefined ? fieldValues[step][idx] : fallback;
@@ -4031,7 +4031,6 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
       stepName: CONTRACT_STEPS[activeStep],
       fieldValues,
       customFiles,
-      vendorRows,
     });
   };
 
@@ -4127,8 +4126,8 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
 
         {/* Step detail card */}
         <div className="bg-white border border-[#e5e7eb] rounded-[16px] p-[24px] mb-[20px]">
-          <div className="flex items-center justify-between mb-[16px]">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-[10px] mb-[16px]">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
               <h3 className="text-[#252271] text-[15px] font-bold">
                 {CONTRACT_STEP_TITLES[activeStep]} {isEditing && <span className="text-amber-600 text-[12px] font-semibold ml-2">(Mode Edit Aktif)</span>}
               </h3>
@@ -4143,25 +4142,25 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-[24px] gap-y-[14px] mb-[20px]">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-[48px] gap-y-[14px] mb-[20px]">
             {(initialContractFields[activeStep] || []).map((f, idx) => {
               const currentVal = getFieldValue(activeStep, idx, f.value);
               return (
-                <div key={idx} className="bg-[#f8fafc] border border-[#e2e8f0] rounded-[10px] p-[12px]">
-                  <p className="text-[#64748b] text-[11.5px] font-semibold mb-[4px]">{f.label}</p>
+                <div key={idx} className="grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)] items-center gap-x-[12px] gap-y-[4px] py-[4px] min-w-0">
+                  <p className="text-[#64748b] text-[11.5px] font-semibold">{f.label}:</p>
                   {isEditing && f.type === "boolean" ? (
                     <div className="flex items-center gap-[16px] h-[34px]">
-                      {["Ya", "Tidak"].map((option) => <label key={option} className="flex items-center gap-[5px] text-[12px] font-semibold text-[#252271]"><input type="checkbox" checked={currentVal === option} onChange={() => updateFieldValue(activeStep, idx, option)} />{option}</label>)}
+                      {["Ya", "Tidak"].map((option) => <label key={option} className="flex items-center gap-[5px] text-[12px] font-semibold text-[#252271]"><input type="radio" name={`contract-${activeStep}-${idx}`} checked={currentVal === option} onChange={() => updateFieldValue(activeStep, idx, option)} />{option}</label>)}
                     </div>
                   ) : isEditing ? (
                     <input
                       type={f.type === "date" ? "date" : "text"}
                       value={currentVal}
                       onChange={(e) => updateFieldValue(activeStep, idx, e.target.value)}
-                      className="w-full h-[34px] bg-white border border-[#252271]/40 rounded-[6px] px-[10px] text-[13px] text-[#0f172a] font-medium focus:border-[#252271] outline-none transition-colors"
+                      className="min-w-0 w-full h-[32px] bg-transparent border-b border-[#cbd5e1] px-[4px] text-[12px] text-[#0f172a] font-medium focus:border-[#252271] outline-none transition-colors"
                     />
                   ) : (
-                    <p className="text-[#252271] text-[13.5px] font-bold">{currentVal || "Belum diisi"}</p>
+                    <p className="min-w-0 break-words text-[#334155] text-[12px] font-medium">{currentVal || "Belum diisi"}</p>
                   )}
                 </div>
               );
