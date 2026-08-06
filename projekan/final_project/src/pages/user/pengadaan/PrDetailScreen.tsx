@@ -227,7 +227,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
   let isSubmitPoint = hasSubSteps ? activeSubIdx === activeStep.subSteps.length - 1 : true;
   if (activeStep.id === "pembayaran") {
-    isSubmitPoint = activeSubIdx === 1; // payment-request
+    isSubmitPoint = activeSubIdx === 0; // payment-request harus disetujui sebelum pelunasan
   }
 
   const goNext = () => {

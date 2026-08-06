@@ -251,18 +251,6 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
       const jenis = f("jenis") || "Outsource";
       return (
         <div>
-          <p className="text-[11.5px] font-medium mb-2">Jenis Pembayaran<span className="text-[#cc0000] ml-0.5">*</span></p>
-          <div className="flex gap-4 mb-4">
-            {["Outsource", "Non-outsource", "UMD"].map((opt) => {
-              const isSelected = jenis === opt;
-              return (
-                <label key={opt} className="flex items-center gap-2 cursor-pointer" onClick={() => u("jenis")(opt)}>
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${isSelected ? "border-[#252271]" : "border-[#aaa]"}`}>{isSelected && <div className="w-2 h-2 rounded-full bg-[#252271]" />}</div>
-                  <p className={`text-[11.5px] ${isSelected ? "font-medium" : "text-[#6b6b6b]"}`}>{opt}</p>
-                </label>
-              );
-            })}
-          </div>
           <div className="grid grid-cols-1 gap-y-[12px]">
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg"><SignedDocument stage="pelunasan-proof" title="Surat Bukti Pelunasan" emptyText="Surat bukti pelunasan belum diunggah oleh Admin." /></div>
             <FieldInput label="Keterangan" type="textarea" required value={f("keterangan")} onChange={u("keterangan")} />
@@ -359,9 +347,9 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
       </div>
     );
     if (subStepId === "proses-selesai") return (
-      <div className="text-center py-8">
-        <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"><Check size={28} className="text-green-600" /></div>
-        <p className="text-[#0a0a0a] font-semibold text-base mb-2">Proses Pengadaan Selesai</p>
+      <div className="text-center py-10 overflow-hidden">
+        <div className="relative w-20 h-20 mx-auto mb-5"><div className="absolute inset-0 rounded-full bg-green-300/50 animate-ping" /><div className="relative w-20 h-20 bg-green-100 rounded-full flex items-center justify-center animate-bounce"><Check size={38} className="text-green-600" /></div></div>
+        <p className="text-[#0a0a0a] font-bold text-xl mb-2 animate-pulse">Proses Selesai</p>
         <p className="text-[#6b6b6b] text-[11.5px] max-w-sm mx-auto">Seluruh tahapan pengadaan telah diselesaikan. Dokumen final tersedia di arsip sistem.</p>
       </div>
     );

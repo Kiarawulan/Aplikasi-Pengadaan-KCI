@@ -3337,6 +3337,7 @@ const PBJ_STEPS = [
   "Pemasukan Dokumen Penawaran",
   "Evaluasi Penawaran",
   "Undangan KKN",
+  "Kegiatan KKN",
   "BA Hasil Pelelangan",
   "Usulan dan Penetapan Calon Pemenang",
   "Pengumuman Pemenang Tender",
@@ -3346,7 +3347,7 @@ const PBJ_STEPS = [
 const PBJ_STEP_TITLES = [
   "Draft RKS", "Undangan RKS", "Calon Peserta Tender", "Proses Aanwijzing",
   "Pemasukan Dokumen Penawaran", "Evaluasi Penawaran",
-  "Undangan Klarifikasi, Konfirmasi, dan Negosiasi", "BA Hasil Pelelangan",
+  "Undangan Klarifikasi, Konfirmasi, dan Negosiasi", "Kegiatan Klarifikasi, Konfirmasi, dan Negosiasi", "BA Hasil Pelelangan",
   "Usulan dan Penetapan Calon Pemenang", "Pengumuman Pemenang Tender", "SPR dan Pengantar Jamlak",
 ];
 
@@ -3354,9 +3355,10 @@ const PBJ_UPLOAD_LABELS: Record<number, string[]> = {
   3: ["BA Aanwijzing"],
   4: ["Dokumen Penawaran", "BA Pemasukan Dokumen"],
   6: ["BA Undangan KKN"],
-  7: ["BA Hasil Pelelangan"],
-  8: ["BA Usulan Pemenang"],
-  10: ["SP Jamlak", "Summary Dokumen SPR", "Dokumen SPR"],
+  7: ["BA Klarifikasi, Konfirmasi dan Negosiasi"],
+  8: ["BA Hasil Pelelangan"],
+  9: ["BA Usulan Pemenang"],
+  11: ["SP Jamlak", "Summary Dokumen SPR", "Dokumen SPR"],
 };
 
 type DocFilters = { startDate: string; endDate: string; unit: string; status: string };
@@ -3425,12 +3427,19 @@ function DocFilterBar({ onSearch, search, onFilter }: { search: string; onSearch
 
 // ─── Proses PBJ Detail ────────────────────────────────────────────────────────
 function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSaveStep, onUpload }: { row: any; breadcrumbFrom: string; onBack: () => void; onComplete?: () => Promise<void>; onRevisi?: (catatan: string) => Promise<void>; onSaveStep?: (progress: any) => Promise<void>; onUpload?: (file: File, step: string) => Promise<void> }) {
-  const savedProgress = row.formData?.admin_progress || {};
+  const rawProgress = row.formData?.admin_progress || {};
+  const shiftLegacySteps = (record: Record<number, any> = {}) => Object.fromEntries(Object.entries(record).map(([key, value]) => [Number(key) >= 7 ? Number(key) + 1 : Number(key), value]));
+  const savedProgress = rawProgress.schemaVersion === 2 ? rawProgress : {
+    ...rawProgress,
+    activeStep: Number(rawProgress.activeStep) >= 7 ? Number(rawProgress.activeStep) + 1 : Number(rawProgress.activeStep) || 0,
+    fieldValues: shiftLegacySteps(rawProgress.fieldValues),
+    customFiles: shiftLegacySteps(rawProgress.customFiles),
+  };
   const [activeStep, setActiveStep] = useState(savedProgress.activeStep || 0);
   const [isEditing, setIsEditing] = useState(false);
   const [fieldValues, setFieldValues] = useState<Record<number, Record<number, string>>>(savedProgress.fieldValues || {});
   const [customFiles, setCustomFiles] = useState<Record<number, { name: string; size: string; date: string; documentType?: string }[]>>(savedProgress.customFiles || {});
-  const [vendorRows, setVendorRows] = useState<Array<{ vendorName: string; picName: string; vendorAddress: string; phoneNumber: string; emailCorporate: string; attendance: string; description: string }>>(
+  const [vendorRows, setVendorRows] = useState<Array<{ vendorName: string; picName: string; vendorAddress: string; phoneNumber: string; emailCorporate: string; attendance: string; description: string; kknDate?: string; offerPrice?: string; negotiatedPrice?: string; kknNote?: string }>>(
     savedProgress.vendorRows?.length ? savedProgress.vendorRows : [{
       vendorName: row.vendor || row.formData?.vendor || "",
       picName: "", vendorAddress: "", phoneNumber: "", emailCorporate: "", attendance: "Tidak", description: "",
@@ -3488,23 +3497,32 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
     ],
     7: [
       { label: "Peserta Tender", value: "" },
+      { label: "Tanggal KKN", value: "", type: "date" },
+      { label: "Harga Penawaran", value: "" },
+      { label: "Harga Negosiasi", value: "" },
+      { label: "Catatan KKN", value: "" },
+      { label: "Tanggal Berita Acara Klarifikasi, Konfirmasi dan Negosiasi", value: "", type: "date" },
+      { label: "Nomor Berita Acara Klarifikasi, Konfirmasi dan Negosiasi", value: "" },
+    ],
+    8: [
+      { label: "Peserta Tender", value: "" },
       { label: "Tanggal BA", value: "", type: "date" },
       { label: "Catatan Hasil Pelelangan", value: "" },
       { label: "Tanggal BA Hasil Pelelangan", value: "", type: "date" },
       { label: "Nomor BA Hasil Pelelangan", value: "" },
     ],
-    8: [
+    9: [
       { label: "Tanggal", value: "", type: "date" },
       { label: "Nomor", value: "" },
       { label: "Catatan", value: "" },
     ],
-    9: [
+    10: [
       { label: "Tanggal", value: "", type: "date" },
       { label: "Nomor", value: "" },
       { label: "Catatan", value: "" },
       { label: "Pemenang Tender", value: "" },
     ],
-    10: [
+    11: [
       { label: "Pemenang Tender", value: "" },
       { label: "Total Hari MPPL", value: "" },
       { label: "Nomor SPR", value: "" },
@@ -3531,7 +3549,7 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
     }));
   };
 
-  const updateVendorRow = (index: number, key: "vendorName" | "picName" | "vendorAddress" | "phoneNumber" | "emailCorporate" | "attendance" | "description", value: string) => {
+  const updateVendorRow = (index: number, key: "vendorName" | "picName" | "vendorAddress" | "phoneNumber" | "emailCorporate" | "attendance" | "description" | "kknDate" | "offerPrice" | "negotiatedPrice" | "kknNote", value: string) => {
     setVendorRows((previous) => previous.map((vendor, vendorIndex) => vendorIndex === index ? { ...vendor, [key]: value } : vendor));
   };
 
@@ -3578,6 +3596,7 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
     await onSaveStep?.({
       activeStep,
       stepName: PBJ_STEPS[activeStep],
+      schemaVersion: 2,
       fieldValues,
       customFiles,
       vendorRows,
@@ -3720,6 +3739,22 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
                   const originalIndex = initialFields[activeStep].findIndex((entry) => entry.label === field.label);
                   const currentVal = getFieldValue(activeStep, originalIndex, field.value);
                   return <div key={fieldIndex} className="grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] items-center gap-x-[12px] gap-y-[4px]"><span className="text-[11px] font-semibold text-[#64748b]">{field.label}:</span>{isEditing ? <input type={field.type === "date" ? "date" : "text"} value={currentVal} onChange={(event) => updateFieldValue(activeStep, originalIndex, event.target.value)} className="min-w-0 h-[32px] border-b border-[#cbd5e1] bg-transparent px-[4px] text-[12px] outline-none focus:border-[#252271]" /> : <span className="min-w-0 break-words text-[12px] font-medium text-[#334155]">{currentVal || "Belum diisi"}</span>}</div>;
+                })}
+              </div>
+            </div>
+          ) : activeStep === 7 ? (
+            <div className="mb-[20px] space-y-[18px]">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[850px] text-[11.5px]">
+                  <thead><tr className="border-b border-[#e2e8f0] text-[#64748b]"><th className="px-2 py-2.5 text-left">PESERTA TENDER</th><th className="px-2 py-2.5 text-left">TANGGAL KKN</th><th className="px-2 py-2.5 text-left">HARGA PENAWARAN</th><th className="px-2 py-2.5 text-left">HARGA NEGOSIASI</th><th className="px-2 py-2.5 text-left">CATATAN KKN</th></tr></thead>
+                  <tbody>{vendorRows.map((vendor, vendorIndex) => <tr key={vendorIndex} className="border-b border-[#f1f5f9]"><td className="px-2 py-3 font-medium">{vendor.vendorName || `Vendor ${vendorIndex + 1}`}</td>{([['kknDate', 'date'], ['offerPrice', 'text'], ['negotiatedPrice', 'text'], ['kknNote', 'text']] as const).map(([key, type]) => <td key={key} className="px-2 py-3">{isEditing ? <input type={type} value={vendor[key] || ''} onChange={(event) => updateVendorRow(vendorIndex, key, event.target.value)} className="w-full h-[30px] border-b border-[#cbd5e1] bg-transparent px-1 outline-none focus:border-[#252271]" /> : vendor[key] || 'Belum diisi'}</td>)}</tr>)}</tbody>
+                </table>
+              </div>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-3">
+                {(initialFields[7] || []).slice(5).map((field) => {
+                  const originalIndex = initialFields[7].findIndex((entry) => entry === field);
+                  const currentVal = getFieldValue(7, originalIndex, field.value);
+                  return <div key={field.label} className="grid grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)] items-center gap-3"><span className="text-[11px] font-semibold text-[#64748b]">{field.label}:</span>{isEditing ? <input type={field.type === 'date' ? 'date' : 'text'} value={currentVal} onChange={(event) => updateFieldValue(7, originalIndex, event.target.value)} className="h-[32px] border-b border-[#cbd5e1] bg-transparent px-1 text-[12px] outline-none focus:border-[#252271]" /> : <span className="text-[12px] font-medium text-[#334155]">{currentVal || 'Belum diisi'}</span>}</div>;
                 })}
               </div>
             </div>

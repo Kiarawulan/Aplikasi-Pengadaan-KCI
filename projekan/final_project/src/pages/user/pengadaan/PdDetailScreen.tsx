@@ -262,7 +262,8 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   };
 
   const isDetailPd = activeSub.id === "detail-pd";
-  const isCurrentSubmitted = isSubSubmitted(activeStep.id, activeSub.id) || verifState.status === "pending" || verifState.status === "approved";
+  const isCurrentSubmitted = isSubSubmitted(activeStep.id, activeSub.id)
+    || (activeSub.id === "pelunasan" && (verifState.status === "pending" || verifState.status === "approved"));
   const isLastSub = activeStepIdx === steps.length - 1 && activeSubIdx === activeStep.subSteps.length - 1;
   const isFirstSub = activeStepIdx === 0 && activeSubIdx === 0;
 
@@ -293,6 +294,13 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       }
     } else {
       if (!remindIncompleteFields(document.getElementById("pd-active-form"))) return;
+      if (activeStep.id === "pembayaran" && activeSub.id === "payment-request") {
+        const nextSubs = new Set([...submittedSubs, subKey(activeStep.id, activeSub.id)]);
+        setSubmittedSubs(nextSubs);
+        setActiveSubIdx(1);
+        flashSave(nextSubs);
+        return;
+      }
       try {
         if (activeStep.id === 'pembayaran') {
           const umdFormData = { ...allFd, umdData: allFd['umdData'] || {} };
@@ -339,15 +347,15 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   };
 
   const showStatusView = (isCurrentSubmitted || isDetailPd) && activeSub.id !== "pengembalian-dana";
-  const showSelesai = activeSub.id === "pengembalian-dana" && isCurrentSubmitted;
+  const showSelesai = activeSub.id === "proses-selesai";
 
   const renderContent = () => {
     if (showSelesai) return (
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center"><Check size={16} className="text-green-600" /></div>
+          <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center animate-bounce ring-8 ring-green-100/60"><Check size={28} className="text-green-600" /></div>
           <div>
-            <p className="text-[11.5px] font-semibold text-[#0a0a0a]">Park Document Selesai</p>
+            <p className="text-lg font-bold text-[#0a0a0a] animate-pulse">Proses Selesai</p>
             <p className="text-[10.5px] text-[#6b6b6b]">Semua proses pembayaran telah selesai diverifikasi oleh Admin</p>
           </div>
         </div>
@@ -428,7 +436,12 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         </div>
       );
     }
-    if (activeStep.id === "pembayaran" || activeSub.id === "pelunasan" || activeSub.id === "payment-request") {
+    if (activeStep.id === "pembayaran" && activeSub.id === "payment-request") {
+      const d = fd("payment-request");
+      const u = (k: string) => (v: string) => upd("payment-request", k, v);
+      return <div className="space-y-3"><FileUploadInput label="Input File Payment Request" required value={d["filePaymentRequest"] || ""} onChange={u("filePaymentRequest")} /><FieldInput label="Keterangan" type="textarea" required value={d["keterangan"] || ""} onChange={u("keterangan")} /></div>;
+    }
+    if (activeStep.id === "pembayaran" || activeSub.id === "pelunasan") {
       const d = fd("umdData") || fd("pembayaran") || fd("buat-pd") || {};
       const u = (k: string) => (v: string) => upd("umdData", k, v);
 

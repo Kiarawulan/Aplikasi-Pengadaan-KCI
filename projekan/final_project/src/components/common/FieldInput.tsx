@@ -1,7 +1,16 @@
+const NO_FIELD_REGEX = /(^|[^a-zA-Z])(no|nomor)([^a-zA-Z]|$)|(^|\b)(no|nomor)[A-Z]/i;
+
 export function FieldInput({ label, placeholder, type = "text", required = false, span2 = false, value, onChange, disabled = false, options }: {
   label: string; placeholder?: string; type?: string; required?: boolean; span2?: boolean;
   value?: string; onChange?: (v: string) => void; disabled?: boolean; options?: string[];
 }) {
+  const isNoField = NO_FIELD_REGEX.test(label) || NO_FIELD_REGEX.test(placeholder || "");
+
+  const handleInputChange = (val: string) => {
+    const cleaned = isNoField ? val.replace(/\D/g, "") : val;
+    onChange?.(cleaned);
+  };
+
   return (
     <div className={span2 ? "col-span-2" : ""}>
       <p className="text-[11.5px] font-medium text-[#0a0a0a] mb-[5px]">
@@ -15,7 +24,7 @@ export function FieldInput({ label, placeholder, type = "text", required = false
           className="w-full bg-[#f9f9f9] border border-[#e2e2e2] rounded-[3.5px] px-[10px] py-[7px] text-[11.5px] text-[#333] placeholder:text-[#bbb] focus:outline-none focus:border-[#252271] resize-none h-[48px] disabled:opacity-60 disabled:cursor-not-allowed"
           placeholder={placeholder}
           value={value ?? ""}
-          onChange={(e) => onChange?.(e.target.value)}
+          onChange={(e) => handleInputChange(e.target.value)}
           disabled={disabled}
         />
       ) : type === "select" ? (
@@ -25,7 +34,7 @@ export function FieldInput({ label, placeholder, type = "text", required = false
           data-label={label}
           className="w-full bg-[#f9f9f9] border border-[#e2e2e2] rounded-[3.5px] h-[30px] px-[10px] text-[11.5px] text-[#333] focus:outline-none focus:border-[#252271] appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
           value={value ?? ""}
-          onChange={(e) => onChange?.(e.target.value)}
+          onChange={(e) => handleInputChange(e.target.value)}
           disabled={disabled}
         >
           <option value="">Pilih {label.toLowerCase()}...</option>
@@ -40,7 +49,7 @@ export function FieldInput({ label, placeholder, type = "text", required = false
           className="w-full bg-[#f9f9f9] border border-[#e2e2e2] rounded-[3.5px] h-[30px] px-[10px] text-[11.5px] text-[#333] placeholder:text-[#bbb] focus:outline-none focus:border-[#252271] disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none appearance-none"
           placeholder={placeholder}
           value={value ?? ""}
-          onChange={(e) => onChange?.(e.target.value)}
+          onChange={(e) => handleInputChange(e.target.value)}
           disabled={disabled}
         />
       )}

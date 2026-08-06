@@ -119,10 +119,14 @@ export function ModalField({
       <label className="block text-[12px] font-semibold text-gray-700 mb-1.5">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
-      {children}
+      {React.isValidElement(children) && children.type === ModalInput
+        ? React.cloneElement(children as React.ReactElement<any>, { label: (children.props as any).label || label })
+        : children}
     </div>
   );
 }
+
+const NO_FIELD_REGEX = /(^|[^a-zA-Z])(no|nomor)([^a-zA-Z]|$)|(^|\b)(no|nomor)[A-Z]/i;
 
 export function ModalInput({
   value,
@@ -131,6 +135,8 @@ export function ModalInput({
   type = "text",
   required,
   disabled,
+  label,
+  isNumberOnly,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -138,15 +144,25 @@ export function ModalInput({
   type?: string;
   required?: boolean;
   disabled?: boolean;
+  label?: string;
+  isNumberOnly?: boolean;
 }) {
+  const checkNumber = isNumberOnly || (label && NO_FIELD_REGEX.test(label)) || (placeholder && NO_FIELD_REGEX.test(placeholder));
+
+  const handleChange = (val: string) => {
+    const nextVal = checkNumber ? val.replace(/\D/g, "") : val;
+    onChange(nextVal);
+  };
+
   return (
     <input
       type={type}
       value={value}
-      onChange={e => onChange(e.target.value)}
+      onChange={e => handleChange(e.target.value)}
       placeholder={placeholder}
       required={required}
       disabled={disabled}
+      data-label={label}
       className="w-full h-9 px-3 rounded-lg border border-gray-200 bg-white text-[12.5px] text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 transition-all disabled:bg-gray-50 disabled:text-gray-400"
     />
   );
