@@ -58,17 +58,21 @@ export function SidebarAdmin({ page, onNavigate, collapsed = false }: SidebarAdm
           <span className="ml-2">Dashboard</span>
         </button>
         <div className="mt-2">
-          <button onClick={() => setUserRoleOpen(!userRoleOpen)} className={`flex items-center w-full p-2 rounded ${isUserRoleSection ? "bg-red-600" : "hover:bg-white/10"}`}>
+          <button onClick={() => setUserRoleOpen(!userRoleOpen)} className={`flex items-center w-full p-2 rounded transition-colors ${isUserRoleSection ? "bg-red-600 font-semibold" : "hover:bg-white/10"}`}>
             <NavIcon path={ICONS.users} />
-            <span className="ml-2 flex-1">Manajemen User & Role</span>
+            <span className="ml-2 flex-1 text-left text-[12.5px]">Manajemen User &amp; Role</span>
             <ChevronRight open={userRoleOpen} />
           </button>
-          {userRoleOpen && (
-            <div className="ml-6 mt-1">
-              <button onClick={() => onNavigate("manajemen-user")} className={`block w-full text-left p-1 ${page === "manajemen-user" ? "font-bold" : ""}`}>User</button>
-              <button onClick={() => onNavigate("manajemen-role")} className={`block w-full text-left p-1 ${page === "manajemen-role" ? "font-bold" : ""}`}>Role</button>
+          <div
+            className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+              userRoleOpen ? "grid-rows-[1fr] opacity-100 mt-1" : "grid-rows-[0fr] opacity-0"
+            }`}
+          >
+            <div className="overflow-hidden ml-6 border-l border-white/20 pl-2 flex flex-col gap-1">
+              <button onClick={() => onNavigate("manajemen-user")} className={`block w-full text-left py-1 px-2 rounded text-[12px] transition-colors ${page === "manajemen-user" ? "font-bold text-white bg-white/10" : "text-white/70 hover:text-white"}`}>User</button>
+              <button onClick={() => onNavigate("manajemen-role")} className={`block w-full text-left py-1 px-2 rounded text-[12px] transition-colors ${page === "manajemen-role" ? "font-bold text-white bg-white/10" : "text-white/70 hover:text-white"}`}>Role</button>
             </div>
-          )}
+          </div>
         </div>
         <button onClick={() => onNavigate("verifikasi")} className={`flex items-center w-full p-2 rounded ${isVerifikasiSection ? "bg-red-600" : "hover:bg-white/10"}`}>
           <NavIcon path={ICONS.clipboard} />
