@@ -5,15 +5,18 @@ import { TopBar } from "@/components/user/layout/TopBar";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { PembelianBaruPopup } from "@/components/user/pengadaan/PembelianBaruPopup";
 import { api } from "@/services/api";
+import { useAuth } from "@/store/authStore";
 
 
 export function DaftarPengadaanScreen({ onSelectItem }: {
   onSelectItem: (item: PengadaanItem) => void;
 }) {
+  const { currentUser } = useAuth();
   const [showPopup, setShowPopup] = useState(false);
   const [editingItem, setEditingItem] = useState<PengadaanItem | null>(null);
   const [items, setItems] = useState<PengadaanItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const fetchItems = async () => {
@@ -74,10 +77,14 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
     e.stopPropagation();
     if (!confirm(`Yakin ingin menghapus paket pengadaan ${id}?`)) return;
     try {
+      setDeletingId(id);
       await api.delete(`/pengadaan/${id}`);
-      fetchItems();
-    } catch (err) {
+      await fetchItems();
+    } catch (err: any) {
       console.error("Gagal menghapus pengadaan:", err);
+      alert(err.response?.data?.message || "Pengadaan gagal dihapus. Silakan coba lagi.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -147,14 +154,14 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
                         <button onClick={() => onSelectItem(item)} className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100" title="Buka Detail">
                           <Eye size={11} className="text-blue-600" />
                         </button>
-                        {(item.status === "pending" || item.status === "revisi" || item.status === "Perlu Revisi" || item.status === "draft" || item.status === "Draft") && (
+                        {item.createdBy === currentUser?.id && (item.status === "pending" || item.status === "revisi" || item.status === "Perlu Revisi" || item.status === "draft" || item.status === "Draft") && (
                           <button onClick={() => { setEditingItem(item); setShowPopup(true); }} className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center hover:bg-amber-100" title="Edit & Kirim Revisi">
                             <Edit2 size={11} className="text-amber-600" />
                           </button>
                         )}
-                        <button onClick={(e) => handleDelete(item.id, e)} className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100" title="Hapus">
+                        {item.createdBy === currentUser?.id && <button disabled={deletingId === item.id} onClick={(e) => handleDelete(item.id, e)} className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed" title="Hapus">
                           <Trash2 size={11} className="text-red-500" />
-                        </button>
+                        </button>}
                       </div>
                     </td>
                   </tr>

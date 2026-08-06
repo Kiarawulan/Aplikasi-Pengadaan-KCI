@@ -9,10 +9,11 @@ import { useAuth } from "@/store/authStore";
 import { DIVISI_LIST } from "@/constants/divisi";
 
 export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Pengadaan Baru", submitLabel = "Submit", initialStep = "npp" as ParkStep, initialData, isViewOnly, requiresRup = true }: {
-  onClose: () => void; onSubmit: (item: any) => void;
+  onClose: () => void; onSubmit: (item: any) => void | Promise<void>;
   title?: string; submitLabel?: string; initialStep?: ParkStep;
   initialData?: any; isViewOnly?: boolean; requiresRup?: boolean;
 }) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { currentUser } = useAuth();
   const today = new Date().toISOString().split("T")[0];
   const [rupList, setRupList] = useState<RupItem[]>([]);
@@ -143,18 +144,25 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
     });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
     const required: (keyof typeof form)[] = ["emailPic", "tahun", "divisi", "judulPermohonan", "jenisPermohonan", "nominalPermohonan"];
     const errs: Record<string, boolean> = {};
     required.forEach((k) => { if (!form[k as keyof typeof form]?.toString().trim()) errs[k] = true; });
     if (requiresRup && form.rupIds.length === 0) errs.rupIds = true;
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      alert("Data belum lengkap. Mohon lengkapi semua field bertanda bintang (*).");
+      return;
+    }
 
     const formattedNominal = form.kurs === 'IDR' 
       ? (form.nominalPermohonan.startsWith("Rp") ? form.nominalPermohonan : `Rp ${form.nominalPermohonan}`)
       : form.nominalKonversi;
 
-    onSubmit({
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
       id: `PKD-${String(Math.floor(Math.random() * 900) + 100)}`,
       nama: form.judulPermohonan, 
       departemen: form.divisi || "Umum",
@@ -174,7 +182,10 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
         kurs: form.kurs,
         detailPermohonan: form.detailPermohonan
       }
-    });
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -284,8 +295,8 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
         <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-100">
           <button onClick={onClose} className="px-6 py-2.5 rounded-xl border border-gray-200 text-[12px] font-medium text-gray-600 hover:bg-gray-50 transition-colors">{isViewOnly ? "Tutup" : "Cancel"}</button>
           {!isViewOnly && (
-            <button onClick={handleSubmit} className="px-6 py-2.5 rounded-xl text-[12px] font-bold text-white shadow-sm hover:opacity-90 transition-opacity" style={{ background: "linear-gradient(75deg, #e6251c, #ff7676)" }}>
-              {submitLabel}
+            <button disabled={isSubmitting} onClick={handleSubmit} className="px-6 py-2.5 rounded-xl text-[12px] font-bold text-white shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: "linear-gradient(75deg, #e6251c, #ff7676)" }}>
+              {isSubmitting ? "Menyimpan..." : submitLabel}
             </button>
           )}
         </div>

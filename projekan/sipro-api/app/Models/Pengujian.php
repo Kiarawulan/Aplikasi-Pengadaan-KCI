@@ -30,4 +30,9 @@ class Pengujian extends Model
     ];
 
     protected $casts = ['scheduled_at' => 'datetime', 'details' => 'array'];
+
+    public function pengadaan()
+    {
+        return $this->belongsTo(Pengadaan::class, 'pengadaan_id', 'id');
+    }
 }

@@ -13,7 +13,7 @@ class UploadedDocumentController extends Controller
     public function index(Request $request, string $pengadaan)
     {
         $pengadaanModel = $this->resolvePengadaan($pengadaan);
-        $this->authorizeAccess($request, $pengadaanModel);
+        $this->authorizeReadAccess($request, $pengadaanModel);
         return response()->json(['success' => true, 'data' => $pengadaanModel->documents()->latest()->get()]);
     }
 
@@ -31,7 +31,7 @@ class UploadedDocumentController extends Controller
     public function download(Request $request, UploadedDocument $document)
     {
         $pengadaan = Pengadaan::findOrFail($document->pengadaan_id);
-        $this->authorizeAccess($request, $pengadaan);
+        $this->authorizeReadAccess($request, $pengadaan);
         return Storage::disk('public')->download($document->path, $document->original_name);
     }
 
@@ -64,5 +64,10 @@ class UploadedDocumentController extends Controller
     private function authorizeAccess(Request $request, Pengadaan $pengadaan): void
     {
         abort_unless($request->user()->is_admin || $pengadaan->created_by === $request->user()->id, 403, 'Anda tidak memiliki akses ke pengadaan ini.');
+    }
+
+    private function authorizeReadAccess(Request $request, Pengadaan $pengadaan): void
+    {
+        abort_unless($request->user()->is_admin || $pengadaan->departemen === $request->user()->departemen, 403, 'Anda tidak memiliki akses ke pengadaan ini.');
     }
 }

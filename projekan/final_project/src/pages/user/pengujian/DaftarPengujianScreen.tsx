@@ -24,7 +24,7 @@ export function DaftarPengujianScreen({ onSelectItem }: {
       // Pengujian baru boleh diakses setelah surat kontrak resmi dirilis.
       const pengujianItems = res.data.filter((item: PengadaanItem) => {
         const completed = item.completedSteps || [];
-        return completed.includes("contract");
+        return item.flowType === "pr" && completed.includes("contract");
       });
       setItems(pengujianItems);
     } catch (err) {

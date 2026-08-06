@@ -15,6 +15,7 @@ import { PengajuanDanaAttachments } from "@/components/user/pengadaan/PengajuanD
 import { PembelianBaruPopup } from "@/components/user/pengadaan/PembelianBaruPopup";
 import { api } from "@/services/api";
 import { useAuth } from "@/store/authStore";
+import { remindIncompleteFields } from "@/utils/formValidation";
 
 
 export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectItem }: { 
@@ -291,6 +292,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         }
       }
     } else {
+      if (!remindIncompleteFields(document.getElementById("pd-active-form"))) return;
       try {
         if (activeStep.id === 'pembayaran') {
           const umdFormData = { ...allFd, umdData: allFd['umdData'] || {} };
@@ -667,7 +669,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                 <StatusBadge status={verifState.status === "approved" ? "Selesai" : verifState.status === "revisi" ? "Revisi" : "Menunggu Verifikasi"} />
               )}
             </div>
-            <div className="p-4">{renderContent()}{activeStep.id === "pengajuan-dana" && <PengajuanDanaAttachments pengadaanId={item.id} flow="pd" />}</div>
+            <div id="pd-active-form" className="p-4">{renderContent()}{activeStep.id === "pengajuan-dana" && <PengajuanDanaAttachments pengadaanId={item.id} flow="pd" />}</div>
             {!showSelesai && (
               <div className="px-4 pb-3.5 pt-3.5 border-t border-[#e2e2e2] flex items-center justify-between">
                 <button onClick={goPrev} disabled={isFirstSub} className="flex items-center gap-1.5 px-4 h-[30px] rounded border border-gray-200 text-[11.5px] text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"><ChevronLeft size={12} /> Kembali</button>

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Role;
 use App\Models\RolePermission;
 use App\Models\User;
+use App\Models\PengadaanCompletedStep;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -77,6 +78,61 @@ class PermissionManagementTest extends TestCase
         $this->actingAs($user, 'sanctum')->getJson('/api/users')->assertForbidden();
     }
 
+    public function test_general_user_can_create_and_delete_own_pd_with_progress_records(): void
+    {
+        $user = $this->user('USR-PD', $this->role('ROLE-PD', []), 'CUG - LOGISTIC');
+
+        $created = $this->actingAs($user, 'sanctum')->postJson('/api/pengadaan', [
+            'nama' => 'PD yang dapat dihapus',
+            'departemen' => 'CUG - LOGISTIC',
+            'flow' => 'pd',
+            'nominal' => '2500000',
+            'form_data' => ['jenisPermohonan' => 'Barang'],
+        ])->assertCreated();
+
+        $id = $created->json('id');
+        $this->assertSame('pd', $created->json('flowType'));
+        $this->assertSame('CUG - LOGISTIC', $created->json('departemen'));
+        PengadaanCompletedStep::create([
+            'pengadaan_id' => $id,
+            'step_id' => 'pengajuan-dana',
+            'completed_at' => now(),
+        ]);
+
+        $this->actingAs($user, 'sanctum')->deleteJson("/api/pengadaan/{$id}")->assertOk();
+        $this->assertDatabaseMissing('pengadaan', ['id' => $id]);
+        $this->assertDatabaseMissing('pengadaan_completed_steps', ['pengadaan_id' => $id]);
+    }
+
+    public function test_users_share_read_access_only_with_members_of_the_same_division(): void
+    {
+        $role = $this->role('ROLE-DIVISION', []);
+        $kayla = $this->user('USR-KAYLA', $role, 'IT');
+        $manda = $this->user('USR-MANDA', $role, 'IT');
+        $kiara = $this->user('USR-KIARA', $role, 'Anggaran');
+
+        $mandaRecord = $this->actingAs($manda, 'sanctum')->postJson('/api/pengadaan', [
+            'nama' => 'Pengadaan Manda', 'departemen' => 'Anggaran', 'flow' => 'pd',
+        ])->assertCreated();
+        $kiaraRecord = $this->actingAs($kiara, 'sanctum')->postJson('/api/pengadaan', [
+            'nama' => 'Pengadaan Kiara', 'flow' => 'pd',
+        ])->assertCreated();
+
+        $mandaId = $mandaRecord->json('id');
+        $kiaraId = $kiaraRecord->json('id');
+        $this->assertSame('IT', $mandaRecord->json('departemen'));
+
+        $kaylaList = $this->actingAs($kayla, 'sanctum')->getJson('/api/pengadaan')->assertOk();
+        $this->assertTrue(collect($kaylaList->json())->contains('id', $mandaId));
+        $this->assertFalse(collect($kaylaList->json())->contains('id', $kiaraId));
+        $this->actingAs($kayla, 'sanctum')->getJson("/api/pengadaan/{$mandaId}")->assertOk();
+        $this->actingAs($kayla, 'sanctum')->getJson("/api/pengadaan/{$kiaraId}")->assertForbidden();
+
+        // Berbagi Divisi hanya memberikan akses baca, bukan mengubah atau menghapus milik rekan.
+        $this->actingAs($kayla, 'sanctum')->putJson("/api/pengadaan/{$mandaId}", ['nama' => 'Diubah Kayla'])->assertForbidden();
+        $this->actingAs($kayla, 'sanctum')->deleteJson("/api/pengadaan/{$mandaId}")->assertForbidden();
+    }
+
     public function test_user_crud_stores_hashed_credentials_and_an_audit_log(): void
     {
         $manager = $this->user('USR-USER-MANAGER', $this->role('ROLE-USER-MANAGER', ['userManagement' => 'editor'], 'admin'));
@@ -122,7 +178,7 @@ class PermissionManagementTest extends TestCase
         return $role;
     }
 
-    private function user(string $id, Role $role): User
+    private function user(string $id, Role $role, string $departemen = 'Testing'): User
     {
         return User::create([
             'id' => $id,
@@ -131,7 +187,7 @@ class PermissionManagementTest extends TestCase
             'email' => strtolower($id) . '@example.test',
             'password' => Hash::make('password123'),
             'role_id' => $role->id,
-            'departemen' => 'Testing',
+            'departemen' => $departemen,
             'is_active' => true,
             'is_admin' => $role->role_type === 'admin',
         ]);

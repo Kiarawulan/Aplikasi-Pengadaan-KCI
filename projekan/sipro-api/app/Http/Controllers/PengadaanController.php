@@ -16,6 +16,7 @@ use App\Models\Payment;
 use App\Models\Pengujian;
 use App\Models\UploadedDocument;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class PengadaanController extends Controller
@@ -30,9 +31,9 @@ class PengadaanController extends Controller
             $query->where('flow_type', $request->query('flow'));
         }
 
-        // User hanya boleh membaca record yang dibuatnya sendiri.
+        // User berbagi akses baca dengan seluruh anggota Divisi yang sama.
         if (! $user->is_admin) {
-            $query->where('created_by', $user->id);
+            $query->where('departemen', $user->departemen);
         }
 
         $pengadaan = $query->get()->map(fn (Pengadaan $item) => $this->present($item));
@@ -48,6 +49,7 @@ class PengadaanController extends Controller
                 'departemen' => 'nullable|string',
                 'nominal'    => 'nullable|string',
                 'flow'       => 'required|in:pr,pd',
+                'form_data'  => 'nullable|array',
             ]);
 
             $flow = $request->flow;
@@ -56,8 +58,11 @@ class PengadaanController extends Controller
             $prefix = $flow === 'pr' ? 'PR-' : 'PD-';
             // LIKE keeps generated ids portable for both MySQL production and
             // SQLite-based authorization tests.
-            $last = Pengadaan::where('id', 'like', $prefix . '%')->orderBy('id', 'desc')->first();
-            $next = $last ? intval(substr($last->id, 3)) + 1 : 1;
+            $last = Pengadaan::where('id', 'like', $prefix . '%')
+                ->get(['id'])
+                ->map(fn (Pengadaan $item) => (int) substr($item->id, strlen($prefix)))
+                ->max() ?? 0;
+            $next = $last + 1;
             $id = $prefix . str_pad($next, 3, '0', STR_PAD_LEFT);
 
             $formData = $this->normalizeFormData($flow, $request->form_data);
@@ -65,7 +70,9 @@ class PengadaanController extends Controller
                 'id'           => $id,
                 'nama'         => $request->nama,
                 'flow_type'    => $flow,
-                'departemen'   => $request->user()->departemen,
+                'departemen'   => $request->user()->is_admin
+                    ? ($request->departemen ?: $request->user()->departemen)
+                    : $request->user()->departemen,
                 'nominal'      => $request->nominal ?? '—',
                 'tanggal'      => now()->toDateString(),
                 'status'       => $status,
@@ -75,7 +82,7 @@ class PengadaanController extends Controller
                 'form_data'    => $formData,
             ]);
 
-            return response()->json($this->present($pengadaan), 201);
+            return response()->json($this->present($pengadaan->load(['completedSteps', 'verifikasiRecords'])), 201);
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()], 500);
         }
@@ -84,7 +91,7 @@ class PengadaanController extends Controller
     public function show(Request $request, Pengadaan $pengadaan)
     {
         $user = $request->user();
-        if (!$user->is_admin && $pengadaan->created_by !== $user->id) {
+        if (!$user->is_admin && $pengadaan->departemen !== $user->departemen) {
             return response()->json(['message' => 'Unauthorized access to this division data.'], 403);
         }
 
@@ -323,9 +330,6 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (! $user->is_admin && ! in_array($pengadaan->status, ['draft', 'revision_required'], true)) {
-            return response()->json(['message' => 'Hanya draft atau pengajuan revisi yang dapat dihapus.'], 422);
-        }
         // Foreign key lama pada verifikasi sudah dilepas, jadi data terkait harus
         // dibersihkan secara eksplisit agar tidak menjadi data yatim.
         Npp::where('pengadaan_id', $pengadaan->id)->delete();
@@ -339,6 +343,7 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
         UploadedDocument::where('pengadaan_id', $pengadaan->id)->delete();
         ProcessHistory::where('pengadaan_id', $pengadaan->id)->delete();
         Verifikasi::where('pengadaan_id', $pengadaan->id)->delete();
+        PengadaanCompletedStep::where('pengadaan_id', $pengadaan->id)->delete();
         $pengadaan->delete();
         return response()->json(['message' => 'Pengadaan berhasil dihapus']);
     }

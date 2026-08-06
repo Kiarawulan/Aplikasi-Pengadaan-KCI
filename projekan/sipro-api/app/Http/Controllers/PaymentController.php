@@ -15,7 +15,9 @@ class PaymentController extends Controller
     {
         $query = Payment::query();
         if ($request->filled('pengadaan_id')) $query->where('pengadaan_id', $request->pengadaan_id);
-        if (! $request->user()->is_admin) $query->where('requested_by', $request->user()->id);
+        if (! $request->user()->is_admin) {
+            $query->whereHas('pengadaan', fn ($pengadaan) => $pengadaan->where('departemen', $request->user()->departemen));
+        }
         return response()->json($query->latest()->get());
     }
 

@@ -30,7 +30,7 @@ export function FileUploadInput({ label, required = false, value, onChange, peng
   };
 
   return (
-    <div>
+    <div data-required={required} data-label={label} data-value={value || ""} tabIndex={required ? -1 : undefined}>
       <p className="text-[11.5px] font-medium text-[#0a0a0a] mb-[5px]">
         {label}{required && <span className="text-[#cc0000] ml-[2px]">*</span>}
       </p>

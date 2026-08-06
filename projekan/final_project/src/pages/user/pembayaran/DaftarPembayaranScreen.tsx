@@ -111,7 +111,7 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
                 placeholder="Pencarian..."
               />
             </div>
-            <button onClick={() => setShowPopup(true)} className="flex items-center gap-1.5 bg-[#252271] hover:bg-[#1a1860] text-white px-4 py-1.5 rounded-xl text-[11px] font-semibold shadow-sm transition-colors">
+            <button onClick={() => setShowPopup(true)} className="flex items-center gap-1.5 bg-[#fb1112] hover:bg-[#1a1860] text-white px-4 py-1.5 rounded-xl text-[11px] font-semibold shadow-sm transition-colors">
               <Plus size={14} /> Buat Pembayaran
             </button>
           </div>

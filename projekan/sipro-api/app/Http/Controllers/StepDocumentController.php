@@ -59,7 +59,7 @@ protected function modelFor(string $type)
         }
         $query = $modelClass::query();
         if (! $request->user()->is_admin) {
-            $query->whereIn('pengadaan_id', Pengadaan::where('created_by', $request->user()->id)->pluck('id'));
+            $query->whereIn('pengadaan_id', Pengadaan::where('departemen', $request->user()->departemen)->pluck('id'));
         }
         return response()->json($query->latest()->get());
     }
@@ -74,7 +74,7 @@ protected function modelFor(string $type)
         if (! $doc) {
             return response()->json(['message' => 'Dokumen tidak ditemukan.'], 404);
         }
-        $this->authorizeDocument($request, $doc);
+        $this->authorizeReadDocument($request, $doc);
         return response()->json($doc);
     }
 
@@ -193,6 +193,16 @@ protected function modelFor(string $type)
         }
         abort_unless(
             $doc->pengadaan_id && Pengadaan::where('id', $doc->pengadaan_id)->where('created_by', $request->user()->id)->exists(),
+            403,
+            'Anda tidak memiliki akses ke dokumen ini.',
+        );
+    }
+
+    private function authorizeReadDocument(Request $request, $doc): void
+    {
+        if ($request->user()->is_admin) return;
+        abort_unless(
+            $doc->pengadaan_id && Pengadaan::where('id', $doc->pengadaan_id)->where('departemen', $request->user()->departemen)->exists(),
             403,
             'Anda tidak memiliki akses ke dokumen ini.',
         );

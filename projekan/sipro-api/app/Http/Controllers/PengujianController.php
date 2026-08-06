@@ -14,7 +14,9 @@ class PengujianController extends Controller
     public function index(Request $request)
     {
         $query = Pengujian::query();
-        if (! $request->user()->is_admin) $query->where('requested_by', $request->user()->id);
+        if (! $request->user()->is_admin) {
+            $query->whereHas('pengadaan', fn ($pengadaan) => $pengadaan->where('departemen', $request->user()->departemen));
+        }
         return response()->json($query->latest()->get());
     }
 
@@ -25,6 +27,7 @@ class PengujianController extends Controller
             ? Pengadaan::findOrFail($data['pengadaan_id'])
             : Pengadaan::where('nama', $data['nama'] ?? '')->where('created_by', $request->user()->id)->latest()->first();
         abort_unless($pengadaan, 422, 'Pengadaan untuk request pengujian tidak ditemukan.');
+        if ($pengadaan->flow_type !== 'pr') return response()->json(['success' => false, 'message' => 'Park Document tidak melalui proses pengujian.'], 422);
         abort_unless($request->user()->is_admin || $pengadaan->created_by === $request->user()->id, 403, 'Anda tidak memiliki akses ke pengadaan ini.');
         if ($pengadaan->current_step !== 'pengujian') return response()->json(['success' => false, 'message' => 'Request pengujian belum dapat dibuat pada tahapan ini.'], 422);
         if (Pengujian::where('pengadaan_id', $pengadaan->id)->exists()) return response()->json(['success' => false, 'message' => 'Pengadaan ini sudah memiliki proses pengujian aktif.'], 422);
@@ -39,7 +42,8 @@ class PengujianController extends Controller
 
     public function show(Request $request, Pengujian $pengujian)
     {
-        abort_unless($request->user()->is_admin || $pengujian->requested_by === $request->user()->id, 403, 'Anda tidak memiliki akses ke pengujian ini.');
+        $pengujian->loadMissing('pengadaan');
+        abort_unless($request->user()->is_admin || $pengujian->pengadaan?->departemen === $request->user()->departemen, 403, 'Anda tidak memiliki akses ke pengujian ini.');
         return response()->json($pengujian);
     }
 

@@ -18,7 +18,7 @@ export function BuatPengujianPopup({ onClose, onSuccess }: {
     Promise.all([api.get("/pengadaan"), api.get("/pengujian")])
       .then(([pengadaanResponse, pengujianResponse]) => {
         const requestedIds = new Set(pengujianResponse.data.map((item: any) => item.pengadaan_id));
-        setItems(pengadaanResponse.data.filter((item: PengadaanItem) => item.currentStep === "pengujian" && !requestedIds.has(item.id)));
+        setItems(pengadaanResponse.data.filter((item: PengadaanItem) => item.flowType === "pr" && item.currentStep === "pengujian" && !requestedIds.has(item.id)));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -28,7 +28,10 @@ export function BuatPengujianPopup({ onClose, onSuccess }: {
   );
 
   const handleSubmit = async () => {
-    if (!selectedId) return;
+    if (!selectedId) {
+      alert("Pilih pengadaan terlebih dahulu sebelum membuat pengujian.");
+      return;
+    }
     setSubmitting(true);
     try {
       await api.post("/pengujian", { pengadaan_id: selectedId });

@@ -27,14 +27,6 @@ export const PD_MAIN_STEPS: MainStep[] = [
       { id: "payment-request", label: "Payment Request" },
     ],
   },
-  {
-    id: "pengujian",
-    label: "Pengujian",
-    subSteps: [
-      { id: "request-pengujian", label: "Request Pengujian" },
-      { id: "hasil-pengujian", label: "Hasil Pengujian" },
-    ],
-  },
 ];
 
 export const PR_MAIN_STEPS: MainStep[] = [

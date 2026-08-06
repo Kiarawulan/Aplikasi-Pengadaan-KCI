@@ -6,11 +6,13 @@ import { TopBar } from "@/components/user/layout/TopBar";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { PembelianBaruPopup } from "@/components/user/pengadaan/PembelianBaruPopup";
 import { api } from "@/services/api";
+import { useAuth } from "@/store/authStore";
 
 
 export function PurchaseRequestionScreen({ onSelectItem }: {
   onSelectItem: (item: PengadaanItem) => void;
 }) {
+  const { currentUser } = useAuth();
   const [showPopup, setShowPopup] = useState(false);
   const [editingItem, setEditingItem] = useState<PengadaanItem | null>(null);
   const [items, setItems] = useState<PengadaanItem[]>([]);
@@ -159,14 +161,14 @@ export function PurchaseRequestionScreen({ onSelectItem }: {
                         <button onClick={() => onSelectItem(item)} className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100" title="Buka Detail">
                           <Eye size={11} className="text-blue-600" />
                         </button>
-                        {(item.status === "pending" || item.status === "revisi") && (
+                        {item.createdBy === currentUser?.id && (item.status === "pending" || item.status === "revisi") && (
                           <button onClick={() => { setEditingItem(item); setShowPopup(true); }} className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center hover:bg-amber-100" title="Edit PR">
                             <Edit2 size={11} className="text-amber-600" />
                           </button>
                         )}
-                        <button onClick={(e) => handleDelete(item.id, e)} className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100" title="Hapus">
+                        {item.createdBy === currentUser?.id && <button onClick={(e) => handleDelete(item.id, e)} className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100" title="Hapus">
                           <Trash2 size={11} className="text-red-500" />
-                        </button>
+                        </button>}
                       </div>
                     </td>
                   </tr>

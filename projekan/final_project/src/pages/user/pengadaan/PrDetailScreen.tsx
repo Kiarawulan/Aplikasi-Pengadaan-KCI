@@ -11,6 +11,7 @@ import { PembelianBaruPopup } from "@/components/user/pengadaan/PembelianBaruPop
 import { api } from "@/services/api";
 import { getVerifRecords, addVerifRecord, generateId, getPengujianList, savePengujianList, updatePengadaanItem } from "@/store/dataStore";
 import { useAuth } from "@/store/authStore";
+import { remindIncompleteFields } from "@/utils/formValidation";
 
 
 export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectItem }: { 
@@ -234,6 +235,8 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     // adalah proses internal admin dan bersifat view-only bagi user.
     const userSubmitSteps = ["npp", "pengajuan-dana"];
     const adminOnlySteps = ["sp3", "pbj", "contract"];
+
+    if (!adminOnlySteps.includes(activeStep.id) && !remindIncompleteFields(document.getElementById("pr-active-form"))) return;
 
     if (userSubmitSteps.includes(activeStep.id) && isSubmitPoint && (verifStatus === "not_submitted" || verifStatus === "revisi" || verifStatus === "rejected")) {
       // Save form data before submitting
@@ -482,7 +485,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         <div className="flex-1 min-w-0">
           <div className="rounded-[10px] border border-[#e2e2e2] bg-white overflow-hidden shadow-sm">
             <div className="bg-[#252271] px-4 py-2.5"><p className="text-white font-semibold text-[11.5px]">{cardHeader()}</p></div>
-            <div className="p-4">
+            <div id="pr-active-form" className="p-4">
               {verifStatus === "revisi" && (
                 <div className="mb-4 bg-purple-50 border border-purple-200 rounded-xl p-3.5 flex items-start justify-between gap-3">
                   <FileWarning className="text-purple-600 shrink-0 mt-0.5" size={16} />

@@ -3465,6 +3465,10 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
     vendorName: "", picName: "", vendorAddress: "", phoneNumber: "", emailCorporate: "", attendance: "Tidak", description: "",
   }]);
 
+  const removeVendorRow = (index: number) => {
+    setVendorRows((previous) => previous.filter((_, vendorIndex) => vendorIndex !== index));
+  };
+
   const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>, documentType = "Lampiran") => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -3492,11 +3496,17 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
   const [stepVerifications, setStepVerifications] = useState<Record<number, string>>({});
 
   const saveCurrentStep = async () => {
+    if (activeStep === 2) {
+      const incompleteVendor = vendorRows.findIndex((vendor) => !vendor.vendorName.trim() || !vendor.picName.trim() || !vendor.vendorAddress.trim() || !vendor.phoneNumber.trim() || !vendor.emailCorporate.trim());
+      if (vendorRows.length === 0) throw new Error("Tambahkan minimal satu calon peserta tender.");
+      if (incompleteVendor !== -1) throw new Error(`Data Vendor ${incompleteVendor + 1} belum lengkap.`);
+    }
     await onSaveStep?.({
       activeStep,
       stepName: PBJ_STEPS[activeStep],
       fieldValues,
       customFiles,
+      vendorRows,
     });
   };
 
@@ -3542,7 +3552,7 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
     try {
       await saveCurrentStep();
     } catch (error: any) {
-      alert(error?.response?.data?.message || "Perubahan PBJ gagal disimpan.");
+      alert(error?.response?.data?.message || error?.message || "Perubahan PBJ gagal disimpan.");
       return;
     }
     if (activeStep < PBJ_STEPS.length - 1) {
@@ -3611,7 +3621,7 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
             <div className="mb-[20px] space-y-[16px]">
               {vendorRows.map((vendor, vendorIndex) => (
                 <div key={vendorIndex} className="border-l-2 border-[#cc0000] pl-[14px] py-[6px]">
-                  <p className="text-[#475569] text-[12px] font-bold mb-[14px]">Vendor Information</p>
+                  <div className="mb-[14px] flex items-center justify-between gap-3"><p className="text-[#475569] text-[12px] font-bold">Vendor Information {vendorIndex + 1}</p>{isEditing && <button type="button" onClick={() => removeVendorRow(vendorIndex)} className="rounded-lg border border-red-200 px-2.5 py-1 text-[10.5px] font-bold text-red-600 hover:bg-red-50">Hapus Vendor</button>}</div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-[48px] gap-y-[12px]">
                     {([
                       ["Vendor Name", "vendorName"], ["Phone Number", "phoneNumber"],
@@ -3817,6 +3827,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
     await api.put(`/step-documents/pbj/${row.document.id}`, {
       form_data: { ...(row.formData || {}), admin_progress: progress },
     });
+    await refresh();
   };
 
   const uploadAttachment = async (row: any, file: File, step: string) => {

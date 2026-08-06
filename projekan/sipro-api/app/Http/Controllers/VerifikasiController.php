@@ -233,7 +233,7 @@ class VerifikasiController extends Controller
 
                 // Park Document memiliki flow pendek: Pengajuan Dana → Pengujian → Pembayaran UMD.
                 if ($pengadaan->flow_type === 'pd' && in_array($verifikasi->tipe, ['park-dokumen', 'pengajuan-dana'], true)) {
-                    $pengadaan->current_step = 'pengujian';
+                    $pengadaan->current_step = 'pembayaran';
                     $pengadaan->status = 'on_progress';
                 }
 
