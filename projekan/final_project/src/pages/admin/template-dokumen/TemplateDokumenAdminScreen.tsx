@@ -9,7 +9,7 @@ import { api } from "@/services/api";
 interface Template {
   id: string;
   judul: string;
-  kategoriUtama: "Pengadaan" | "Pengujian" | "Pembayaran";
+  kategoriUtama: "Pengadaan" | "Pengajuan Dana" | "Pengujian" | "Pembayaran";
   subkategori: string;
   tipeFile: string;
   ukuran: string;
@@ -18,10 +18,11 @@ interface Template {
   deskripsi: string;
 }
 
-type KategoriUtama = "Pengadaan" | "Pengujian" | "Pembayaran";
+type KategoriUtama = "Pengadaan" | "Pengajuan Dana" | "Pengujian" | "Pembayaran";
 
 const SUBKATEGORI_MAP: Record<KategoriUtama, string[]> = {
-  Pengadaan: ["RUP", "NPP", "Pengajuan Dana", "SP3", "PBJ", "Kontrak"],
+  Pengadaan: ["RUP", "NPP", "SP3", "PBJ", "Kontrak"],
+  "Pengajuan Dana": ["Park Document", "Purchase Requisition"],
   Pengujian: ["Request Pengujian", "BAHP"],
   Pembayaran: ["Outsource", "Non Outsource", "UMD"],
 };
@@ -32,7 +33,7 @@ const TIPE_OPTIONS = ["DOCX", "PDF", "XLSX", "PPTX"];
 const INITIAL_TEMPLATES: Template[] = [
   { id: "TPL-001", judul: "Template RUP Pengadaan Barang", kategoriUtama: "Pengadaan", subkategori: "RUP", tipeFile: "DOCX", ukuran: "245 KB", uploadedBy: "Admin", uploadedAt: "2024-07-15", deskripsi: "Template standar untuk pengajuan RUP" },
   { id: "TPL-002", judul: "Form NPP Pengadaan IT", kategoriUtama: "Pengadaan", subkategori: "NPP", tipeFile: "DOCX", ukuran: "180 KB", uploadedBy: "Admin", uploadedAt: "2024-07-10", deskripsi: "Form Nota Permintaan Pengadaan" },
-  { id: "TPL-003", judul: "Template Pengajuan Dana", kategoriUtama: "Pengadaan", subkategori: "Pengajuan Dana", tipeFile: "XLSX", ukuran: "120 KB", uploadedBy: "Admin", uploadedAt: "2024-06-20", deskripsi: "Template pengajuan dana operasional" },
+  { id: "TPL-003", judul: "Template Pengajuan Dana", kategoriUtama: "Pengajuan Dana", subkategori: "Purchase Requisition", tipeFile: "XLSX", ukuran: "120 KB", uploadedBy: "Admin", uploadedAt: "2024-06-20", deskripsi: "Template pengajuan dana operasional" },
   { id: "TPL-004", judul: "Surat Perintah Pekerjaan (SP3)", kategoriUtama: "Pengadaan", subkategori: "SP3", tipeFile: "DOCX", ukuran: "95 KB", uploadedBy: "Admin", uploadedAt: "2024-06-18", deskripsi: "Template SP3" },
   { id: "TPL-005", judul: "Form PBJ", kategoriUtama: "Pengadaan", subkategori: "PBJ", tipeFile: "DOCX", ukuran: "210 KB", uploadedBy: "Admin", uploadedAt: "2024-06-15", deskripsi: "Template Pejabat Bersertifikat Jasa" },
   { id: "TPL-006", judul: "Draft Kontrak Pengadaan", kategoriUtama: "Pengadaan", subkategori: "Kontrak", tipeFile: "DOCX", ukuran: "380 KB", uploadedBy: "Admin", uploadedAt: "2024-05-22", deskripsi: "Template kontrak standar pengadaan" },
@@ -53,6 +54,7 @@ const TIPE_BADGE_COLORS: Record<string, string> = {
 
 const KATEGORI_TAB_COLORS: Record<KategoriUtama, { active: string; count: string }> = {
   Pengadaan: { active: "from-[#e6251c] to-[#7a1210]", count: "bg-red-100 text-red-700" },
+  "Pengajuan Dana": { active: "from-[#e6251c] to-[#7a1210]", count: "bg-violet-100 text-violet-700" },
   Pengujian: { active: "from-[#e6251c] to-[#7a1210]", count: "bg-teal-100 text-teal-700" },
   Pembayaran: { active: "from-[#e6251c] to-[#7a1210]", count: "bg-amber-100 text-amber-700" },
 };
@@ -116,7 +118,7 @@ function TemplateModal({ title, initial, onSave, onClose }: {
           <div>
             <label className="text-[11.5px] font-semibold text-gray-500 mb-1.5 block">Kategori Utama</label>
             <div className="flex gap-2">
-              {(["Pengadaan", "Pengujian", "Pembayaran"] as KategoriUtama[]).map(k => (
+              {(["Pengadaan", "Pengajuan Dana", "Pengujian", "Pembayaran"] as KategoriUtama[]).map(k => (
                 <button
                   key={k}
                   onClick={() => handleKategoriChange(k)}
@@ -261,12 +263,15 @@ export function TemplateDokumenAdminScreen() {
     const response = await api.get("/templates");
     setTemplates((response.data || []).map((item: any): Template => {
       const [rawCategory, rawSubcategory] = String(item.kategori || "Pengadaan|RUP").split("|");
-      const kategoriUtama: KategoriUtama = ["Pengadaan", "Pengujian", "Pembayaran"].includes(rawCategory) ? rawCategory as KategoriUtama : "Pengadaan";
+      const legacyPengajuanDana = rawCategory === "Pengadaan" && rawSubcategory === "Pengajuan Dana";
+      const kategoriUtama: KategoriUtama = legacyPengajuanDana
+        ? "Pengajuan Dana"
+        : ["Pengadaan", "Pengajuan Dana", "Pengujian", "Pembayaran"].includes(rawCategory) ? rawCategory as KategoriUtama : "Pengadaan";
       return {
         id: item.id,
         judul: item.nama,
         kategoriUtama,
-        subkategori: rawSubcategory || SUBKATEGORI_MAP[kategoriUtama][0],
+        subkategori: legacyPengajuanDana ? "Purchase Requisition" : rawSubcategory || SUBKATEGORI_MAP[kategoriUtama][0],
         tipeFile: item.tipe,
         ukuran: item.ukuran || "â€”",
         uploadedBy: item.uploaded_by || "Admin",
@@ -290,6 +295,7 @@ export function TemplateDokumenAdminScreen() {
 
   const tabCounts = useMemo(() => ({
     Pengadaan: templates.filter(t => t.kategoriUtama === "Pengadaan").length,
+    "Pengajuan Dana": templates.filter(t => t.kategoriUtama === "Pengajuan Dana").length,
     Pengujian: templates.filter(t => t.kategoriUtama === "Pengujian").length,
     Pembayaran: templates.filter(t => t.kategoriUtama === "Pembayaran").length,
   }), [templates]);
@@ -321,12 +327,12 @@ export function TemplateDokumenAdminScreen() {
         <AdminTopBar title="Template Dokumen" subtitle="Kelola template dokumen sistem" />
 
         {/* Summary bar */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-5 gap-4 mb-6">
           <div className="bg-gradient-to-br from-[#252271] to-[#3b3baa] rounded-2xl p-5 text-white shadow-lg">
             <p className="text-white/65 text-[11px] font-medium uppercase tracking-wider">Total Template</p>
             <p className="text-[30px] font-extrabold leading-tight mt-1">{templates.length}</p>
           </div>
-          {(["Pengadaan", "Pengujian", "Pembayaran"] as KategoriUtama[]).map(k => (
+          {(["Pengadaan", "Pengajuan Dana", "Pengujian", "Pembayaran"] as KategoriUtama[]).map(k => (
             <div key={k} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
               <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">{k}</p>
               <p className="text-[28px] font-extrabold text-gray-800 leading-tight mt-1">{tabCounts[k]}</p>
@@ -337,7 +343,7 @@ export function TemplateDokumenAdminScreen() {
 
         {/* Tab Switcher */}
         <div className="flex items-center gap-3 mb-5">
-          {(["Pengadaan", "Pengujian", "Pembayaran"] as KategoriUtama[]).map(k => (
+          {(["Pengadaan", "Pengajuan Dana", "Pengujian", "Pembayaran"] as KategoriUtama[]).map(k => (
             <button
               key={k}
               onClick={() => { setActiveTab(k); setSubFilter("Semua"); }}

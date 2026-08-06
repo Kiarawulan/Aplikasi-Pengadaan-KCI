@@ -359,8 +359,12 @@ function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
               <ChevronRight open={userRoleOpen} />
             </button>
 
-            {userRoleOpen && (
-              <div className="relative flex flex-col gap-[2px] items-start pl-[11px] w-[208px] ml-auto">
+            <div
+              className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                userRoleOpen ? "grid-rows-[1fr] opacity-100 mt-[2px]" : "grid-rows-[0fr] opacity-0"
+              }`}
+            >
+              <div className="overflow-hidden relative flex flex-col gap-[2px] items-start pl-[11px] w-[208px] ml-auto">
                 <div className="absolute inset-0 border-l border-white/50 pointer-events-none" />
                 {canUserManagement && <SubNavLink
                   label="Manajemen User"
@@ -373,7 +377,7 @@ function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
                   onClick={() => onNavigate("manajemen-role")}
                 />}
               </div>
-            )}
+            </div>
           </div>}
 
           {/* Verifikasi group */}
@@ -1339,13 +1343,12 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
 
           <div className="flex items-center gap-[10px]">
             <span
-              className={`text-[11.5px] font-bold px-[12px] py-[5px] rounded-full border ${
-                docStatus === "Sudah Diverifikasi"
+              className={`text-[11.5px] font-bold px-[12px] py-[5px] rounded-full border ${docStatus === "Sudah Diverifikasi"
                   ? "bg-[#f0fdf4] text-[#15803d] border-[#bbf7d0]"
                   : docStatus === "Perlu Revisi"
-                  ? "bg-[#fef2f2] text-[#cc0000] border-[#fecaca]"
-                  : "bg-amber-50 text-amber-800 border-amber-200"
-              }`}
+                    ? "bg-[#fef2f2] text-[#cc0000] border-[#fecaca]"
+                    : "bg-amber-50 text-amber-800 border-amber-200"
+                }`}
             >
               ● {docStatus}
             </span>
@@ -1354,7 +1357,7 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
               onClick={() => setShowRevisionBox(!showRevisionBox)}
               className="h-[38px] px-[16px] bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 rounded-[10px] text-[12.5px] font-semibold flex items-center gap-[6px] transition-all cursor-pointer"
             >
-              <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d={ICONS.edit} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2"/></svg>
+              <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d={ICONS.edit} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" /></svg>
               Revisi
             </button>
 
@@ -1363,7 +1366,7 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
               onClick={handleVerifikasi}
               className={`h-[38px] px-[18px] rounded-[10px] text-[12.5px] font-bold flex items-center gap-[6px] transition-all shadow-md ${docStatus === "Sudah Diverifikasi" ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#16a34a] to-[#15803d] text-white hover:brightness-110 active:scale-95 cursor-pointer"}`}
             >
-              <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d="M3 7.5L5.5 10L11 4.5" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"/></svg>
+              <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d="M3 7.5L5.5 10L11 4.5" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" /></svg>
               {docStatus === "Sudah Diverifikasi" ? "Sudah Diverifikasi" : "Verifikasi & Setujui"}
             </button>
           </div>
@@ -1373,7 +1376,7 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
         {showRevisionBox && (
           <div className="bg-amber-50 border border-amber-300 rounded-[16px] p-[20px] mb-[20px] shadow-sm animate-in fade-in-0">
             <h4 className="text-amber-900 text-[14px] font-bold mb-[8px] flex items-center gap-2">
-              <svg className="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              <svg className="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
               Input Catatan Revisi Untuk Permohonan Ini
             </h4>
             <textarea
@@ -1438,7 +1441,7 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
               <div key={idx} className="bg-[#f8fafc] border border-[#e2e8f0] rounded-[14px] p-[14px] flex items-center justify-between">
                 <div className="flex items-center gap-[12px] min-w-0">
                   <div className="size-[40px] rounded-[10px] bg-[#e0e7ff] text-[#252271] flex items-center justify-center shrink-0">
-                    <svg fill="none" height="18" viewBox="0 0 16 16" width="18"><path d="M4 2H10L14 6V14H4V2Z" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round"/><path d="M10 2V6H14" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round"/></svg>
+                    <svg fill="none" height="18" viewBox="0 0 16 16" width="18"><path d="M4 2H10L14 6V14H4V2Z" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round" /><path d="M10 2V6H14" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round" /></svg>
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
@@ -1529,8 +1532,8 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
         s === "approved" || s === "Approved" || s === "Sudah Diverifikasi" || s === "Final"
           ? "Sudah Diverifikasi"
           : s === "revisi" || s === "Perlu Revisi"
-          ? "Perlu Revisi"
-          : "Belum Diverifikasi";
+            ? "Perlu Revisi"
+            : "Belum Diverifikasi";
 
       // 1. Load from DB Verifikasi records (highest priority — real IDs)
       dbVerif.forEach((v: any) => {
@@ -1550,8 +1553,8 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
           tanggal: v.submit_at
             ? new Date(v.submit_at).toLocaleDateString("id-ID")
             : v.created_at
-            ? new Date(v.created_at).toLocaleDateString("id-ID")
-            : "—",
+              ? new Date(v.created_at).toLocaleDateString("id-ID")
+              : "—",
         });
       });
 
@@ -2227,7 +2230,7 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
       (r.nama && r.nama.toLowerCase().includes(search.toLowerCase()));
 
     const matchUnit = unitFilter === "Semua Divisi" ||
-      r.vpDept.toLowerCase().includes(unitFilter.toLowerCase()) || 
+      r.vpDept.toLowerCase().includes(unitFilter.toLowerCase()) ||
       (r.departemen && r.departemen.toLowerCase().includes(unitFilter.toLowerCase()));
 
     let matchStatus = true;
@@ -2274,14 +2277,14 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
                   const verifList = resVerif.data || [];
                   const matchedVerif = verifList.find((v: any) => v.pengadaan_id === selectedRow?.idRup || v.id === selectedRow?.verif_id);
                   if (matchedVerif) {
-                    await api.post(`/verifikasi/${matchedVerif.id}/revisi`, { catatan: revisionNotes }).catch(() => {});
+                    await api.post(`/verifikasi/${matchedVerif.id}/revisi`, { catatan: revisionNotes }).catch(() => { });
                   } else if (selectedRow?.verif_id) {
-                    await api.post(`/verifikasi/${selectedRow.verif_id}/revisi`, { catatan: revisionNotes }).catch(() => {});
+                    await api.post(`/verifikasi/${selectedRow.verif_id}/revisi`, { catatan: revisionNotes }).catch(() => { });
                   }
-                } catch (e) {}
+                } catch (e) { }
 
                 updateVerifRecord(selectedRow?.verif_id, { status: "revisi", catatanAdmin: revisionNotes });
-                await api.put(`/rup/${selectedRow.idRup}`, { status: "revisi", catatan_admin: revisionNotes }).catch(() => {});
+                await api.put(`/rup/${selectedRow.idRup}`, { status: "revisi", catatan_admin: revisionNotes }).catch(() => { });
                 updateRup(selectedRow.idRup, { status: "revisi", catatanAdmin: revisionNotes });
                 fetchData();
                 setView("list");
@@ -2294,14 +2297,14 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
                   const verifList = resVerif.data || [];
                   const matchedVerif = verifList.find((v: any) => v.pengadaan_id === selectedRow?.idRup || v.id === selectedRow?.verif_id);
                   if (matchedVerif) {
-                    await api.post(`/verifikasi/${matchedVerif.id}/reject`, { catatan: notes }).catch(() => {});
+                    await api.post(`/verifikasi/${matchedVerif.id}/reject`, { catatan: notes }).catch(() => { });
                   } else if (selectedRow?.verif_id) {
-                    await api.post(`/verifikasi/${selectedRow.verif_id}/reject`, { catatan: notes }).catch(() => {});
+                    await api.post(`/verifikasi/${selectedRow.verif_id}/reject`, { catatan: notes }).catch(() => { });
                   }
-                } catch (e) {}
+                } catch (e) { }
 
                 updateVerifRecord(selectedRow?.verif_id, { status: "rejected", catatanAdmin: notes });
-                await api.put(`/rup/${selectedRow.idRup}`, { status: "rejected", catatan_admin: notes }).catch(() => {});
+                await api.put(`/rup/${selectedRow.idRup}`, { status: "rejected", catatan_admin: notes }).catch(() => { });
                 updateRup(selectedRow.idRup, { status: "rejected", catatanAdmin: notes });
                 fetchData();
                 alert("RUP berhasil ditolak.");
@@ -3663,7 +3666,7 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
           {showRevisionBox && (
             <div className="bg-amber-50 border border-amber-300 rounded-[14px] p-[16px] mb-[20px] shadow-sm animate-in fade-in-0">
               <h4 className="text-amber-900 text-[13px] font-bold mb-[6px] flex items-center gap-2">
-                <svg className="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <svg className="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                 Catatan Revisi Step Ini ({PBJ_STEPS[activeStep]})
               </h4>
               <textarea
@@ -3696,7 +3699,7 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
               <div className="flex flex-wrap justify-end gap-[6px]">
                 {(PBJ_UPLOAD_LABELS[activeStep] || ["Lampiran"]).map((documentType) => (
                   <label key={documentType} className="bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#252271] text-[11.5px] font-semibold px-[12px] py-[5px] rounded-[8px] flex items-center gap-[6px] cursor-pointer transition-colors border border-[#cbd5e1]">
-                    <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M6 2.5V9.5M2.5 6H9.5" stroke="#252271" strokeLinecap="round" strokeWidth="1.5"/></svg>
+                    <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M6 2.5V9.5M2.5 6H9.5" stroke="#252271" strokeLinecap="round" strokeWidth="1.5" /></svg>
                     Unggah {documentType}
                     <input type="file" className="hidden" onChange={(event) => handleUploadFile(event, documentType)} />
                   </label>
@@ -3708,7 +3711,7 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
                 <div key={fIdx} className="flex items-center justify-between bg-[#f8fafc] border border-[#e2e8f0] rounded-[10px] p-[10px]">
                   <div className="flex items-center gap-[10px] min-w-0">
                     <div className="size-[34px] rounded-[8px] bg-[#e0e7ff] text-[#252271] flex items-center justify-center shrink-0">
-                      <svg fill="none" height="16" viewBox="0 0 16 16" width="16"><path d="M4 2H10L14 6V14H4V2Z" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round"/><path d="M10 2V6H14" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round"/></svg>
+                      <svg fill="none" height="16" viewBox="0 0 16 16" width="16"><path d="M4 2H10L14 6V14H4V2Z" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round" /><path d="M10 2V6H14" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round" /></svg>
                     </div>
                     <div className="min-w-0">
                       <p className="text-[#0f172a] text-[12px] font-semibold truncate">{file.documentType ? `${file.documentType}: ` : ""}{file.name}</p>
@@ -3732,20 +3735,19 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
               onClick={handleBackStep}
               className="h-[38px] px-[18px] border border-[#252271] text-[#252271] hover:bg-[#252271]/5 rounded-[10px] text-[12.5px] font-semibold flex items-center gap-[6px] transition-all cursor-pointer"
             >
-              <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M7.5 9L4.5 6L7.5 3" stroke="#252271" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"/></svg>
+              <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M7.5 9L4.5 6L7.5 3" stroke="#252271" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>
               Back
             </button>
 
             <div className="flex items-center gap-[10px]">
               <button
                 onClick={() => setIsEditing(!isEditing)}
-                className={`h-[38px] px-[16px] rounded-[10px] text-[12.5px] font-semibold flex items-center gap-[6px] transition-all cursor-pointer ${
-                  isEditing
+                className={`h-[38px] px-[16px] rounded-[10px] text-[12.5px] font-semibold flex items-center gap-[6px] transition-all cursor-pointer ${isEditing
                     ? "bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200"
                     : "bg-[#f1f5f9] text-[#252271] hover:bg-[#e2e8f0]"
-                }`}
+                  }`}
               >
-                <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d={ICONS.edit} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2"/></svg>
+                <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d={ICONS.edit} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" /></svg>
                 {isEditing ? "Batal Edit" : "Edit"}
               </button>
 
@@ -4238,7 +4240,7 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
           {showRevisionBox && (
             <div className="bg-amber-50 border border-amber-300 rounded-[14px] p-[16px] mb-[20px] shadow-sm animate-in fade-in-0">
               <h4 className="text-amber-900 text-[13px] font-bold mb-[6px] flex items-center gap-2">
-                <svg className="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <svg className="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                 Catatan Revisi Step Ini ({CONTRACT_STEPS[activeStep]})
               </h4>
               <textarea
@@ -4271,7 +4273,7 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
               <div className="flex flex-wrap justify-end gap-[6px]">
                 {(CONTRACT_UPLOAD_LABELS[activeStep] || ["Lampiran"]).map((documentType) => (
                   <label key={documentType} className="bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#252271] text-[11.5px] font-semibold px-[12px] py-[5px] rounded-[8px] flex items-center gap-[6px] cursor-pointer transition-colors border border-[#cbd5e1]">
-                    <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M6 2.5V9.5M2.5 6H9.5" stroke="#252271" strokeLinecap="round" strokeWidth="1.5"/></svg>
+                    <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M6 2.5V9.5M2.5 6H9.5" stroke="#252271" strokeLinecap="round" strokeWidth="1.5" /></svg>
                     Unggah {documentType}
                     <input type="file" className="hidden" onChange={(event) => handleUploadFile(event, documentType)} />
                   </label>
@@ -4283,7 +4285,7 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
                 <div key={fIdx} className="flex items-center justify-between bg-[#f8fafc] border border-[#e2e8f0] rounded-[10px] p-[10px]">
                   <div className="flex items-center gap-[10px] min-w-0">
                     <div className="size-[34px] rounded-[8px] bg-[#e0e7ff] text-[#252271] flex items-center justify-center shrink-0">
-                      <svg fill="none" height="16" viewBox="0 0 16 16" width="16"><path d="M4 2H10L14 6V14H4V2Z" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round"/><path d="M10 2V6H14" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round"/></svg>
+                      <svg fill="none" height="16" viewBox="0 0 16 16" width="16"><path d="M4 2H10L14 6V14H4V2Z" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round" /><path d="M10 2V6H14" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round" /></svg>
                     </div>
                     <div className="min-w-0">
                       <p className="text-[#0f172a] text-[12px] font-semibold truncate">{file.documentType ? `${file.documentType}: ` : ""}{file.name}</p>
@@ -4307,20 +4309,19 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
               onClick={handleBackStep}
               className="h-[38px] px-[18px] border border-[#252271] text-[#252271] hover:bg-[#252271]/5 rounded-[10px] text-[12.5px] font-semibold flex items-center gap-[6px] transition-all cursor-pointer"
             >
-              <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M7.5 9L4.5 6L7.5 3" stroke="#252271" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"/></svg>
+              <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M7.5 9L4.5 6L7.5 3" stroke="#252271" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>
               Back
             </button>
 
             <div className="flex items-center gap-[10px]">
               <button
                 onClick={() => setIsEditing(!isEditing)}
-                className={`h-[38px] px-[16px] rounded-[10px] text-[12.5px] font-semibold flex items-center gap-[6px] transition-all cursor-pointer ${
-                  isEditing
+                className={`h-[38px] px-[16px] rounded-[10px] text-[12.5px] font-semibold flex items-center gap-[6px] transition-all cursor-pointer ${isEditing
                     ? "bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200"
                     : "bg-[#f1f5f9] text-[#252271] hover:bg-[#e2e8f0]"
-                }`}
+                  }`}
               >
-                <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d={ICONS.edit} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2"/></svg>
+                <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d={ICONS.edit} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" /></svg>
                 {isEditing ? "Batal Edit" : "Edit"}
               </button>
 
@@ -4602,11 +4603,11 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
     .filter((item) => !selectedType || item.tipe === selectedType)
     .map(mapVerificationRow)
     .filter(
-    (r) =>
-      r.noPembayaran.toLowerCase().includes(search.toLowerCase()) ||
-      r.namaPaket.toLowerCase().includes(search.toLowerCase()) ||
-      r.vendor.toLowerCase().includes(search.toLowerCase())
-  ).filter((r) => {
+      (r) =>
+        r.noPembayaran.toLowerCase().includes(search.toLowerCase()) ||
+        r.namaPaket.toLowerCase().includes(search.toLowerCase()) ||
+        r.vendor.toLowerCase().includes(search.toLowerCase())
+    ).filter((r) => {
       const submittedAt = r.submit_at ? new Date(r.submit_at).toISOString().slice(0, 10) : "";
       return (!startDate || submittedAt >= startDate)
         && (!endDate || submittedAt <= endDate)
@@ -5125,7 +5126,7 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
                 <tbody>
                   {syarat.map((r, i) => (
                     <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
-                      <td className="px-3 py-2 text-center text-gray-500">{i+1}</td>
+                      <td className="px-3 py-2 text-center text-gray-500">{i + 1}</td>
                       <td className="px-3 py-2 font-medium text-gray-700">{r.doc} *</td>
                       <td className="px-3 py-2 text-center"><input type="checkbox" checked={r.syarat} onChange={() => toggleSyarat(i, "syarat")} className="w-3.5 h-3.5 accent-[#252271]" /></td>
                       <td className="px-3 py-2 text-center">
@@ -5212,7 +5213,7 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
                   try {
                     const r = row as any;
                     const verifId = r.verif_id || r.id;
-                    await api.post(`/verifikasi/${verifId}/revisi`, { catatan: 'Perlu revisi' }).catch(() => {});
+                    await api.post(`/verifikasi/${verifId}/revisi`, { catatan: 'Perlu revisi' }).catch(() => { });
                     alert('Pengajuan UMD diminta revisi');
                     onBack();
                   } catch (e) {
@@ -5230,7 +5231,7 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
                   try {
                     const r = row as any;
                     const verifId = r.verif_id || r.id;
-                    await api.post(`/verifikasi/${verifId}/reject`, { catatan: 'Ditolak Admin' }).catch(() => {});
+                    await api.post(`/verifikasi/${verifId}/reject`, { catatan: 'Ditolak Admin' }).catch(() => { });
                     alert('Pengajuan UMD ditolak');
                     onBack();
                   } catch (e) {
@@ -5304,8 +5305,8 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
           <div className="grid grid-cols-5 gap-2">
             {[
               { key: "cfff", label: "APPROVAL CFFF", note: "< Rp 200 juta" },
-              { key: "cff",  label: "APPROVAL CFF",  note: "Rp 200-500 juta" },
-              { key: "cf",   label: "APPROVAL CF",   note: "> Rp 500 juta" },
+              { key: "cff", label: "APPROVAL CFF", note: "Rp 200-500 juta" },
+              { key: "cf", label: "APPROVAL CF", note: "> Rp 500 juta" },
               { key: "siapBayar", label: "SIAP BAYAR", note: "" },
               { key: "lunas", label: "LUNAS", note: "" },
             ].map(s => (
@@ -5401,7 +5402,7 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
                 <tbody>
                   {syaratLain.map((r, i) => (
                     <tr key={i} className="bg-white border-b border-gray-100">
-                      <td className="px-3 py-2 text-center">{i+1}</td>
+                      <td className="px-3 py-2 text-center">{i + 1}</td>
                       <td className="px-3 py-2"><input type="text" className="w-full border rounded px-2 py-1 text-[11px]" placeholder="Dokumen..." /></td>
                       <td className="px-3 py-2 text-center"><input type="checkbox" className="accent-[#252271]" /></td>
                       <td className="px-3 py-2 text-center"><span className="text-[10px] text-gray-500">Tidak / Ada</span></td>
@@ -5430,7 +5431,7 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
                 try {
                   const r = row as any;
                   const verifId = r.verif_id || r.id;
-                  await api.post(`/verifikasi/${verifId}/revisi`, { catatan: 'Perlu revisi' }).catch(() => {});
+                  await api.post(`/verifikasi/${verifId}/revisi`, { catatan: 'Perlu revisi' }).catch(() => { });
                   alert('Pembayaran diminta revisi');
                   onBack();
                 } catch (e) {
@@ -5448,7 +5449,7 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
                 try {
                   const r = row as any;
                   const verifId = r.verif_id || r.id;
-                  await api.post(`/verifikasi/${verifId}/reject`, { catatan: 'Ditolak Admin' }).catch(() => {});
+                  await api.post(`/verifikasi/${verifId}/reject`, { catatan: 'Ditolak Admin' }).catch(() => { });
                   alert('Pembayaran ditolak');
                   onBack();
                 } catch (e) {
@@ -6063,11 +6064,10 @@ export function AdminApp() {
 
       {/* Secondary sidebar shown on verifikasi with smooth sliding transition */}
       <div
-        className={`shrink-0 h-full overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
-          isVerifPage
+        className={`shrink-0 h-full overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isVerifPage
             ? "w-[224px] opacity-100 translate-x-0"
             : "w-0 opacity-0 -translate-x-6 pointer-events-none"
-        }`}
+          }`}
       >
         <SecondarySidebar
           category={verifCategory}
