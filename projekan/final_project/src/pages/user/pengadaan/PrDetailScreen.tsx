@@ -6,6 +6,7 @@ import { Breadcrumb } from "@/components/user/layout/Breadcrumb";
 import { DetailHeaderCard } from "@/components/user/pengadaan/DetailHeaderCard";
 import { StepTracker } from "@/components/user/pengadaan/StepTracker";
 import { PrStepContent } from "@/components/user/pengadaan/PrStepContent";
+import { PengajuanDanaAttachments } from "@/components/user/pengadaan/PengajuanDanaAttachments";
 import { PembelianBaruPopup } from "@/components/user/pengadaan/PembelianBaruPopup";
 import { api } from "@/services/api";
 import { getVerifRecords, addVerifRecord, generateId, getPengujianList, savePengujianList, updatePengadaanItem } from "@/store/dataStore";
@@ -167,8 +168,6 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
           if (statusLower === "selesai" || statusLower === "approved" || statusLower === "completed") {
             setVerifStatus("approved");
-          } else if (statusLower === "diproses" || statusLower === "proses") {
-            setVerifStatus("approved");
           } else {
             setVerifStatus("pending");
           }
@@ -186,6 +185,9 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
           if (statusLower === "diproses" || statusLower === "approved" || statusLower === "selesai" || statusLower === "completed") {
             setActiveSubIdx(1);
+          }
+          if (statusLower === "approved" || statusLower === "selesai" || statusLower === "completed") {
+            setCompletedStepIds((previous) => new Set([...previous, "pengujian"]));
           }
         } else {
           setVerifStatus("not_submitted");
@@ -363,41 +365,39 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         onSelectItem(item, "pr-detail", "daftar-pengujian");
       }
     } else if (targetStep?.id === "pembayaran") {
-      const existingJenis = allFd["pelunasan"]?.jenis;
-      const backTarget = existingJenis?.toLowerCase().includes("non") ? "pembayaran-non-outsource" : "pembayaran-outsource";
-      setActiveStepIdx(idx);
-      setActiveSubIdx(0);
-      if (onSelectItem) {
-        onSelectItem(item, "pr-detail", backTarget as any);
+      if (verifStatus !== "approved") {
+        alert("Pengujian belum diverifikasi Admin. Metode pembayaran belum dapat dipilih.");
+        return;
       }
+      setShowPrPaymentModal(true);
     } else {
       setActiveStepIdx(idx);
       setActiveSubIdx(0);
     }
   };
 
-  const handleConfirmPrPayment = async () => {
-    const paymentType = selectedPaymentType === "Outsource" ? "outsource" : "non-outsource";
+  const handleConfirmPrPayment = async (paymentChoice: "Outsource" | "Non-outsource" = selectedPaymentType) => {
+    const paymentType = paymentChoice === "Outsource" ? "outsource" : "non-outsource";
     try {
       // Endpoint pembayaran membuat antrean verifikasi Admin dari data yang sama.
       await api.post("/payments", {
         pengadaan_id: item.id,
         payment_type: paymentType,
-        form_data: { jenis: selectedPaymentType },
+        form_data: { jenis: paymentChoice },
       });
       setAllFd((previous) => ({
         ...previous,
-        pelunasan: { ...(previous.pelunasan || {}), jenis: selectedPaymentType },
+        pelunasan: { ...(previous.pelunasan || {}), jenis: paymentChoice },
       }));
       setShowPrPaymentModal(false);
     } catch (error: any) {
       alert(error?.response?.data?.message || "Pembayaran belum dapat dibuat. Pastikan pengujian telah diselesaikan Admin.");
       return;
     }
-    const targetBack = selectedPaymentType === "Outsource" ? "pembayaran-outsource" : "pembayaran-non-outsource";
-    const pIdx = steps.findIndex(s => s.id === "pembayaran");
-    if (pIdx !== -1) {
-      setActiveStepIdx(pIdx);
+    const targetBack = paymentChoice === "Outsource" ? "pembayaran-outsource" : "pembayaran-non-outsource";
+    const paymentStepIndex = steps.findIndex((step) => step.id === "pembayaran");
+    if (paymentStepIndex !== -1) {
+      setActiveStepIdx(paymentStepIndex);
       setActiveSubIdx(0);
     }
     if (onSelectItem) {
@@ -450,20 +450,34 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     }
   };
 
+  const isPengujianDetail = fromScreen === "daftar-pengujian" || fromScreen?.includes("pengujian");
+  const isPembayaranDetail = !!fromScreen?.startsWith("pembayaran-");
+  const isFocusedProcessDetail = isPengujianDetail || isPembayaranDetail;
+  const verifiedTrackerSteps = isFocusedProcessDetail
+    ? new Set<string>([
+        ...(isPengujianDetail && activeStep.id === "pengujian" && verifStatus === "approved" ? ["pengujian"] : []),
+        ...(isPengujianDetail && activeStep.id === "pembayaran" && verifStatus === "approved" ? ["pengujian", "pembayaran"] : []),
+        ...(isPembayaranDetail && activeStep.id === "pembayaran" && verifStatus === "approved" ? ["pembayaran"] : []),
+      ])
+    : completedStepIds;
+  const trackerCanAccessStep = (idx: number) => isFocusedProcessDetail
+    ? isPembayaranDetail ? steps[idx]?.id === "pembayaran" : steps[idx]?.id === "pengujian" || (steps[idx]?.id === "pembayaran" && verifiedTrackerSteps.has("pengujian"))
+    : canAccessStep(idx);
+
   return (
     <div>
-      <Breadcrumb segments={[{ label: "Daftar Pengadaan", screen: "daftar-pengadaan" }, { label: "Pengajuan Dana", screen: "purchase-requisition" }, { label: item.nama }]} onNavigate={onNavigate} />
-      <DetailHeaderCard item={item} allFd={allFd} />
+      {isFocusedProcessDetail ? <button type="button" onClick={() => onNavigate("daftar-pengadaan")} className="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11.5px] font-semibold text-[#252271] hover:bg-slate-50"><ChevronLeft size={14} /> Kembali ke List Pengadaan</button> : <><Breadcrumb segments={[{ label: "Daftar Pengadaan", screen: "daftar-pengadaan" }, { label: "Pengajuan Dana", screen: "purchase-requisition" }, { label: item.nama }]} onNavigate={onNavigate} /><DetailHeaderCard item={item} allFd={allFd} /></>}
       {flash && <div className="mb-3 bg-green-50 border border-green-200 rounded-xl px-4 py-2 flex items-center gap-2"><Check size={12} className="text-green-600" /><span className="text-green-700 text-[11px]">Data berhasil disimpan!</span></div>}
 
       <div className="flex gap-5 items-start">
         <StepTracker
           steps={steps} activeStepIdx={activeStepIdx} activeSubIdx={activeSubIdx}
-          completedStepIds={completedStepIds} submittedSubs={completedSubs}
+          completedStepIds={verifiedTrackerSteps} submittedSubs={isFocusedProcessDetail && verifStatus !== "approved" ? new Set<string>() : completedSubs}
           onSelectStep={handleStepSelect}
           onSelectSub={(sIdx) => setActiveSubIdx(sIdx)}
-          canAccessStep={canAccessStep}
+          canAccessStep={trackerCanAccessStep}
           canAccessSub={canAccessSub}
+          visibleFromStepId={isPembayaranDetail ? "pembayaran" : isPengujianDetail ? "pengujian" : undefined}
         />
         <div className="flex-1 min-w-0">
           <div className="rounded-[10px] border border-[#e2e2e2] bg-white overflow-hidden shadow-sm">
@@ -512,6 +526,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                 </div>
               )}
               <PrStepContent step={activeStep.id} subStepId={subId} allFd={allFd} upd={upd} status={verifStatus} item={item} />
+              {activeStep.id === "pengajuan-dana" && <PengajuanDanaAttachments pengadaanId={item.id} flow="pr" />}
             </div>
             <div className="px-4 pb-3.5 pt-3.5 border-t border-[#e2e2e2] flex items-center justify-between">
               <button onClick={goPrev} disabled={isFirst} className="flex items-center gap-1.5 px-4 h-[30px] rounded border border-gray-200 text-[11.5px] text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"><ChevronLeft size={12} /> Kembali</button>
@@ -528,9 +543,10 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                       Kembali ke Dashboard
                     </button>
                     <button
-                      disabled={activeStep.id === "pembayaran" && verifStatus !== "approved"}
+                      disabled={["pengujian", "pembayaran"].includes(activeStep.id) && verifStatus !== "approved"}
                       onClick={() => {
                         if (activeStep.id === "pengujian") {
+                          if (verifStatus !== "approved") return;
                           setShowPrPaymentModal(true);
                         } else if (activeStep.id === "pembayaran") {
                           if (verifStatus !== "approved") return;
@@ -549,20 +565,20 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                         }
                       }}
                       className={`flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium transition-all ${
-                        activeStep.id === "pembayaran" && verifStatus !== "approved"
+                        ["pengujian", "pembayaran"].includes(activeStep.id) && verifStatus !== "approved"
                           ? "bg-gray-300 cursor-not-allowed opacity-60"
                           : "bg-blue-600 hover:bg-blue-700"
                       }`}
-                      title={activeStep.id === "pembayaran" && verifStatus !== "approved" ? "Pembayaran belum diverifikasi oleh admin" : ""}
+                      title={["pengujian", "pembayaran"].includes(activeStep.id) && verifStatus !== "approved" ? "Tahap ini belum diverifikasi oleh Admin" : ""}
                     >
                       <Check size={12} /> {activeStep.id === "pengujian" ? "Lanjut Pembayaran" : activeStep.id === "pembayaran" ? "Pembayaran Selesai!" : "Lanjut ke Pengujian"}
                     </button>
                   </div>
                 ) : (
                   <button
-                    disabled={activeStep.id === "pembayaran" && verifStatus !== "approved"}
+                    disabled={["pengujian", "pembayaran"].includes(activeStep.id) && verifStatus !== "approved"}
                     onClick={() => {
-                      if (activeStep.id === "pembayaran" && verifStatus !== "approved") return;
+                      if (["pengujian", "pembayaran"].includes(activeStep.id) && verifStatus !== "approved") return;
                       setCompletedStepIds(p => {
                         const next = new Set([...p, activeStep.id]);
                         let nextStep = activeStep.id;
@@ -584,11 +600,11 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                       }
                     }}
                     className={`flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium transition-all ${
-                      activeStep.id === "pembayaran" && verifStatus !== "approved"
+                      ["pengujian", "pembayaran"].includes(activeStep.id) && verifStatus !== "approved"
                         ? "bg-gray-300 cursor-not-allowed opacity-60"
                         : "bg-green-600 hover:bg-green-700"
                     }`}
-                    title={activeStep.id === "pembayaran" && verifStatus !== "approved" ? "Pembayaran belum diverifikasi oleh admin" : ""}
+                    title={["pengujian", "pembayaran"].includes(activeStep.id) && verifStatus !== "approved" ? "Tahap ini belum diverifikasi oleh Admin" : ""}
                   >
                     <Check size={12} /> Selesai
                   </button>
@@ -612,47 +628,33 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
               Silakan pilih jenis pembayaran yang akan digunakan:
             </p>
             <div className="space-y-3 mb-6">
-              <label
-                onClick={() => setSelectedPaymentType("Outsource")}
+              <button type="button"
+                onClick={() => handleConfirmPrPayment("Outsource")}
                 className={`flex items-center p-3 rounded-xl border cursor-pointer transition-all ${
                   selectedPaymentType === "Outsource"
                     ? "border-[#252271] bg-[#252271]/5 ring-1 ring-[#252271]"
                     : "border-gray-200 hover:bg-gray-50"
                 }`}
               >
-                <input
-                  type="radio"
-                  name="prPaymentType"
-                  checked={selectedPaymentType === "Outsource"}
-                  onChange={() => setSelectedPaymentType("Outsource")}
-                  className="w-4 h-4 text-[#252271]"
-                />
                 <div className="ml-3">
                   <p className="text-[12.5px] font-bold text-gray-800">Outsource</p>
                   <p className="text-[10.5px] text-gray-500">Pembayaran untuk jasa outsource</p>
                 </div>
-              </label>
+              </button>
 
-              <label
-                onClick={() => setSelectedPaymentType("Non-outsource")}
+              <button type="button"
+                onClick={() => handleConfirmPrPayment("Non-outsource")}
                 className={`flex items-center p-3 rounded-xl border cursor-pointer transition-all ${
                   selectedPaymentType === "Non-outsource"
                     ? "border-[#252271] bg-[#252271]/5 ring-1 ring-[#252271]"
                     : "border-gray-200 hover:bg-gray-50"
                 }`}
               >
-                <input
-                  type="radio"
-                  name="prPaymentType"
-                  checked={selectedPaymentType === "Non-outsource"}
-                  onChange={() => setSelectedPaymentType("Non-outsource")}
-                  className="w-4 h-4 text-[#252271]"
-                />
                 <div className="ml-3">
                   <p className="text-[12.5px] font-bold text-gray-800">Non Outsource</p>
                   <p className="text-[10.5px] text-gray-500">Pembayaran pengadaan barang / jasa non-outsource</p>
                 </div>
-              </label>
+              </button>
             </div>
 
             <div className="flex justify-end gap-2">
@@ -661,12 +663,6 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                 className="px-4 py-2 rounded-xl text-[11.5px] font-medium border border-gray-200 text-gray-600 hover:bg-gray-50"
               >
                 Batal
-              </button>
-              <button
-                onClick={handleConfirmPrPayment}
-                className="px-5 py-2 rounded-xl text-[11.5px] font-bold text-white bg-[#252271] hover:bg-[#1a1860] shadow-sm"
-              >
-                Lanjut ke Pembayaran
               </button>
             </div>
           </div>

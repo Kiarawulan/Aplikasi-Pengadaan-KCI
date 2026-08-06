@@ -4,6 +4,30 @@
 html { scroll-behavior: smooth; }
 body { background: #f8f7fb; color: #252271; }
 
+/* Lock every page scroller while a dialog overlay is mounted. The dialog may
+   still scroll internally when its content is taller than the viewport. */
+html:has(body .fixed.inset-0),
+body:has(.fixed.inset-0) {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+body:has(.fixed.inset-0) .flex-1.overflow-auto:not(.fixed),
+body:has(.fixed.inset-0) main:not(.fixed) {
+  overflow: hidden !important;
+}
+
+.fixed.inset-0 {
+  overscroll-behavior: contain;
+}
+
+.fixed.inset-0 > .bg-white,
+.fixed.inset-0 > [class*="rounded"] {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 button, a, input, select, textarea, [role="button"] {
   transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease,
     box-shadow 180ms ease, transform 180ms cubic-bezier(.2,.8,.2,1), opacity 180ms ease;

@@ -21,17 +21,10 @@ export function DaftarPengujianScreen({ onSelectItem }: {
     setLoading(true);
     try {
       const res = await api.get('/pengadaan');
-      // Filter for ongoing testing (pengujian) items:
-      // must have currentStep === 'pengujian' and 'pengujian' is not completed
+      // Pengujian baru boleh diakses setelah surat kontrak resmi dirilis.
       const pengujianItems = res.data.filter((item: PengadaanItem) => {
         const completed = item.completedSteps || [];
-        const isReadyForPengujian =
-          completed.includes("contract") ||
-          completed.includes("pengajuan-dana") ||
-          item.currentStep === "pengujian" ||
-          item.status === "Proses Pengujian" ||
-          completed.includes("pengujian");
-        return isReadyForPengujian;
+        return completed.includes("contract");
       });
       setItems(pengujianItems);
     } catch (err) {

@@ -11,6 +11,7 @@ import { ApprovedBadge } from "@/components/common/ApprovedBadge";
 import { DetailHeaderCard } from "@/components/user/pengadaan/DetailHeaderCard";
 import { StepTracker } from "@/components/user/pengadaan/StepTracker";
 import { PdSubStatus } from "@/components/user/pengadaan/PdSubStatus";
+import { PengajuanDanaAttachments } from "@/components/user/pengadaan/PengajuanDanaAttachments";
 import { PembelianBaruPopup } from "@/components/user/pengadaan/PembelianBaruPopup";
 import { api } from "@/services/api";
 import { useAuth } from "@/store/authStore";
@@ -266,6 +267,10 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
   const handleSubmit = async () => {
     if (isCurrentSubmitted || isDetailPd) {
+      if (activeStep.id === "pengujian" && verifState.status !== "approved") {
+        alert("Pengujian belum diverifikasi Admin. Tahap Pembayaran masih terkunci.");
+        return;
+      }
       // Check if user is allowed to proceed by Admin
       if (!verifState.canProceed && verifState.status === "pending") {
         alert("⚠️ Pengajuan sedang menunggu verifikasi Admin. Anda belum bisa melanjutkan ke tahap berikutnya.");
@@ -445,17 +450,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             {/* Read only summary for User */}
             <div className="space-y-4">
               <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-2xs space-y-3">
-                <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide border-b border-gray-100 pb-2">1. Submission Form UMD</p>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                  <SummaryRow label="No Dokumen" value={d["noDokumen"] || item.id || "DOK-2024-001"} />
-                  <SummaryRow label="Bulan UMD" value={d["bulanUmd"] || "Maret 2024"} />
-                  <SummaryRow label="Judul" value={d["judul"] || item.nama} />
-                  <SummaryRow label="Nominal" value={d["nominal"] || item.nominal} />
-                </div>
-              </div>
-
-              <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-2xs space-y-3">
-                <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide border-b border-gray-100 pb-2">2. Data PE & G63</p>
+                <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide border-b border-gray-100 pb-2">1. Data PE & G63</p>
                 <div className="grid grid-cols-3 gap-x-6 gap-y-2">
                   <SummaryRow label="Nomor PE" value={d["nomorPe"] || "PE-2024-001"} />
                   <SummaryRow label="Nomor G63" value={d["nomorG63"] || "G63-2024-089"} />
@@ -467,7 +462,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
               </div>
 
               <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-2xs space-y-3">
-                <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide border-b border-gray-100 pb-2">3. Syarat Pembayaran & Dokumen Tutupan</p>
+                <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide border-b border-gray-100 pb-2">2. Syarat Pembayaran & Dokumen Tutupan</p>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                   <SummaryRow label="G64 / Surat Pernyataan" value={d["fileG64"] || d["fileSuratPernyataanUmd"] || "Uploaded ✓"} />
                   <SummaryRow label="Dokumen G63 TTD Lengkap" value={d["fileG63"] || "g63_ttd_lengkap.pdf"} />
@@ -479,7 +474,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
               </div>
 
               <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-2xs space-y-3">
-                <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide border-b border-gray-100 pb-2">4. Closing & Bukti Transfer</p>
+                <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide border-b border-gray-100 pb-2">3. Closing & Bukti Transfer</p>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                   <SummaryRow label="Nominal Pajak" value={d["nominalPajak"] || "Rp 0"} />
                   <SummaryRow label="Nominal Pengembalian" value={d["nominalPengembalian"] || "Rp 0"} />
@@ -495,23 +490,9 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       // Interactive form filling for User
       return (
         <div className="space-y-6">
-          {/* 1. SUBMISSION FORM UMD */}
-          <div className="bg-[#fcfcfd] border border-[#e5e7eb] rounded-xl p-4 space-y-3 shadow-2xs">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-200/60">
-              <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide">1. SUBMISSION FORM UMD</p>
-              <span className="text-[10px] bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded">Form Pengisian User</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <FieldInput label="No Dokumen" placeholder="Contoh: DOK-2024-001" required value={d["noDokumen"]} onChange={u("noDokumen")} />
-              <FieldInput label="Bulan UMD" placeholder="Contoh: Maret 2024" required value={d["bulanUmd"]} onChange={u("bulanUmd")} />
-              <FieldInput label="Judul" placeholder="Judul UMD..." required value={d["judul"] || item.nama} onChange={u("judul")} />
-              <FieldInput label="Nominal (Rp)" placeholder="0" type="number" required value={d["nominal"] || item.nominal} onChange={u("nominal")} />
-            </div>
-          </div>
-
           {/* 2. DATA PE & G63 */}
           <div className="bg-[#fcfcfd] border border-[#e5e7eb] rounded-xl p-4 space-y-3 shadow-2xs">
-            <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide pb-2 border-b border-gray-200/60">2. DATA PE & G63</p>
+            <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide pb-2 border-b border-gray-200/60">1. DATA PE & G63</p>
             <div className="grid grid-cols-2 gap-3">
               <FieldInput label="Nomor PE" placeholder="Contoh: PE-2024-001" required value={d["nomorPe"]} onChange={u("nomorPe")} />
               <FieldInput label="Nomor G63" placeholder="Contoh: G63-2024-089" required value={d["nomorG63"]} onChange={u("nomorG63")} />
@@ -524,7 +505,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
           {/* 3. SYARAT PEMBAYARAN UMD */}
           <div className="bg-[#fcfcfd] border border-[#e5e7eb] rounded-xl p-4 space-y-3 shadow-2xs">
-            <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide pb-2 border-b border-gray-200/60">3. SYARAT PEMBAYARAN UMD</p>
+            <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide pb-2 border-b border-gray-200/60">2. SYARAT PEMBAYARAN UMD</p>
             <div className="space-y-2.5">
               <FileUploadInput label="Upload Dokumen G64" required value={d["fileG64"]} onChange={u("fileG64")} />
               <FileUploadInput label="Upload Surat Pernyataan" required value={d["fileSuratPernyataanUmd"]} onChange={u("fileSuratPernyataanUmd")} />
@@ -534,7 +515,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
           {/* 4. INPUT DOKUMEN TUTUPAN */}
           <div className="bg-[#fcfcfd] border border-[#e5e7eb] rounded-xl p-4 space-y-3 shadow-2xs">
-            <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide pb-2 border-b border-gray-200/60">4. INPUT DOKUMEN TUTUPAN</p>
+            <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide pb-2 border-b border-gray-200/60">3. INPUT DOKUMEN TUTUPAN</p>
             <div className="grid grid-cols-2 gap-3">
               <FileUploadInput label="Dokumen G63 TTD Lengkap" required value={d["fileG63"]} onChange={u("fileG63")} />
               <FileUploadInput label="Lembar G61" required value={d["fileLembarG61"]} onChange={u("fileLembarG61")} />
@@ -551,7 +532,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
           {/* 5. INPUT CLOSING UMD */}
           <div className="bg-[#fcfcfd] border border-[#e5e7eb] rounded-xl p-4 space-y-3 shadow-2xs">
-            <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide pb-2 border-b border-gray-200/60">5. INPUT CLOSING UMD</p>
+            <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide pb-2 border-b border-gray-200/60">4. INPUT CLOSING UMD</p>
             <div className="grid grid-cols-2 gap-3">
               <FieldInput label="Nominal Pajak (Rp)" placeholder="0" type="number" value={d["nominalPajak"]} onChange={u("nominalPajak")} />
               <FieldInput label="Nominal Pengembalian (Rp)" placeholder="0" type="number" value={d["nominalPengembalian"]} onChange={u("nominalPengembalian")} />
@@ -575,10 +556,20 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   const showLanjutBtn = (isCurrentSubmitted || isDetailPd) && !showSelesai;
   const showSubmitBtn = !isCurrentSubmitted && !isDetailPd;
 
+  const isPengujianDetail = fromScreen === "daftar-pengujian" || fromScreen?.includes("pengujian");
+  const verifiedTrackerSteps = isPengujianDetail
+    ? new Set<string>([
+        ...(activeStep.id === "pengujian" && verifState.status === "approved" ? ["pengujian"] : []),
+        ...(activeStep.id === "pembayaran" && verifState.status === "approved" ? ["pengujian", "pembayaran"] : []),
+      ])
+    : completedStepIds;
+  const trackerCanAccessStep = (idx: number) => isPengujianDetail
+    ? steps[idx]?.id === "pengujian" || (steps[idx]?.id === "pembayaran" && verifiedTrackerSteps.has("pengujian"))
+    : canAccessStep(idx);
+
   return (
     <div>
-      <Breadcrumb segments={[{ label: "Daftar Pengadaan", screen: "daftar-pengadaan" }, { label: "Park Dokumen", screen: "daftar-pengadaan" }, { label: item.nama }]} onNavigate={onNavigate} />
-      <DetailHeaderCard item={item} allFd={allFd} verifStatus={verifState.status} />
+      {isPengujianDetail ? <button type="button" onClick={() => onNavigate("daftar-pengadaan")} className="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11.5px] font-semibold text-[#252271] hover:bg-slate-50"><ChevronLeft size={14} /> Kembali ke List Pengadaan</button> : <><Breadcrumb segments={[{ label: "Daftar Pengadaan", screen: "daftar-pengadaan" }, { label: "Park Dokumen", screen: "daftar-pengadaan" }, { label: item.nama }]} onNavigate={onNavigate} /><DetailHeaderCard item={item} allFd={allFd} verifStatus={verifState.status} /></>}
 
       {/* Synchronized Admin Status Banner */}
       {verifState.status === "pending" && (
@@ -654,7 +645,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       <div className="flex gap-5 items-start">
         <StepTracker
           steps={steps} activeStepIdx={activeStepIdx} activeSubIdx={activeSubIdx}
-          completedStepIds={completedStepIds} submittedSubs={submittedSubs}
+          completedStepIds={verifiedTrackerSteps} submittedSubs={isPengujianDetail && verifState.status !== "approved" ? new Set<string>() : submittedSubs}
           onSelectStep={(idx) => {
             if (steps[idx]?.id === "pembayaran") {
               goToUmdPayment();
@@ -664,8 +655,9 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             }
           }}
           onSelectSub={(sIdx) => { if (canAccessSub(sIdx)) setActiveSubIdx(sIdx); }}
-          canAccessStep={canAccessStep}
+          canAccessStep={trackerCanAccessStep}
           canAccessSub={canAccessSub}
+          visibleFromStepId={isPengujianDetail ? "pengujian" : undefined}
         />
         <div className="flex-1 min-w-0">
           <div className="rounded-[10px] border border-[#e2e2e2] bg-white overflow-hidden shadow-sm">
@@ -675,7 +667,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                 <StatusBadge status={verifState.status === "approved" ? "Selesai" : verifState.status === "revisi" ? "Revisi" : "Menunggu Verifikasi"} />
               )}
             </div>
-            <div className="p-4">{renderContent()}</div>
+            <div className="p-4">{renderContent()}{activeStep.id === "pengajuan-dana" && <PengajuanDanaAttachments pengadaanId={item.id} flow="pd" />}</div>
             {!showSelesai && (
               <div className="px-4 pb-3.5 pt-3.5 border-t border-[#e2e2e2] flex items-center justify-between">
                 <button onClick={goPrev} disabled={isFirstSub} className="flex items-center gap-1.5 px-4 h-[30px] rounded border border-gray-200 text-[11.5px] text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"><ChevronLeft size={12} /> Kembali</button>

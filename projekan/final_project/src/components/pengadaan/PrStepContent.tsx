@@ -296,21 +296,9 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
 
             {jenis === "UMD" && (
               <div className="space-y-5 pt-3 border-t border-[#e2e2e2] mt-2">
-                {/* SUBMISSION FORM */}
-                <div className="bg-gray-50/70 p-3.5 rounded-xl border border-gray-200/80 space-y-3">
-                  <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide">1. Submission Form UMD</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <FieldInput label="No Dokumen" placeholder="DOK-2024-xxx" required value={f("noDokumen")} onChange={u("noDokumen")} />
-                    <FieldInput label="Bulan UMD" placeholder="Contoh: Maret 2024" required value={f("bulanUmd")} onChange={u("bulanUmd")} />
-                    <FieldInput label="Judul" placeholder="Judul UMD..." required value={f("judul") || item.nama} onChange={u("judul")} />
-                    <FieldInput label="Nominal" placeholder="15000000" type="number" required value={f("nominal") || item.nominal} onChange={u("nominal")} />
-                  </div>
-                  <p className="text-[10px] text-gray-400">*Pilih bulan dan masukkan nominal pengajuan UMD</p>
-                </div>
-
                 {/* PE & G63 */}
                 <div className="bg-gray-50/70 p-3.5 rounded-xl border border-gray-200/80 space-y-3">
-                  <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide">2. Data PE & G63</p>
+                  <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide">1. Data PE & G63</p>
                   <div className="grid grid-cols-2 gap-3">
                     <FieldInput label="Nomor PE" placeholder="PE-2024-xxx" required value={f("nomorPe")} onChange={u("nomorPe")} />
                     <FieldInput label="Nomor G63" placeholder="0" type="number" required value={f("nomorG63")} onChange={u("nomorG63")} />
@@ -323,7 +311,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
 
                 {/* SYARAT PEMBAYARAN UMD */}
                 <div className="bg-gray-50/70 p-3.5 rounded-xl border border-gray-200/80 space-y-3">
-                  <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide">3. Syarat Pembayaran UMD</p>
+                  <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide">2. Syarat Pembayaran UMD</p>
                   <div className="space-y-2">
                     <FileUploadInput label="Upload Dokumen G64" required value={f("fileG64")} onChange={u("fileG64")} />
                     <FileUploadInput label="Upload Surat Pernyataan" required value={f("fileSuratPernyataanUmd")} onChange={u("fileSuratPernyataanUmd")} />
@@ -333,7 +321,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
 
                 {/* DOKUMEN TUTUPAN */}
                 <div className="bg-gray-50/70 p-3.5 rounded-xl border border-gray-200/80 space-y-3">
-                  <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide">4. Input Dokumen Tutupan</p>
+                  <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide">3. Input Dokumen Tutupan</p>
                   <div className="space-y-2">
                     <FileUploadInput label="Dokumen G63 TTD Lengkap" required value={f("fileG63")} onChange={u("fileG63")} />
                     <FileUploadInput label="Lembar G61" required value={f("fileLembarG61")} onChange={u("fileLembarG61")} />
@@ -350,7 +338,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
 
                 {/* CLOSING UMD */}
                 <div className="bg-gray-50/70 p-3.5 rounded-xl border border-gray-200/80 space-y-3">
-                  <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide">5. Input Closing UMD</p>
+                  <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide">4. Input Closing UMD</p>
                   <div className="grid grid-cols-2 gap-3">
                     <FieldInput label="Nominal Pajak" placeholder="0" type="number" value={f("nominalPajak")} onChange={u("nominalPajak")} />
                     <FieldInput label="Nominal Pengembalian" placeholder="0" type="number" value={f("nominalPengembalian")} onChange={u("nominalPengembalian")} />

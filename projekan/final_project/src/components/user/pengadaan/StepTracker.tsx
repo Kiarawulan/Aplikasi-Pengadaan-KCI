@@ -1,7 +1,7 @@
 import { Lock } from "lucide-react";
 import type { MainStep } from "../../types";
 
-export function StepTracker({ steps, activeStepIdx, activeSubIdx, completedStepIds, submittedSubs, onSelectStep, onSelectSub, canAccessStep, canAccessSub }: {
+export function StepTracker({ steps, activeStepIdx, activeSubIdx, completedStepIds, submittedSubs, onSelectStep, onSelectSub, canAccessStep, canAccessSub, visibleFromStepId }: {
   steps: MainStep[];
   activeStepIdx: number;
   activeSubIdx: number;
@@ -11,10 +11,13 @@ export function StepTracker({ steps, activeStepIdx, activeSubIdx, completedStepI
   onSelectSub: (sIdx: number) => void;
   canAccessStep: (idx: number) => boolean;
   canAccessSub: (sIdx: number) => boolean;
+  visibleFromStepId?: string;
 }) {
+  const firstVisibleIndex = visibleFromStepId ? Math.max(0, steps.findIndex((step) => step.id === visibleFromStepId)) : 0;
   return (
     <div className="w-[230px] shrink-0 flex flex-col gap-1.5">
       {steps.map((step, idx) => {
+        if (idx < firstVisibleIndex) return null;
         const isActive = idx === activeStepIdx;
         const isDone = completedStepIds.has(step.id);
         const accessible = canAccessStep(idx);
@@ -42,7 +45,7 @@ export function StepTracker({ steps, activeStepIdx, activeSubIdx, completedStepI
                   ) : !accessible ? (
                     <Lock size={8} x="7" y="7" color="#bbb" />
                   ) : (
-                    <text x="11" y="15" textAnchor="middle" fontSize="8.5" fontWeight="600" fill={isActive ? "white" : "#888"}>{idx + 1}</text>
+                    <text x="11" y="15" textAnchor="middle" fontSize="8.5" fontWeight="600" fill={isActive ? "white" : "#888"}>{idx - firstVisibleIndex + 1}</text>
                   )}
                 </svg>
               </div>

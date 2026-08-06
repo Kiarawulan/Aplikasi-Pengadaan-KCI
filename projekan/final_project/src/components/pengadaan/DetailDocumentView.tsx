@@ -53,6 +53,7 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
 }) => {
   const [showRevisionBox, setShowRevisionBox] = useState(false);
   const [revisionNote, setRevisionNote] = useState("");
+  const isVerified = ["approved", "final", "closed", "sudah diverifikasi", "selesai"].includes(String(status).toLowerCase());
 
   const defaultTracking: DetailDocumentTracking[] = tracking.length > 0 ? tracking : [
     { action: "USER MELAKUKAN UPDATE PERMINTAAN NPD", timestamp: "13-JAN-2024 14:00:41" },
@@ -115,11 +116,12 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
             {/* Approve Button */}
             <button
               type="button"
+              disabled={isVerified}
               onClick={onApprove}
-              className="px-4 py-1.5 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-[12px] font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+              className={`px-4 py-1.5 rounded-lg text-[12px] font-bold flex items-center gap-1.5 shadow-sm transition-all ${isVerified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-[#16a34a] hover:bg-[#15803d] text-white cursor-pointer active:scale-95"}`}
             >
               <Check size={15} />
-              Verifikasi &amp; Setujui
+              {isVerified ? "Sudah Diverifikasi" : "Verifikasi & Setujui"}
             </button>
           </div>
         )}

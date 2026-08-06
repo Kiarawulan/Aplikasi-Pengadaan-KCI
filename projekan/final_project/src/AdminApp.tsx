@@ -504,6 +504,16 @@ function ManajemenUserPage({ onTambahUser, onDetailUser }: ManajemenUserProps) {
 
   const depts = ["Semua Divisi", ...DIVISI_LIST];
 
+  const deleteUser = async (user: any) => {
+    if (!window.confirm(`Hapus user ${user.name}?`)) return;
+    try {
+      await api.delete(`/users/${user.id}`);
+      setUsers((previous) => previous.filter((entry) => entry.id !== user.id));
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "User gagal dihapus.");
+    }
+  };
+
   return (
     <div className="flex-1 min-h-0 overflow-auto bg-[#f8fafc]">
       <div className="px-[32px] py-[40px]">
@@ -603,7 +613,7 @@ function ManajemenUserPage({ onTambahUser, onDetailUser }: ManajemenUserProps) {
                       </svg>
                     </button>
                     <button
-                      onClick={() => setUsers((prev) => prev.filter((u) => u.id !== user.id))}
+                      onClick={() => deleteUser(user)}
                       className="p-[6px] rounded-[6px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150"
                       title="Hapus"
                     >
@@ -638,6 +648,16 @@ function ManajemenRolePage({ onTambahRole }: ManajemenRoleProps) {
   const filtered = roles.filter((r) =>
     r.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  const deleteRole = async (role: any) => {
+    if (!window.confirm(`Hapus role ${role.name}?`)) return;
+    try {
+      await api.delete(`/roles/${role.id}`);
+      setRoles((previous) => previous.filter((entry) => entry.id !== role.id));
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Role gagal dihapus. Pastikan role tidak sedang digunakan user.");
+    }
+  };
 
   return (
     <div className="flex-1 min-h-0 overflow-auto bg-[#f8fafc]">
@@ -705,7 +725,7 @@ function ManajemenRolePage({ onTambahRole }: ManajemenRoleProps) {
                     </svg>
                   </button>
                   <button
-                    onClick={() => setRoles((prev) => prev.filter((r) => r.id !== role.id))}
+                    onClick={() => deleteRole(role)}
                     className="p-[6px] rounded-[6px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150"
                     title="Hapus"
                   >
@@ -1339,11 +1359,12 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
             </button>
 
             <button
+              disabled={docStatus === "Sudah Diverifikasi"}
               onClick={handleVerifikasi}
-              className="h-[38px] px-[18px] bg-gradient-to-r from-[#16a34a] to-[#15803d] text-white rounded-[10px] text-[12.5px] font-bold flex items-center gap-[6px] hover:brightness-110 active:scale-95 transition-all shadow-md cursor-pointer"
+              className={`h-[38px] px-[18px] rounded-[10px] text-[12.5px] font-bold flex items-center gap-[6px] transition-all shadow-md ${docStatus === "Sudah Diverifikasi" ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#16a34a] to-[#15803d] text-white hover:brightness-110 active:scale-95 cursor-pointer"}`}
             >
               <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d="M3 7.5L5.5 10L11 4.5" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"/></svg>
-              Verifikasi &amp; Setujui
+              {docStatus === "Sudah Diverifikasi" ? "Sudah Diverifikasi" : "Verifikasi & Setujui"}
             </button>
           </div>
         </div>
@@ -1563,6 +1584,18 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
     fetchDanaData();
   }, [category, doc]);
 
+  const deleteDanaVerification = async () => {
+    if (!selectedRow?.verif_id) return;
+    try {
+      await api.delete(`/verifikasi/${selectedRow.verif_id}`);
+      setShowDelete(false);
+      setSelectedRow(null);
+      await fetchDanaData();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Data pengajuan gagal dihapus.");
+    }
+  };
+
   const rows = danaItems.filter(
     (r) =>
       r.noDok.toLowerCase().includes(search.toLowerCase()) ||
@@ -1694,7 +1727,7 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
                         </button>
                         {/* Delete */}
                         <button
-                          onClick={() => setShowDelete(true)}
+                          onClick={() => { setSelectedRow(row); setShowDelete(true); }}
                           className="p-[5px] rounded-[6px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150"
                           title="Hapus"
                         >
@@ -1749,7 +1782,7 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
               </div>
               <div className="flex gap-[12px]">
                 <button
-                  onClick={() => setShowDelete(false)}
+                  onClick={deleteDanaVerification}
                   className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors"
                 >
                   Cancel
@@ -2151,6 +2184,16 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
     fetchData();
   }, [breadcrumb, title]);
 
+  const deleteRupRow = async (row: any) => {
+    if (!row?.idRup || !window.confirm(`Hapus RUP ${row.idRup}?`)) return;
+    try {
+      await api.delete(`/rup/${row.idRup}`);
+      await fetchData();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "RUP gagal dihapus.");
+    }
+  };
+
   const handleApprove = async (targetRow?: any) => {
     const target = targetRow || selectedRow;
     if (!target) return;
@@ -2387,7 +2430,7 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
                             <path d={group14Svg.p24092800} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
-                        <button className="p-[5px] rounded-[5px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150" title="Hapus">
+                        <button onClick={() => deleteRupRow(row)} className="p-[5px] rounded-[5px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150" title="Hapus">
                           <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
                             <path d={ICONS.trash1} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                             <path d={ICONS.trash2} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
@@ -2767,7 +2810,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
   const [actionNote, setActionNote] = useState("");
   const [uploadingSp3, setUploadingSp3] = useState(false);
   const [activeTab, setActiveTab] = useState<"informasi" | "evaluasi">("evaluasi");
-  const { items: verificationItems, process: processVerification } = useAdminVerificationQueue("sp3");
+  const { items: verificationItems, refresh: refreshSp3, process: processVerification } = useAdminVerificationQueue("sp3");
 
   const allSp3Rows = verificationItems.map(mapVerificationRow);
   const rows = allSp3Rows.filter((row) => {
@@ -2791,6 +2834,18 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
       setView("list");
     } catch (error: any) {
       alert(error?.response?.data?.message || "Proses SP3 gagal disimpan.");
+    }
+  };
+
+  const deleteSp3 = async () => {
+    if (!selectedRow?.verif_id) return;
+    try {
+      await api.delete(`/verifikasi/${selectedRow.verif_id}`);
+      setShowDelete(false);
+      setSelectedRow(null);
+      await refreshSp3();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "SP3 gagal dihapus.");
     }
   };
 
@@ -2951,6 +3006,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
   }
 
   if (view === "detail" && selectedRow) {
+    const isSp3Verified = ["approved", "final", "sudah diverifikasi", "closed"].includes(String(selectedRow.status || "").toLowerCase());
     return (
       <div className="flex-1 min-h-0 overflow-auto bg-white">
         <div className="px-[44px] py-[20px]">
@@ -2962,9 +3018,10 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
               <p className="text-[#99a1af] text-[16px] font-normal">
                 <span>SP3 &gt; Task Approval &gt; </span><span className="font-bold text-[#252271]">Detail</span>
               </p>
-              <span className="inline-flex items-center bg-[#f0f9ff] border border-[#0069a8] text-[#0069a8] text-[10.5px] font-medium px-[8px] py-[2.75px] rounded-full">
-                {selectedRow.status || "Submitted SP3"}
-              </span>
+              <div className="flex items-center gap-[10px]">
+                <span className={`inline-flex items-center border text-[10.5px] font-medium px-[8px] py-[2.75px] rounded-full ${isSp3Verified ? "bg-slate-100 border-slate-300 text-slate-500" : "bg-[#f0f9ff] border-[#0069a8] text-[#0069a8]"}`}>{isSp3Verified ? "Sudah Diverifikasi" : selectedRow.status || "Submitted SP3"}</span>
+                <button disabled={isSp3Verified} onClick={() => setShowApprove(true)} className={`h-[36px] px-[20px] text-[13px] font-bold rounded-[8px] transition-all shadow-sm ${isSp3Verified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700 active:scale-95"}`}>{isSp3Verified ? "✓ Sudah Diverifikasi" : "Verifikasi & Setujui"}</button>
+              </div>
             </div>
           </div>
 
@@ -2979,7 +3036,6 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
             </label>
             <button onClick={() => { setActionNote(""); setShowReject(true); }} className="h-[36px] px-[16px] border border-red-300 bg-red-50 text-red-600 text-[13px] font-bold rounded-[8px] hover:bg-red-100 active:scale-95 transition-all duration-150">Tolak</button>
             <button onClick={() => { setActionNote(""); setShowRevisi(true); }} className="h-[36px] px-[16px] border border-amber-400 bg-amber-50 text-amber-700 text-[13px] font-bold rounded-[8px] hover:bg-amber-100 active:scale-95 transition-all duration-150">Revisi</button>
-            <button onClick={() => setShowApprove(true)} className="h-[36px] px-[20px] bg-green-600 text-white text-[13px] font-bold rounded-[8px] hover:bg-green-700 active:scale-95 transition-all duration-150 shadow-sm">Verifikasi &amp; Setujui</button>
           </div>
         </div>
 
@@ -3114,7 +3170,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
                             <path d={group14Svg.p24092800} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
-                        <button onClick={() => setShowDelete(true)} className="p-[5px] rounded-[5px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150" title="Hapus">
+                        <button onClick={() => { setSelectedRow(row); setShowDelete(true); }} className="p-[5px] rounded-[5px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150" title="Hapus">
                           <svg fill="none" height="12" viewBox="0 0 13 13" width="13">
                             <path d={ICONS.trash1} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                             <path d={ICONS.trash2} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
@@ -3155,7 +3211,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
               <p className="text-[#0f172a] text-[14px] text-center">Kamu akan menghapus SP3 secara permanen?</p>
               <div className="flex gap-[12px]">
                 <button onClick={() => setShowDelete(false)} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Cancel</button>
-                <button onClick={() => setShowDelete(false)} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] transition-colors active:scale-95">Delete</button>
+                <button onClick={deleteSp3} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] transition-colors active:scale-95">Delete</button>
               </div>
             </div>
           </div>
@@ -3820,7 +3876,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
                           <button onClick={() => { setSelectedRow(r); setView("proses"); }} className="p-1 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Lihat">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                           </button>
-                          <button className="p-1 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Cetak Dokumen">
+                          <button onClick={() => window.print()} className="p-1 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Cetak Dokumen">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                           </button>
                           <button onClick={() => { setSelectedRow(r); setView("proses"); }} className="bg-[#252271] text-white px-2.5 py-1 rounded-md text-[11px] font-bold hover:brightness-110 flex items-center gap-1 transition-all">
@@ -3859,7 +3915,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
                           <button onClick={() => { setSelectedRow(r); setView("proses"); }} className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Lihat">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                           </button>
-                          <button className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Cetak Dokumen">
+                          <button onClick={() => window.print()} className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Cetak Dokumen">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                           </button>
                         </div>
@@ -3897,7 +3953,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
                           <button onClick={() => { setSelectedRow(r); setView("proses"); }} className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Lihat">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                           </button>
-                          <button className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Cetak Dokumen">
+                          <button onClick={() => window.print()} className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Cetak Dokumen">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                           </button>
                         </div>
@@ -4428,7 +4484,7 @@ function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" 
                           <button onClick={() => { setSelectedRow(r); setView("proses"); }} className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Lihat">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                           </button>
-                          <button className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Cetak Dokumen">
+                          <button onClick={() => window.print()} className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Cetak Dokumen">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                           </button>
                         </div>
@@ -5537,6 +5593,18 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
     fetchNppData();
   }, [subDoc]);
 
+  const deleteNppVerification = async () => {
+    if (!selectedRow?.verif_id) return;
+    try {
+      await api.delete(`/verifikasi/${selectedRow.verif_id}`);
+      setShowDelete(false);
+      setSelectedRow(null);
+      await fetchNppData();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "NPP gagal dihapus.");
+    }
+  };
+
   const rows = nppItems.filter(
     (r) =>
       r.idNpp.toLowerCase().includes(search.toLowerCase()) ||
@@ -5707,7 +5775,7 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
                           </svg>
                         </button>
                         {/* Hapus button */}
-                        <button className="p-[5px] rounded-[5px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150" title="Hapus">
+                        <button onClick={() => { setSelectedRow(row); setShowDelete(true); }} className="p-[5px] rounded-[5px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150" title="Hapus">
                           <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
                             <path d={ICONS.trash1} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                             <path d={ICONS.trash2} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
@@ -5753,7 +5821,7 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
               <p className="text-[#0f172a] text-[14px] text-center">Kamu akan menghapus RUP secara permanen?</p>
               <div className="flex gap-[12px]">
                 <button onClick={() => setShowDelete(false)} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Cancel</button>
-                <button onClick={() => setShowDelete(false)} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] transition-colors active:scale-95">Delete</button>
+                <button onClick={deleteNppVerification} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] transition-colors active:scale-95">Delete</button>
               </div>
             </div>
           </div>

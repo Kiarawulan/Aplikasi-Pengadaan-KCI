@@ -113,7 +113,7 @@ export function DashboardScreen() {
   }));
 
   return (
-    <div className="flex-1 min-h-0 overflow-auto bg-[#f5f7fb]">
+    <div className="flex-1 min-h-0 overflow-auto">
       <TopBar title="Dashboard" />
       <main className="mx-auto max-w-[1320px] px-4 py-5 sm:px-6 sm:py-6">
         <section className="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-br from-[#252271] via-[#35318d] to-[#17164f] px-6 py-6 text-white shadow-lg sm:px-8">
