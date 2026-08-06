@@ -667,7 +667,7 @@ function PaymentTable({ title, data, showPackage, gradient }: {
 function PembayaranDashboard() {
   const [unit, setUnit] = useState("Pilih Divisi");
   const [vendor, setVendor] = useState("Pilih Vendor");
-  const [currency, setCurrency] = useState("");
+  const [currencyFilter, setCurrencyFilter] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const { pengadaan, pembayaran, units } = useAdminDashboardData();
@@ -680,17 +680,17 @@ function PembayaranDashboard() {
     const paymentCurrency = String((parent.formData?.["buat-npp"] || parent.formData?.npp || parent.formData || {}).kurs || "IDR").toUpperCase();
     return (unit === "Pilih Divisi" || unit === "Semua Divisi" || parent.departemen === unit)
       && (vendor === "Pilih Vendor" || paymentVendor === vendor)
-      && (!currency || paymentCurrency === currency)
+      && (!currencyFilter || paymentCurrency === currencyFilter)
       && (!startDate || paymentDate >= startDate)
       && (!endDate || paymentDate <= endDate);
-  }), [pembayaran, pengadaanById, unit, vendor, currency, startDate, endDate]);
+  }), [pembayaran, pengadaanById, unit, vendor, currencyFilter, startDate, endDate]);
   const buildPaymentRows = (type: string) => {
     const selected = filteredPayments.filter((payment) => payment.payment_type === type);
     const definitions = [
       { label: "Belum Verifikasi", statuses: ["draft", "waiting_approval"] },
       { label: "Sudah Verifikasi", statuses: ["verified"] },
       { label: "Revisi", statuses: ["revision_required", "rejected"] },
-      { label: "Siap Bayar", statuses: ["verified", "ready_to_pay"] },
+      { label: "Siap Bayar", statuses: ["ready_to_pay"] },
       { label: "Selesai", statuses: ["approved", "completed"] },
     ];
     return definitions.map((definition) => {
@@ -732,7 +732,7 @@ function PembayaranDashboard() {
           <option value="Pilih Vendor">SELECT VENDOR ▼</option>
           {vendorOptions.filter((item) => item !== "Pilih Vendor").map((item) => <option key={item} value={item}>{item}</option>)}
         </select>
-        <select value={currency} onChange={e => setCurrency(e.target.value)}
+        <select value={currencyFilter} onChange={e => setCurrencyFilter(e.target.value)}
           className="h-8 px-3 rounded-lg border border-gray-200 text-[11px] text-gray-600 font-medium outline-none cursor-pointer">
           <option value="">PILIH MATA UANG ▼</option><option value="IDR">IDR</option><option value="USD">USD</option>
         </select>
