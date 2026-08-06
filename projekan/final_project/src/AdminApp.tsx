@@ -825,6 +825,26 @@ function SecondarySidebar({
     },
   ];
 
+  const [openCategories, setOpenCategories] = useState<Record<VerifCategory, boolean>>({
+    "pengajuan-dana": true,
+    "pengadaan": true,
+    "pengujian": true,
+    "pembayaran": true,
+  });
+
+  useEffect(() => {
+    setOpenCategories((prev) => ({ ...prev, [category]: true }));
+  }, [category]);
+
+  const toggleCategory = (id: VerifCategory) => {
+    if (category === id) {
+      setOpenCategories((prev) => ({ ...prev, [id]: !prev[id] }));
+    } else {
+      onCategory(id);
+      setOpenCategories((prev) => ({ ...prev, [id]: true }));
+    }
+  };
+
   const [rupExpanded, setRupExpanded] = useState(pengadaanDoc.startsWith("rup-"));
   const [sp3Expanded, setSp3Expanded] = useState(pengadaanDoc.startsWith("sp3-"));
   const [pbjExpanded, setPbjExpanded] = useState(pengadaanDoc.startsWith("pbj-"));
@@ -869,15 +889,6 @@ function SecondarySidebar({
     { id: "request-list-pengujian", label: "List Pengujian" },
   ];
 
-  const pembayaranSubItems: { id: PembayaranDoc; label: string }[] = [
-    { id: "pembayaran-contract-release", label: "Contract Release" },
-    { id: "pembayaran-bast", label: "BAST" },
-    { id: "pembayaran-invoice", label: "Invoice" },
-    { id: "pembayaran-spp", label: "SPP" },
-    { id: "pembayaran-spm", label: "SPM" },
-    { id: "pembayaran-verification", label: "Payment Verification" },
-  ];
-
   const pengadaanItems: { id: PengadaanDoc; label: string }[] = [
     { id: "jaminan-pelaksanaan", label: "Jaminan Pelaksanaan" },
     { id: "warehouse", label: "Warehouse" },
@@ -892,7 +903,7 @@ function SecondarySidebar({
 
   return (
     <aside
-      className="w-[224px] h-full shrink-0 overflow-hidden rounded-tr-[24px] rounded-br-[24px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.22)] flex flex-col"
+      className="w-[224px] h-full shrink-0 overflow-hidden rounded-tr-[24px] rounded-br-[24px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.22)] flex flex-col select-none"
       style={{ background: "linear-gradient(268.782deg, rgb(37, 34, 113) 3.3571%, rgb(3, 0, 67) 199.02%)" }}
     >
       {/* Logo area */}
@@ -902,340 +913,400 @@ function SecondarySidebar({
       <div className="flex-1 min-h-0 overflow-y-auto px-[10px] py-[4px] flex flex-col gap-[6px]">
         {items.filter((item) => hasPermission(item.id === "pengajuan-dana" ? "pengajuanDana" : item.id, "viewer")).map((item) => {
           const isActive = category === item.id;
+          const isCategoryOpen = isActive && openCategories[item.id];
+
           return (
             <div key={item.id} className="flex flex-col gap-[2px]">
               <button
-                onClick={() => onCategory(item.id)}
-                className={`w-full flex items-center gap-[10px] px-[14px] py-[6px] rounded-[8px] transition-all duration-150
+                onClick={() => toggleCategory(item.id)}
+                className={`w-full flex items-center justify-between px-[14px] py-[6px] rounded-[8px] transition-all duration-200 group cursor-pointer
                   ${isActive
                     ? "bg-white drop-shadow-[0px_0px_2px_rgba(0,0,0,0.25)]"
                     : "hover:bg-white/10 active:bg-white/20"}`}
               >
-                <span className="shrink-0">{item.icon}</span>
-                <span className={`text-[12px] font-medium ${isActive ? "text-[#cc0000]" : "text-white"}`}>
-                  {item.label}
-                </span>
+                <div className="flex items-center gap-[10px]">
+                  <span className="shrink-0 transition-transform duration-200 group-hover:scale-110">{item.icon}</span>
+                  <span className={`text-[12px] font-medium ${isActive ? "text-[#cc0000]" : "text-white"}`}>
+                    {item.label}
+                  </span>
+                </div>
+                <svg
+                  fill="none" height="10" viewBox="0 0 10 10" width="10"
+                  className={`shrink-0 transition-transform duration-300 ${isCategoryOpen ? "rotate-90" : "rotate-0"}`}
+                >
+                  <path d="M4 2L7 5L4 8" stroke={isActive ? "#cc0000" : "white"} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
+                </svg>
               </button>
 
               {/* Sub-docs for Pengajuan Dana */}
-              {isActive && item.id === "pengajuan-dana" && (
-                <div className="relative flex flex-col gap-[2px] pl-[11px]">
-                  <div className="absolute inset-0 border-l border-white/15 pointer-events-none" />
-                  {pengajuanDocs.map((d) => (
-                    <button
-                      key={d.id}
-                      onClick={() => onDoc(d.id)}
-                      className={`w-full text-left px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150
-                        ${doc === d.id
-                          ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
-                          : "text-white/60 font-normal hover:text-white/80 hover:bg-white/10"}`}
-                    >
-                      {d.label}
-                    </button>
-                  ))}
+              {item.id === "pengajuan-dana" && (
+                <div
+                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                    isCategoryOpen ? "grid-rows-[1fr] opacity-100 mt-0.5" : "grid-rows-[0fr] opacity-0"
+                  }`}
+                >
+                  <div className="overflow-hidden relative flex flex-col gap-[2px] pl-[11px]">
+                    <div className="absolute inset-0 border-l border-white/15 pointer-events-none" />
+                    {pengajuanDocs.map((d) => (
+                      <button
+                        key={d.id}
+                        onClick={() => onDoc(d.id)}
+                        className={`w-full text-left px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150 cursor-pointer
+                          ${doc === d.id
+                            ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
+                            : "text-white/60 font-normal hover:text-white/80 hover:bg-white/10"}`}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
               {/* Sub-docs for Pengadaan */}
-              {isActive && item.id === "pengadaan" && (
-                <div className="relative flex flex-col gap-[1px] pl-[11px]">
-                  <div className="absolute inset-0 border-l border-white/15 pointer-events-none" />
+              {item.id === "pengadaan" && (
+                <div
+                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                    isCategoryOpen ? "grid-rows-[1fr] opacity-100 mt-0.5" : "grid-rows-[0fr] opacity-0"
+                  }`}
+                >
+                  <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[11px]">
+                    <div className="absolute inset-0 border-l border-white/15 pointer-events-none" />
 
-                  {/* RUP expandable group */}
-                  <div className="flex flex-col gap-[1px]">
-                    <button
-                      onClick={() => {
-                        setRupExpanded((v) => !v);
-                        if (!rupExpanded) onPengadaanDoc("rup-task-approval");
-                      }}
-                      className={`w-full flex items-center justify-between px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150
-                        ${pengadaanDoc.startsWith("rup-")
-                          ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
-                          : "text-white/70 font-normal hover:text-white hover:bg-white/10"}`}
-                    >
-                      <span>RUP</span>
-                      <svg fill="none" height="10" viewBox="0 0 10 10" width="10" className={`shrink-0 transition-transform duration-200 ${rupExpanded ? "rotate-90" : ""}`}>
-                        <path d="M4 2L7 5L4 8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
-                      </svg>
-                    </button>
+                    {/* RUP expandable group */}
+                    <div className="flex flex-col gap-[1px]">
+                      <button
+                        onClick={() => {
+                          setRupExpanded((v) => !v);
+                          if (!rupExpanded) onPengadaanDoc("rup-task-approval");
+                        }}
+                        className={`w-full flex items-center justify-between px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150 cursor-pointer
+                          ${pengadaanDoc.startsWith("rup-")
+                            ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
+                            : "text-white/70 font-normal hover:text-white hover:bg-white/10"}`}
+                      >
+                        <span>RUP</span>
+                        <svg fill="none" height="10" viewBox="0 0 10 10" width="10" className={`shrink-0 transition-transform duration-300 ${rupExpanded ? "rotate-90" : "rotate-0"}`}>
+                          <path d="M4 2L7 5L4 8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
+                        </svg>
+                      </button>
 
-                    {rupExpanded && (
-                      <div className="relative flex flex-col gap-[1px] pl-[10px]">
-                        <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
-                        {rupSubItems.map((d) => (
-                          <button
-                            key={d.id}
-                            onClick={() => onPengadaanDoc(d.id)}
-                            className={`w-full text-left px-[8px] py-[4px] rounded-[8px] text-[11px] transition-all duration-150
-                              ${pengadaanDoc === d.id
-                                ? "text-white font-medium bg-white/10"
-                                : "text-white/50 font-normal hover:text-white/80 hover:bg-white/5"}`}
-                          >
-                            {d.label}
-                          </button>
-                        ))}
+                      <div
+                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                          rupExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                        }`}
+                      >
+                        <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[10px]">
+                          <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
+                          {rupSubItems.map((d) => (
+                            <button
+                              key={d.id}
+                              onClick={() => onPengadaanDoc(d.id)}
+                              className={`w-full text-left px-[8px] py-[4px] rounded-[8px] text-[11px] transition-all duration-150 cursor-pointer
+                                ${pengadaanDoc === d.id
+                                  ? "text-white font-medium bg-white/10"
+                                  : "text-white/50 font-normal hover:text-white/80 hover:bg-white/5"}`}
+                            >
+                              {d.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
 
-                  {/* NPP direct link */}
-                  <button
-                    onClick={() => onPengadaanDoc("npp")}
-                    className={`w-full text-left px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150
-                      ${pengadaanDoc === "npp"
-                        ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
-                        : "text-white/60 font-normal hover:text-white/80 hover:bg-white/10"}`}
-                  >
-                    NPP
-                  </button>
-
-                  {/* SP3 expandable group */}
-                  <div className="flex flex-col gap-[1px]">
+                    {/* NPP direct link */}
                     <button
-                      onClick={() => {
-                        setSp3Expanded((v) => !v);
-                        if (!sp3Expanded) onPengadaanDoc("sp3-task-approval");
-                      }}
-                      className={`w-full flex items-center justify-between px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150
-                        ${pengadaanDoc.startsWith("sp3-")
-                          ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
-                          : "text-white/70 font-normal hover:text-white hover:bg-white/10"}`}
-                    >
-                      <span>SP3</span>
-                      <svg fill="none" height="10" viewBox="0 0 10 10" width="10" className={`shrink-0 transition-transform duration-200 ${sp3Expanded ? "rotate-90" : ""}`}>
-                        <path d="M4 2L7 5L4 8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
-                      </svg>
-                    </button>
-
-                    {sp3Expanded && (
-                      <div className="relative flex flex-col gap-[1px] pl-[10px]">
-                        <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
-                        {sp3SubItems.map((d) => (
-                          <button
-                            key={d.id}
-                            onClick={() => onPengadaanDoc(d.id)}
-                            className={`w-full text-left px-[8px] py-[4px] rounded-[8px] text-[11px] transition-all duration-150
-                              ${pengadaanDoc === d.id
-                                ? "text-white font-medium bg-white/10"
-                                : "text-white/50 font-normal hover:text-white/80 hover:bg-white/5"}`}
-                          >
-                            {d.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* PBJ expandable group */}
-                  <div className="flex flex-col gap-[1px]">
-                    <button
-                      onClick={() => {
-                        setPbjExpanded((v) => !v);
-                        if (!pbjExpanded) onPengadaanDoc("pbj-task-approval");
-                      }}
-                      className={`w-full flex items-center justify-between px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150
-                        ${pengadaanDoc.startsWith("pbj-")
-                          ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
-                          : "text-white/70 font-normal hover:text-white hover:bg-white/10"}`}
-                    >
-                      <span>PBJ</span>
-                      <svg fill="none" height="10" viewBox="0 0 10 10" width="10" className={`shrink-0 transition-transform duration-200 ${pbjExpanded ? "rotate-90" : ""}`}>
-                        <path d="M4 2L7 5L4 8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
-                      </svg>
-                    </button>
-
-                    {pbjExpanded && (
-                      <div className="relative flex flex-col gap-[1px] pl-[10px]">
-                        <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
-                        {pbjSubItems.map((d) => (
-                          <button
-                            key={d.id}
-                            onClick={() => onPengadaanDoc(d.id)}
-                            className={`w-full text-left px-[8px] py-[4px] rounded-[8px] text-[11px] transition-all duration-150
-                              ${pengadaanDoc === d.id
-                                ? "text-white font-medium bg-white/10"
-                                : "text-white/50 font-normal hover:text-white/80 hover:bg-white/5"}`}
-                          >
-                            {d.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Contract expandable group */}
-                  <div className="flex flex-col gap-[1px]">
-                    <button
-                      onClick={() => {
-                        setContractExpanded((v) => !v);
-                        if (!contractExpanded) onPengadaanDoc("contract-task-approval");
-                      }}
-                      className={`w-full flex items-center justify-between px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150
-                        ${pengadaanDoc.startsWith("contract-")
-                          ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
-                          : "text-white/70 font-normal hover:text-white hover:bg-white/10"}`}
-                    >
-                      <span>Contract</span>
-                      <svg fill="none" height="10" viewBox="0 0 10 10" width="10" className={`shrink-0 transition-transform duration-200 ${contractExpanded ? "rotate-90" : ""}`}>
-                        <path d="M4 2L7 5L4 8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
-                      </svg>
-                    </button>
-
-                    {contractExpanded && (
-                      <div className="relative flex flex-col gap-[1px] pl-[10px]">
-                        <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
-                        {contractSubItems.map((d) => (
-                          <button
-                            key={d.id}
-                            onClick={() => onPengadaanDoc(d.id)}
-                            className={`w-full text-left px-[8px] py-[4px] rounded-[8px] text-[11px] transition-all duration-150
-                              ${pengadaanDoc === d.id
-                                ? "text-white font-medium bg-white/10"
-                                : "text-white/50 font-normal hover:text-white/80 hover:bg-white/5"}`}
-                          >
-                            {d.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Other pengadaan items */}
-                  {pengadaanItems.map((d) => (
-                    <button
-                      key={d.id}
-                      onClick={() => onPengadaanDoc(d.id)}
-                      className={`w-full text-left px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150
-                        ${pengadaanDoc === d.id
+                      onClick={() => onPengadaanDoc("npp")}
+                      className={`w-full text-left px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150 cursor-pointer
+                        ${pengadaanDoc === "npp"
                           ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
                           : "text-white/60 font-normal hover:text-white/80 hover:bg-white/10"}`}
                     >
-                      {d.label}
+                      NPP
                     </button>
-                  ))}
+
+                    {/* SP3 expandable group */}
+                    <div className="flex flex-col gap-[1px]">
+                      <button
+                        onClick={() => {
+                          setSp3Expanded((v) => !v);
+                          if (!sp3Expanded) onPengadaanDoc("sp3-task-approval");
+                        }}
+                        className={`w-full flex items-center justify-between px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150 cursor-pointer
+                          ${pengadaanDoc.startsWith("sp3-")
+                            ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
+                            : "text-white/70 font-normal hover:text-white hover:bg-white/10"}`}
+                      >
+                        <span>SP3</span>
+                        <svg fill="none" height="10" viewBox="0 0 10 10" width="10" className={`shrink-0 transition-transform duration-300 ${sp3Expanded ? "rotate-90" : "rotate-0"}`}>
+                          <path d="M4 2L7 5L4 8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
+                        </svg>
+                      </button>
+
+                      <div
+                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                          sp3Expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                        }`}
+                      >
+                        <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[10px]">
+                          <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
+                          {sp3SubItems.map((d) => (
+                            <button
+                              key={d.id}
+                              onClick={() => onPengadaanDoc(d.id)}
+                              className={`w-full text-left px-[8px] py-[4px] rounded-[8px] text-[11px] transition-all duration-150 cursor-pointer
+                                ${pengadaanDoc === d.id
+                                  ? "text-white font-medium bg-white/10"
+                                  : "text-white/50 font-normal hover:text-white/80 hover:bg-white/5"}`}
+                            >
+                              {d.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* PBJ expandable group */}
+                    <div className="flex flex-col gap-[1px]">
+                      <button
+                        onClick={() => {
+                          setPbjExpanded((v) => !v);
+                          if (!pbjExpanded) onPengadaanDoc("pbj-task-approval");
+                        }}
+                        className={`w-full flex items-center justify-between px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150 cursor-pointer
+                          ${pengadaanDoc.startsWith("pbj-")
+                            ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
+                            : "text-white/70 font-normal hover:text-white hover:bg-white/10"}`}
+                      >
+                        <span>PBJ</span>
+                        <svg fill="none" height="10" viewBox="0 0 10 10" width="10" className={`shrink-0 transition-transform duration-300 ${pbjExpanded ? "rotate-90" : "rotate-0"}`}>
+                          <path d="M4 2L7 5L4 8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
+                        </svg>
+                      </button>
+
+                      <div
+                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                          pbjExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                        }`}
+                      >
+                        <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[10px]">
+                          <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
+                          {pbjSubItems.map((d) => (
+                            <button
+                              key={d.id}
+                              onClick={() => onPengadaanDoc(d.id)}
+                              className={`w-full text-left px-[8px] py-[4px] rounded-[8px] text-[11px] transition-all duration-150 cursor-pointer
+                                ${pengadaanDoc === d.id
+                                  ? "text-white font-medium bg-white/10"
+                                  : "text-white/50 font-normal hover:text-white/80 hover:bg-white/5"}`}
+                            >
+                              {d.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contract expandable group */}
+                    <div className="flex flex-col gap-[1px]">
+                      <button
+                        onClick={() => {
+                          setContractExpanded((v) => !v);
+                          if (!contractExpanded) onPengadaanDoc("contract-task-approval");
+                        }}
+                        className={`w-full flex items-center justify-between px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150 cursor-pointer
+                          ${pengadaanDoc.startsWith("contract-")
+                            ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
+                            : "text-white/70 font-normal hover:text-white hover:bg-white/10"}`}
+                      >
+                        <span>Contract</span>
+                        <svg fill="none" height="10" viewBox="0 0 10 10" width="10" className={`shrink-0 transition-transform duration-300 ${contractExpanded ? "rotate-90" : "rotate-0"}`}>
+                          <path d="M4 2L7 5L4 8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
+                        </svg>
+                      </button>
+
+                      <div
+                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                          contractExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                        }`}
+                      >
+                        <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[10px]">
+                          <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
+                          {contractSubItems.map((d) => (
+                            <button
+                              key={d.id}
+                              onClick={() => onPengadaanDoc(d.id)}
+                              className={`w-full text-left px-[8px] py-[4px] rounded-[8px] text-[11px] transition-all duration-150 cursor-pointer
+                                ${pengadaanDoc === d.id
+                                  ? "text-white font-medium bg-white/10"
+                                  : "text-white/50 font-normal hover:text-white/80 hover:bg-white/5"}`}
+                            >
+                              {d.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Other pengadaan items */}
+                    {pengadaanItems.map((d) => (
+                      <button
+                        key={d.id}
+                        onClick={() => onPengadaanDoc(d.id)}
+                        className={`w-full text-left px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150 cursor-pointer
+                          ${pengadaanDoc === d.id
+                            ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
+                            : "text-white/60 font-normal hover:text-white/80 hover:bg-white/10"}`}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
               {/* Sub-docs for Pengujian */}
-              {isActive && item.id === "pengujian" && (
-                <div className="relative flex flex-col gap-[1px] pl-[11px]">
-                  <div className="absolute inset-0 border-l border-white/15 pointer-events-none" />
+              {item.id === "pengujian" && (
+                <div
+                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                    isCategoryOpen ? "grid-rows-[1fr] opacity-100 mt-0.5" : "grid-rows-[0fr] opacity-0"
+                  }`}
+                >
+                  <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[11px]">
+                    <div className="absolute inset-0 border-l border-white/15 pointer-events-none" />
 
-                  {/* Kontrak expandable */}
-                  <div className="flex flex-col gap-[1px]">
-                    <button
-                      onClick={() => {
-                        setPengujianKontrakExpanded((v) => !v);
-                        if (!pengujianKontrakExpanded) onPengujianDoc("kontrak-list-500");
-                      }}
-                      className={`w-full flex items-center justify-between px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150
-                        ${pengujianDoc.startsWith("kontrak-")
-                          ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
-                          : "text-white/70 font-normal hover:text-white hover:bg-white/10"}`}
-                    >
-                      <span>Kontrak</span>
-                      <svg fill="none" height="10" viewBox="0 0 10 10" width="10" className={`shrink-0 transition-transform duration-200 ${pengujianKontrakExpanded ? "rotate-90" : ""}`}>
-                        <path d="M4 2L7 5L4 8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
-                      </svg>
-                    </button>
-                    {pengujianKontrakExpanded && (
-                      <div className="relative flex flex-col gap-[1px] pl-[10px]">
-                        <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
-                        {pengujianKontrakItems.map((d) => (
-                          <button
-                            key={d.id}
-                            onClick={() => onPengujianDoc(d.id)}
-                            className={`w-full text-left px-[8px] py-[4px] rounded-[8px] text-[11px] transition-all duration-150
-                              ${pengujianDoc === d.id
-                                ? "text-white font-medium bg-white/10"
-                                : "text-white/50 font-normal hover:text-white/80 hover:bg-white/5"}`}
-                          >
-                            {d.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                    {/* Kontrak expandable */}
+                    <div className="flex flex-col gap-[1px]">
+                      <button
+                        onClick={() => {
+                          setPengujianKontrakExpanded((v) => !v);
+                          if (!pengujianKontrakExpanded) onPengujianDoc("kontrak-list-500");
+                        }}
+                        className={`w-full flex items-center justify-between px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150 cursor-pointer
+                          ${pengujianDoc.startsWith("kontrak-")
+                            ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
+                            : "text-white/70 font-normal hover:text-white hover:bg-white/10"}`}
+                      >
+                        <span>Kontrak</span>
+                        <svg fill="none" height="10" viewBox="0 0 10 10" width="10" className={`shrink-0 transition-transform duration-300 ${pengujianKontrakExpanded ? "rotate-90" : "rotate-0"}`}>
+                          <path d="M4 2L7 5L4 8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
+                        </svg>
+                      </button>
 
-                  {/* Request Pengujian expandable */}
-                  <div className="flex flex-col gap-[1px]">
-                    <button
-                      onClick={() => {
-                        setPengujianRequestExpanded((v) => !v);
-                        if (!pengujianRequestExpanded) onPengujianDoc("request-list-request");
-                      }}
-                      className={`w-full flex items-center justify-between px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150
-                        ${pengujianDoc.startsWith("request-")
-                          ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
-                          : "text-white/70 font-normal hover:text-white hover:bg-white/10"}`}
-                    >
-                      <span>Request Pengujian</span>
-                      <svg fill="none" height="10" viewBox="0 0 10 10" width="10" className={`shrink-0 transition-transform duration-200 ${pengujianRequestExpanded ? "rotate-90" : ""}`}>
-                        <path d="M4 2L7 5L4 8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
-                      </svg>
-                    </button>
-                    {pengujianRequestExpanded && (
-                      <div className="relative flex flex-col gap-[1px] pl-[10px]">
-                        <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
-                        {pengujianRequestItems.map((d) => (
-                          <button
-                            key={d.id}
-                            onClick={() => onPengujianDoc(d.id)}
-                            className={`w-full text-left px-[8px] py-[4px] rounded-[8px] text-[11px] transition-all duration-150
-                              ${pengujianDoc === d.id
-                                ? "text-white font-medium bg-white/10"
-                                : "text-white/50 font-normal hover:text-white/80 hover:bg-white/5"}`}
-                          >
-                            {d.label}
-                          </button>
-                        ))}
+                      <div
+                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                          pengujianKontrakExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                        }`}
+                      >
+                        <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[10px]">
+                          <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
+                          {pengujianKontrakItems.map((d) => (
+                            <button
+                              key={d.id}
+                              onClick={() => onPengujianDoc(d.id)}
+                              className={`w-full text-left px-[8px] py-[4px] rounded-[8px] text-[11px] transition-all duration-150 cursor-pointer
+                                ${pengujianDoc === d.id
+                                  ? "text-white font-medium bg-white/10"
+                                  : "text-white/50 font-normal hover:text-white/80 hover:bg-white/5"}`}
+                            >
+                              {d.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    )}
+                    </div>
+
+                    {/* Request Pengujian expandable */}
+                    <div className="flex flex-col gap-[1px]">
+                      <button
+                        onClick={() => {
+                          setPengujianRequestExpanded((v) => !v);
+                          if (!pengujianRequestExpanded) onPengujianDoc("request-list-request");
+                        }}
+                        className={`w-full flex items-center justify-between px-[8px] py-[5px] rounded-[8px] text-[11.5px] transition-all duration-150 cursor-pointer
+                          ${pengujianDoc.startsWith("request-")
+                            ? "bg-gradient-to-r from-[rgba(28,26,92,0.9)] to-transparent text-white font-medium"
+                            : "text-white/70 font-normal hover:text-white hover:bg-white/10"}`}
+                      >
+                        <span>Request Pengujian</span>
+                        <svg fill="none" height="10" viewBox="0 0 10 10" width="10" className={`shrink-0 transition-transform duration-300 ${pengujianRequestExpanded ? "rotate-90" : "rotate-0"}`}>
+                          <path d="M4 2L7 5L4 8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
+                        </svg>
+                      </button>
+
+                      <div
+                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                          pengujianRequestExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                        }`}
+                      >
+                        <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[10px]">
+                          <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
+                          {pengujianRequestItems.map((d) => (
+                            <button
+                              key={d.id}
+                              onClick={() => onPengujianDoc(d.id)}
+                              className={`w-full text-left px-[8px] py-[4px] rounded-[8px] text-[11px] transition-all duration-150 cursor-pointer
+                                ${pengujianDoc === d.id
+                                  ? "text-white font-medium bg-white/10"
+                                  : "text-white/50 font-normal hover:text-white/80 hover:bg-white/5"}`}
+                            >
+                              {d.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Sub-docs for Pembayaran matching user Figma screenshot */}
-              {isActive && item.id === "pembayaran" && (
-                <div className="relative flex flex-col gap-[8px] pl-[12px] pt-[4px]">
-                  {/* Payment Approve Group */}
-                  <div className="flex flex-col gap-[3px]">
-                    <span className="text-white/70 text-[11.5px] font-medium tracking-[0.2px]">Payment Approve</span>
-                    <div className="relative flex flex-col gap-[2px] pl-[10px]">
-                      <div className="absolute inset-0 border-l border-white/30 pointer-events-none" />
-                      {[
-                        { id: "pembayaran-outsource", label: "Outsource" },
-                        { id: "pembayaran-non-outsource", label: "Non-Outsource" },
-                        { id: "pembayaran-umd", label: "UMD" },
-                      ].map((d) => (
-                        <button
-                          key={d.id}
-                          onClick={() => onPembayaranDoc(d.id as any)}
-                          className={`w-full text-left px-[6px] py-[3px] rounded-[4px] text-[11px] transition-all duration-150 ${pembayaranDoc === d.id ? "text-white font-semibold bg-white/10" : "text-white/50 font-normal hover:text-white hover:bg-white/5"}`}
-                        >
-                          {d.label}
-                        </button>
-                      ))}
+              {/* Sub-docs for Pembayaran */}
+              {item.id === "pembayaran" && (
+                <div
+                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                    isCategoryOpen ? "grid-rows-[1fr] opacity-100 mt-0.5" : "grid-rows-[0fr] opacity-0"
+                  }`}
+                >
+                  <div className="overflow-hidden relative flex flex-col gap-[8px] pl-[12px] pt-[4px]">
+                    {/* Payment Approve Group */}
+                    <div className="flex flex-col gap-[3px]">
+                      <span className="text-white/70 text-[11.5px] font-medium tracking-[0.2px]">Payment Approve</span>
+                      <div className="relative flex flex-col gap-[2px] pl-[10px]">
+                        <div className="absolute inset-0 border-l border-white/30 pointer-events-none" />
+                        {[
+                          { id: "pembayaran-outsource", label: "Outsource" },
+                          { id: "pembayaran-non-outsource", label: "Non-Outsource" },
+                          { id: "pembayaran-umd", label: "UMD" },
+                        ].map((d) => (
+                          <button
+                            key={d.id}
+                            onClick={() => onPembayaranDoc(d.id as any)}
+                            className={`w-full text-left px-[6px] py-[3px] rounded-[4px] text-[11px] transition-all duration-150 cursor-pointer ${pembayaranDoc === d.id ? "text-white font-semibold bg-white/10" : "text-white/50 font-normal hover:text-white hover:bg-white/5"}`}
+                          >
+                            {d.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Reports Group */}
-                  <div className="flex flex-col gap-[3px]">
-                    <span className="text-white/70 text-[11.5px] font-medium tracking-[0.2px]">Reports</span>
-                    <div className="relative flex flex-col gap-[2px] pl-[10px]">
-                      <div className="absolute inset-0 border-l border-white/30 pointer-events-none" />
-                      {[
-                        { id: "pembayaran-daily-reports", label: "Daily Reports" },
-                        { id: "pembayaran-weekly-reports", label: "Weekly Reports" },
-                      ].map((d) => (
-                        <button
-                          key={d.id}
-                          onClick={() => onPembayaranDoc(d.id as any)}
-                          className={`w-full text-left px-[6px] py-[3px] rounded-[4px] text-[11px] transition-all duration-150 ${pembayaranDoc === d.id ? "text-white font-semibold bg-white/10" : "text-white/50 font-normal hover:text-white hover:bg-white/5"}`}
-                        >
-                          {d.label}
-                        </button>
-                      ))}
+                    {/* Reports Group */}
+                    <div className="flex flex-col gap-[3px]">
+                      <span className="text-white/70 text-[11.5px] font-medium tracking-[0.2px]">Reports</span>
+                      <div className="relative flex flex-col gap-[2px] pl-[10px]">
+                        <div className="absolute inset-0 border-l border-white/30 pointer-events-none" />
+                        {[
+                          { id: "pembayaran-daily-reports", label: "Daily Reports" },
+                          { id: "pembayaran-weekly-reports", label: "Weekly Reports" },
+                        ].map((d) => (
+                          <button
+                            key={d.id}
+                            onClick={() => onPembayaranDoc(d.id as any)}
+                            className={`w-full text-left px-[6px] py-[3px] rounded-[4px] text-[11px] transition-all duration-150 cursor-pointer ${pembayaranDoc === d.id ? "text-white font-semibold bg-white/10" : "text-white/50 font-normal hover:text-white hover:bg-white/5"}`}
+                          >
+                            {d.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
