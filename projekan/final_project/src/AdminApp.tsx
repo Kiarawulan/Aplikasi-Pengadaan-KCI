@@ -5805,6 +5805,20 @@ function DetailUserModal({ userId, onClose }: { userId: number; onClose: () => v
   );
 }
 
+function AccessDeniedMessage() {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gray-50 text-center min-h-[400px]">
+      <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-600 mb-4 font-bold text-2xl shadow-inner">
+        🚫
+      </div>
+      <h2 className="text-2xl font-bold text-gray-800 mb-2">Akses Ditolak</h2>
+      <p className="text-sm text-gray-600 max-w-md leading-relaxed">
+        Anda tidak memiliki izin (permission) untuk mengakses modul ini. Hubungi Super Administrator jika Anda memerlukan akses.
+      </p>
+    </div>
+  );
+}
+
 // ─── Root App ──────────────────────────────────────────────────────────────────
 export function AdminApp() {
   const { hasPermission, currentRole } = useAuth();
@@ -5890,26 +5904,26 @@ export function AdminApp() {
 
       {/* Main content */}
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
-        {page === "dashboard" && <AdminDashboardScreen />}
-        {page === "manajemen-user" && <UserManagementScreen />}
-        {page === "manajemen-role" && <RoleManagementScreen />}
-        {page === "tambah-role" && (
+        {page === "dashboard" && (hasPermission("dashboard", "viewer") ? <AdminDashboardScreen /> : <AccessDeniedMessage />)}
+        {page === "manajemen-user" && (hasPermission("userManagement", "viewer") ? <UserManagementScreen /> : <AccessDeniedMessage />)}
+        {page === "manajemen-role" && (hasPermission("roleManagement", "viewer") ? <RoleManagementScreen /> : <AccessDeniedMessage />)}
+        {page === "tambah-role" && (hasPermission("roleManagement", "editor") ? (
           <TambahRolePage onBack={() => handleNavigate("manajemen-role")} />
-        )}
-        {page === "template-dokumen" && <TemplateDokumenAdminScreen />}
-        {page === "master-data" && <MasterDataScreen />}
-        {page === "verifikasi" && verifCategory === "pengajuan-dana" && (
+        ) : <AccessDeniedMessage />)}
+        {page === "template-dokumen" && (hasPermission("templateDokumen", "viewer") ? <TemplateDokumenAdminScreen /> : <AccessDeniedMessage />)}
+        {page === "master-data" && (hasPermission("masterData", "viewer") ? <MasterDataScreen /> : <AccessDeniedMessage />)}
+        {page === "verifikasi" && verifCategory === "pengajuan-dana" && (hasPermission("pengajuanDana", "viewer") ? (
           <VerifikasiPage category={verifCategory} doc={verifDoc} />
-        )}
-        {page === "verifikasi" && verifCategory === "pengadaan" && (
+        ) : <AccessDeniedMessage />)}
+        {page === "verifikasi" && verifCategory === "pengadaan" && (hasPermission("pengadaan", "viewer") ? (
           <PengadaanPage subDoc={pengadaanDoc} />
-        )}
-        {page === "verifikasi" && verifCategory === "pengujian" && (
+        ) : <AccessDeniedMessage />)}
+        {page === "verifikasi" && verifCategory === "pengujian" && (hasPermission("pengujian", "viewer") ? (
           <PengujianPage subDoc={pengujianDoc} />
-        )}
-        {page === "verifikasi" && verifCategory === "pembayaran" && (
+        ) : <AccessDeniedMessage />)}
+        {page === "verifikasi" && verifCategory === "pembayaran" && (hasPermission("pembayaran", "viewer") ? (
           <PembayaranPage subDoc={pembayaranDoc} />
-        )}
+        ) : <AccessDeniedMessage />)}
       </main>
 
       {/* Modals */}

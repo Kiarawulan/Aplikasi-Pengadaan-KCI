@@ -26,6 +26,11 @@ class EnsureModulePermission
     {
         if (! $user || ! $user->is_active) return false;
 
+        // Superadmin bypass
+        if ($user->email === 'admin@sipro.com' || $user->role_id === 'role-admin' || in_array($user->role?->name, ['Super Admin', 'Admin Full Access'], true)) {
+            return true;
+        }
+
         $level = $user->loadMissing('role.permissions')->role?->permissions
             ->firstWhere('module', $module)?->access_level;
 
