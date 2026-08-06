@@ -37,11 +37,7 @@ export const NppDetailView: React.FC<NppDetailViewProps> = ({
   ];
 
   // Authentic NPP document attachments
-  const files: DetailDocumentFile[] = [
-    { label: "Lampiran Dokumen PR", fileName: item?.filePr || "PR-DOC-2024-001.pdf", size: "1.2 MB", isMandatory: true, status: "Selesai" },
-    { label: "Lampiran Dokumen RAB", fileName: item?.fileRab || "RAB-DOC-2024-001.pdf", size: "2.5 MB", isMandatory: true, status: "Selesai" },
-    { label: "Lampiran Dokumen KAK / MI", fileName: item?.fileMi || "DOC-MI-2024-001.pdf", size: "1.8 MB", isMandatory: true, status: "Selesai" },
-  ];
+  const files: DetailDocumentFile[] = [];
 
   return (
     <DetailDocumentView
@@ -50,6 +46,7 @@ export const NppDetailView: React.FC<NppDetailViewProps> = ({
       status={item?.status || "Submitted"}
       infoFields={infoFields}
       files={files}
+      pengadaanId={item?.pengadaan_id || item?.pengadaanId || item?.id}
       onBack={onBack}
       onApprove={onApprove}
       onRevisi={onRevisi}

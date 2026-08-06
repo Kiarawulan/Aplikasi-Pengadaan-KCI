@@ -51,15 +51,8 @@ const INITIAL_CONTRACTS = [
   { id: "CTR-002", paket: "Jasa Pemeliharaan AC Depo Bukit Duri", nilai: "Rp 120.000.000", dept: "Logistik", pbj: "Non-Sarana", performanceBond: "Verified", status: "Drafting", date: "2024-03-12", startDate: "2024-03-15", endDate: "2024-12-31", totalHari: "291", hariLibur: "40", uncontrollDays: "0", totalHariKerja: "251" },
 ];
 
-const INITIAL_JAMLAK = [
-  { id: "JAM-001", judul: "Pengadaan Server Data Center", tglMulai: "2024-03-01", tglSelesai: "2024-09-01", keuangan: "Ya", tglTerima: "2024-03-05", status: "aktif", bank: "Bank BNI", noGaransi: "BG-99120", nilaiJaminan: "Rp 40.000.000" },
-  { id: "JAM-002", judul: "Alat Berat Crane Depo Depok", tglMulai: "2024-03-15", tglSelesai: "2024-12-15", keuangan: "Ya", tglTerima: "2024-03-18", status: "kadaluarsa", bank: "Bank Mandiri", noGaransi: "BG-88121", nilaiJaminan: "Rp 105.000.000" },
-];
-
-const INITIAL_VENDORS = [
-  { code: "VND-001", name: "PT Sparepart Nusantara", street: "Jl. Industri Raya 12", country: "Indonesia", city: "Jakarta", currency: "IDR", accountGroup: "Vendor Lokal", termOfPayment: "30 Hari" },
-  { code: "VND-002", name: "PT Hawa Dingin Technic", street: "Jl. Serpong Jaya 88", country: "Indonesia", city: "Tangerang", currency: "IDR", accountGroup: "Vendor Lokal", termOfPayment: "30 Hari" },
-];
+const INITIAL_JAMLAK: any[] = [];
+const INITIAL_VENDORS: any[] = [];
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {

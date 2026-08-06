@@ -50,6 +50,7 @@ export const RupDetailView: React.FC<RupDetailViewProps> = ({
         status={item?.status || "Submitted Timeline"}
         infoFields={infoFields}
         files={[]}
+        pengadaanId={item?.pengadaan_id || item?.pengadaanId || item?.id}
         onBack={onBack}
         onApprove={onApprove}
         onRevisi={onRevisi}

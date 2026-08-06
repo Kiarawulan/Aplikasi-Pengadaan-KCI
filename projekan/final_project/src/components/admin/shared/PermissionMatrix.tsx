@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { RolePermissions, AccessLevel } from "../../types";
+import type { RolePermissions, AccessLevel } from "@/types";
 
 export type SubPerm = {
   id: string;

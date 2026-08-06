@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Check, Edit3, X, FileText, Download } from 'lucide-react';
+import { api } from '@/services/api';
 
 export interface DetailDocumentField {
   label: string;
@@ -13,6 +14,7 @@ export interface DetailDocumentFile {
   size?: string;
   isMandatory?: boolean;
   status?: 'Selesai' | 'Belum Upload' | string;
+  documentId?: string | number;
 }
 
 export interface DetailDocumentTracking {
@@ -34,6 +36,7 @@ export interface DetailDocumentViewProps {
   onReject?: () => void;
   showActions?: boolean;
   extraTabs?: React.ReactNode;
+  pengadaanId?: string;
 }
 
 export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
@@ -50,15 +53,49 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
   onReject,
   showActions = true,
   extraTabs,
+  pengadaanId,
 }) => {
   const [showRevisionBox, setShowRevisionBox] = useState(false);
   const [revisionNote, setRevisionNote] = useState("");
 
-  const defaultTracking: DetailDocumentTracking[] = tracking.length > 0 ? tracking : [
-    { action: "USER MELAKUKAN UPDATE PERMINTAAN NPD", timestamp: "13-JAN-2024 14:00:41" },
-    { action: "USER MELAKUKAN UPDATE PERMINTAAN NPD", timestamp: "12-JAN-2024 16:00:18" },
-    { action: "USER MELAKUKAN PEMBUATAN PERMINTAAN NPD", timestamp: "12-JAN-2024 10:24:52" },
-  ];
+  const actualTracking: DetailDocumentTracking[] = tracking;
+  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!pengadaanId) {
+      setUploadedFiles([]);
+      return;
+    }
+    api.get(`/pengadaan/${pengadaanId}/documents`)
+      .then((response) => setUploadedFiles(Array.isArray(response.data?.data) ? response.data.data : []))
+      .catch((error) => {
+        console.error('Gagal memuat berkas pendukung:', error);
+        setUploadedFiles([]);
+      });
+  }, [pengadaanId]);
+
+  const actualFiles: DetailDocumentFile[] = pengadaanId
+    ? uploadedFiles.map((file) => ({
+        label: String(file.stage || 'Dokumen Pendukung').replace(/[-_]/g, ' '),
+        fileName: file.original_name,
+        size: file.size ? `${Math.max(1, Math.round(Number(file.size) / 1024))} KB` : undefined,
+        status: 'Selesai',
+        documentId: file.id,
+      }))
+    : files;
+
+  const downloadUploadedFile = async (file: DetailDocumentFile) => {
+    if (!file.documentId) return;
+    const response = await api.get(`/documents/${file.documentId}/download`, { responseType: 'blob' });
+    const url = URL.createObjectURL(response.data);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = file.fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="w-full bg-[#f8fafc] text-gray-800 font-sans p-4">
@@ -182,7 +219,7 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
       </div>
 
       {/* ─── SECTION 2: Berkas Pendukung ─── */}
-      {files && files.length > 0 && (
+      {actualFiles.length > 0 && (
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-[#64748b] text-[12px] font-bold">Berkas Pendukung</h3>
@@ -191,7 +228,7 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
 
           <div className="bg-white rounded-lg border border-gray-200 p-3.5 shadow-2xs space-y-2.5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-              {files.map((file, idx) => {
+              {actualFiles.map((file, idx) => {
                 const isDone = file.status === 'Selesai' || !file.status;
                 return (
                   <div
@@ -220,18 +257,8 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
                           </span>
                           <button
                             type="button"
-                            onClick={() => {
-                              const content = `PT KERETA COMMUTER INDONESIA (KCI)\nDOKUMEN PENGADAAN OFFICIAL\n=========================================\nNama Berkas: ${file.fileName}\nWaktu Unduh: ${new Date().toLocaleString("id-ID")}\n=========================================\nBerkas dokumen ini telah tersimpan dalam sistem pengadaan KCI.`;
-                              const blob = new Blob([content], { type: "application/octet-stream;charset=utf-8" });
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement("a");
-                              a.href = url;
-                              a.download = file.fileName;
-                              document.body.appendChild(a);
-                              a.click();
-                              document.body.removeChild(a);
-                              URL.revokeObjectURL(url);
-                            }}
+                            onClick={() => downloadUploadedFile(file).catch(() => alert('Gagal mengunduh dokumen.'))}
+                            disabled={!file.documentId && !!pengadaanId}
                             className="px-2.5 py-1 bg-[#252271] hover:bg-[#1a1753] text-white text-[10px] font-bold rounded-md flex items-center gap-1 transition-colors cursor-pointer"
                           >
                             <Download size={10} />
@@ -253,10 +280,10 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
       )}
 
       {/* ─── SECTION 3: Riwayat Tracking Permohonan ─── */}
-      <div>
+      {actualTracking.length > 0 && <div>
         <h3 className="text-[#64748b] text-[12px] font-bold mb-2">Riwayat Tracking Permohonan</h3>
         <div className="bg-white rounded-lg border border-gray-200 p-3.5 shadow-2xs space-y-2">
-          {defaultTracking.map((track, idx) => (
+          {actualTracking.map((track, idx) => (
             <div
               key={idx}
               className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-3 py-2 flex items-center gap-2.5"
@@ -273,7 +300,7 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
             </div>
           ))}
         </div>
-      </div>
+      </div>}
 
     </div>
   );

@@ -64,16 +64,7 @@ export const PengujianDetailView: React.FC<PengujianDetailViewProps> = ({
   ];
 
   // Authentic document files from the Pengujian screenshot
-  const files: DetailDocumentFile[] = [
-    { label: "Surat Permohonan Pengujian", fileName: item?.suratPermohonanPengujian || "FILE-DOKUMEN-PERMOHONAN_23-10-27-08-51-34.pdf", size: "2.4 MB", isMandatory: true, status: "Selesai" },
-    { label: "Dokumen KAK", fileName: "Dokumen_KAK_CCTV_Analytics.pdf", size: "1.8 MB", isMandatory: true, status: "Selesai" },
-    { label: "Dokumen Kontrak", fileName: "Dokumen_Kontrak_CCTV_Analytics.pdf", size: "3.2 MB", isMandatory: true, status: "Selesai" },
-    { label: "Dokumen MI", fileName: "Dokumen_MI_NO_IP003.pdf", size: "1.1 MB", isMandatory: true, status: "Selesai" },
-    { label: "File Justifikasi Penunjukan", fileName: item?.fileJustifikasi || "-", status: item?.fileJustifikasi ? "Selesai" : "Belum Upload" },
-    { label: "Dokumen Amandemen", fileName: item?.dokumenAmandemen || "-", status: item?.dokumenAmandemen ? "Selesai" : "Belum Upload" },
-    { label: "Dokumen BAHP", fileName: item?.dokumenBahp || bahpFile || "-", status: (item?.dokumenBahp || bahpFile) ? "Selesai" : "Belum Upload" },
-    { label: "Dokumen BAST", fileName: item?.dokumenBast || "-", status: item?.dokumenBast ? "Selesai" : "Belum Upload" },
-  ];
+  const files: DetailDocumentFile[] = [];
 
   const tabsNav = (
     <div className="flex flex-col gap-3 border-b border-gray-200 pb-3">
@@ -172,6 +163,7 @@ export const PengujianDetailView: React.FC<PengujianDetailViewProps> = ({
       status={item?.statusPengujian || item?.status || "Request Pengujian"}
       infoFields={infoFields}
       files={files}
+      pengadaanId={item?.pengadaan_id || item?.pengadaanId || item?.id}
       extraTabs={tabsNav}
       onBack={onBack}
       onApprove={onApprove}

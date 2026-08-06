@@ -13,12 +13,8 @@ type ScreenProps = { activeSubItem: string; };
 // Data will be fetched from API
 const INITIAL_PAYMENTS: any[] = [];
 
-const INITIAL_REPORTS = [
-  { id: "REP-001", nama: "Laporan Harian Pembayaran Outsource Maret W4", tgl: "2024-03-24", file: "laporan_harian_outsource_24_03.xlsx", tipe: "daily", ket: "Realisasi pembayaran outsource aman, 3 SP3 terbayar" },
-  { id: "REP-002", nama: "Laporan Mingguan Rekap UMD Maret W3", tgl: "2024-03-22", file: "laporan_mingguan_umd_w3.xlsx", tipe: "weekly", ket: "Ada 2 UMD pending approval dari VP Keuangan" },
-  { id: "REP-003", nama: "Laporan Harian Non-Outsource Vendor IT", tgl: "2024-03-25", file: "laporan_harian_non_outsource_it.xlsx", tipe: "daily", ket: "Verified ready, menunggu TTD Direksi" },
-  { id: "REP-004", nama: "Laporan Mingguan Rekap Seluruh Pembayaran W4", tgl: "2024-03-29", file: "laporan_mingguan_all_w4.xlsx", tipe: "weekly", ket: "Total pembayaran minggu ini: Rp 523.000.000" },
-];
+// Laporan hanya boleh berisi data yang dibuat pengguna/admin, bukan contoh UI.
+const INITIAL_REPORTS: any[] = [];
 
 const SYARAT_DOCS = [
   "Surat permohonan pembayaran",
@@ -52,8 +48,6 @@ function FinanceVerifModal({
   onClose: () => void;
   onAction?: (type: "approve" | "revisi" | "reject", item: any) => void;
 }) {
-  const [statusDates, setStatusDates] = useState({ cfff: "", cff: "", cf: "", siapBayar: "", lunas: "" });
-
   const docsList = tipe === "non-outsource"
     ? SYARAT_DOCS.filter(d => d !== "SPP PPT 3 Bulan")
     : SYARAT_DOCS;
@@ -70,15 +64,6 @@ function FinanceVerifModal({
     tujuanBank: "Bank BNI", businessArea: "", batasBayar: "",
   });
   const [requestNo] = useState(`REQ-${Math.floor(Math.random() * 9000 + 1000)}`);
-  const [updatedStatuses, setUpdatedStatuses] = useState<Record<string, boolean>>({});
-
-  const STEPS = [
-    { key: "cfff", label: "APPROVAL CFFF", note: "< Rp 200 juta" },
-    { key: "cff", label: "APPROVAL CFF", note: "Rp 200-500 juta" },
-    { key: "cf", label: "APPROVAL CF", note: "> Rp 500 juta" },
-    { key: "siapBayar", label: "SIAP BAYAR", note: "" },
-    { key: "lunas", label: "LUNAS", note: "" },
-  ];
 
   const toggleSyarat = (i: number, field: "syarat" | "ada") => {
     setSyarat(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: !s[field] } : s));
@@ -103,31 +88,6 @@ function FinanceVerifModal({
         </div>
 
         <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1">
-          {/* Status Steps */}
-          <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">STATUS PROSES PEMBAYARAN</p>
-            <div className="grid grid-cols-5 gap-2">
-              {STEPS.map(s => (
-                <div key={s.key} className="border border-gray-200 rounded-xl p-3 flex flex-col items-center gap-2 bg-gray-50/50">
-                  <p className="text-[10px] font-bold text-gray-700 text-center">{s.label}</p>
-                  {s.note && <p className="text-[9px] text-gray-400 text-center">{s.note}</p>}
-                  <input type="date"
-                    value={(statusDates as any)[s.key]}
-                    onChange={e => setStatusDates(prev => ({ ...prev, [s.key]: e.target.value }))}
-                    className="border border-gray-200 rounded-lg px-2 py-1 text-[10.5px] w-full text-center bg-white focus:outline-none focus:ring-1 focus:ring-[#252271]/30" />
-                  <button
-                    onClick={() => setUpdatedStatuses(prev => ({ ...prev, [s.key]: true }))}
-                    className={`text-[10px] font-semibold px-3 py-1 rounded-lg w-full transition-colors ${updatedStatuses[s.key] ? "bg-green-600 text-white" : "bg-[#252271] text-white hover:bg-[#1a1753]"}`}>
-                    {updatedStatuses[s.key] ? "Updated" : "Update"}
-                  </button>
-                </div>
-              ))}
-            </div>
-            <p className="text-[10.5px] text-blue-800 bg-blue-50/70 border border-blue-100 rounded-lg p-2.5 mt-3">
-              Persetujuan sirkulir: CFFF (&lt; Rp 200 juta) &middot; CFF (Rp 200-500 juta) &middot; CF (&gt; Rp 500 juta). Setelah sirkulir disetujui &rarr; status &quot;Siap Bayar&quot; &rarr; setelah dibayar &rarr; status &quot;Lunas&quot;.
-            </p>
-          </div>
-
           {/* Finance Verification form */}
           <div>
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
@@ -390,12 +350,29 @@ function UmdSubmissionModal({
   onAction?: (type: "approve" | "revisi" | "reject", item: any) => void;
 }) {
   const umdData = item.formData?.umdData || item.formData?.["buat-pd"] || item.formData || {};
+  const pengadaanId = item.pengadaan_id || item.pengadaanId || item.id;
+  const [uploadedDocuments, setUploadedDocuments] = useState<any[]>([]);
 
-  const UMD_SYARAT = umdData.syaratDocs || [
-    { doc: "G64", syarat: true, ada: true, ket: "Lengkap dan terverifikasi", file: umdData.fileG64 || "g64_dokumen.pdf" },
-    { doc: "Surat Pernyataan", syarat: true, ada: true, ket: "Sudah di TTD basah", file: umdData.fileSuratPernyataanUmd || "surat_pernyataan_umd.pdf" },
-    { doc: "Surat Pernyataan Keabsahan Dokumen", syarat: true, ada: true, ket: "Keabsahan sah", file: umdData.fileKeabsahan || "keabsahan_dokumen.pdf" },
-  ];
+  useEffect(() => {
+    if (!pengadaanId) return;
+    api.get(`/pengadaan/${pengadaanId}/documents`)
+      .then((response) => setUploadedDocuments(Array.isArray(response.data?.data) ? response.data.data : []))
+      .catch(() => setUploadedDocuments([]));
+  }, [pengadaanId]);
+
+  const downloadDocument = async (uploadedDocument: any) => {
+    const response = await api.get(`/documents/${uploadedDocument.id}/download`, { responseType: 'blob' });
+    const url = URL.createObjectURL(response.data);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = uploadedDocument.original_name;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const UMD_SYARAT = Array.isArray(umdData.syaratDocs) ? umdData.syaratDocs : [];
 
   const ReadOnlyField = ({ label, value }: { label: string; value: string }) => (
     <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
@@ -408,11 +385,15 @@ function UmdSubmissionModal({
     <div className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2.5">
       <div>
         <p className="text-[10.5px] font-semibold text-gray-500">{label}</p>
-        <p className="text-[12px] font-bold text-gray-800 mt-0.5">{fileName || "nama_file.pdf"}</p>
+        <p className="text-[12px] font-bold text-gray-800 mt-0.5">{fileName || "Belum diunggah"}</p>
       </div>
       <button
         type="button"
-        onClick={() => alert(`Membuka file ${fileName || "nama_file.pdf"}`)}
+        disabled={!fileName}
+        onClick={() => {
+          const uploaded = uploadedDocuments.find((entry) => entry.original_name === fileName);
+          if (uploaded) downloadDocument(uploaded).catch(() => alert('Gagal mengunduh dokumen.'));
+        }}
         className="flex items-center gap-1 bg-[#252271] text-white hover:bg-[#1a1753] px-3 py-1.5 rounded-lg text-[11px] font-semibold shadow-xs"
       >
         <Download size={12} /> View File
@@ -445,6 +426,24 @@ function UmdSubmissionModal({
         </div>
 
         <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1">
+          <div>
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">BERKAS PENDUKUNG HASIL UPLOAD USER</p>
+            {uploadedDocuments.length === 0 ? (
+              <p className="text-[12px] text-gray-500 bg-gray-50 border border-gray-200 rounded-xl p-4">Belum ada berkas yang diunggah user.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {uploadedDocuments.map((document) => (
+                  <div key={document.id} className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-[10.5px] font-semibold text-gray-500 capitalize">{String(document.stage || 'Dokumen pendukung').replace(/[-_]/g, ' ')}</p>
+                      <p className="text-[12px] font-bold text-gray-800 truncate">{document.original_name}</p>
+                    </div>
+                    <button onClick={() => downloadDocument(document).catch(() => alert('Gagal mengunduh dokumen.'))} className="flex items-center gap-1 bg-[#252271] text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold"><Download size={12} /> Unduh</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           {/* Submission Form */}
           <div>
             <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">1. SUBMISSION FORM UMD</p>
@@ -523,12 +522,12 @@ function UmdSubmissionModal({
           <div>
             <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">4. DOKUMEN TUTUPAN HASIL ISIAN USER</p>
             <div className="grid grid-cols-2 gap-3 mb-3">
-              <FileDetailRow label="Dokumen G63 TTD Lengkap" fileName={umdData.fileG63 || "g63_ttd_lengkap.pdf"} />
-              <FileDetailRow label="Lembar G61" fileName={umdData.fileLembarG61 || "lembar_g61.pdf"} />
-              <FileDetailRow label="Ceklis Pertanggungjawaban" fileName={umdData.fileCeklis || "ceklis_pertanggungjawaban.pdf"} />
-              <FileDetailRow label="Surat Pernyataan Keaslian Dokumen" fileName={umdData.fileSuratPernyataan || umdData.fileSuratKeaslian || "surat_keaslian_dokumen.pdf"} />
-              <FileDetailRow label="Surat Kebenaran Barang/Jasa" fileName={umdData.fileSuratKebenaran || "surat_kebenaran_bj.pdf"} />
-              <FileDetailRow label="Nota / Kwitansi Pertanggungjawaban" fileName={umdData.fileNota || "nota_kwitansi.pdf"} />
+              <FileDetailRow label="Dokumen G63 TTD Lengkap" fileName={umdData.fileG63 || ""} />
+              <FileDetailRow label="Lembar G61" fileName={umdData.fileLembarG61 || ""} />
+              <FileDetailRow label="Ceklis Pertanggungjawaban" fileName={umdData.fileCeklis || ""} />
+              <FileDetailRow label="Surat Pernyataan Keaslian Dokumen" fileName={umdData.fileSuratPernyataan || umdData.fileSuratKeaslian || ""} />
+              <FileDetailRow label="Surat Kebenaran Barang/Jasa" fileName={umdData.fileSuratKebenaran || ""} />
+              <FileDetailRow label="Nota / Kwitansi Pertanggungjawaban" fileName={umdData.fileNota || ""} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <ReadOnlyField label="Nominal G61" value={umdData.nominalG61 || item.nominal || "—"} />
@@ -545,13 +544,13 @@ function UmdSubmissionModal({
               <ReadOnlyField label="Nominal Pajak" value={umdData.nominalPajak || "Rp 0"} />
               <ReadOnlyField label="Nominal Pengembalian" value={umdData.nominalPengembalian || "Rp 0"} />
             </div>
-            <FileDetailRow label="Upload Dokumen A9 Lengkap" fileName={umdData.fileA9 || "dokumen_a9_lengkap.pdf"} />
+            <FileDetailRow label="Upload Dokumen A9 Lengkap" fileName={umdData.fileA9 || ""} />
           </div>
 
           {/* Bukti Pengembalian */}
           <div>
             <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">6. BUKTI PENGEMBALIAN DANA USER</p>
-            <FileDetailRow label="Upload Bukti Transfer Pengembalian" fileName={umdData.fileBuktiTransfer || "bukti_transfer_pengembalian.pdf"} />
+            <FileDetailRow label="Upload Bukti Transfer Pengembalian" fileName={umdData.fileBuktiTransfer || ""} />
           </div>
         </div>
 

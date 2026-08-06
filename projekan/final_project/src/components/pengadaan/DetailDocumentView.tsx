@@ -55,11 +55,7 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
   const [revisionNote, setRevisionNote] = useState("");
   const isVerified = ["approved", "final", "closed", "sudah diverifikasi", "selesai"].includes(String(status).toLowerCase());
 
-  const defaultTracking: DetailDocumentTracking[] = tracking.length > 0 ? tracking : [
-    { action: "USER MELAKUKAN UPDATE PERMINTAAN NPD", timestamp: "13-JAN-2024 14:00:41" },
-    { action: "USER MELAKUKAN UPDATE PERMINTAAN NPD", timestamp: "12-JAN-2024 16:00:18" },
-    { action: "USER MELAKUKAN PEMBUATAN PERMINTAAN NPD", timestamp: "12-JAN-2024 10:24:52" },
-  ];
+  const actualTracking: DetailDocumentTracking[] = tracking;
 
   return (
     <div className="w-full bg-[#f8fafc] text-gray-800 font-sans min-h-screen p-6">
@@ -244,10 +240,10 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
       )}
 
       {/* ─── SECTION 3: Riwayat Tracking Permohonan ─── */}
-      <div>
+      {actualTracking.length > 0 && <div>
         <h3 className="text-[#64748b] text-[13px] font-bold mb-3">Riwayat Tracking Permohonan</h3>
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-2xs space-y-2.5">
-          {defaultTracking.map((track, idx) => (
+          {actualTracking.map((track, idx) => (
             <div
               key={idx}
               className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-4 py-3 flex items-center gap-3"
@@ -264,7 +260,7 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
             </div>
           ))}
         </div>
-      </div>
+      </div>}
 
     </div>
   );

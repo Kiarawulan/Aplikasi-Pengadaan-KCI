@@ -307,13 +307,8 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
               { label: "Nominal Konversi", value: showDetail.nominalKonversi },
               { label: "Tanggal Permohonan", value: showDetail.tglPr },
             ]}
-            files={[
-              { label: isParkDoc ? "Checklist PD" : "Checklist PR", fileName: `${isParkDoc ? "Checklist_PD" : "Checklist_PR"}_Signed.pdf`, size: "1.2 MB", isMandatory: true, status: "Selesai" },
-              { label: "Nota Permohonan Dana", fileName: "Nota_Permohonan_Dana.pdf", size: "2.5 MB", isMandatory: true, status: "Selesai" },
-              { label: "RAB", fileName: "RAB_Pengadaan_2024.xlsx", size: "350 KB", isMandatory: true, status: "Selesai" },
-              { label: "Justifikasi", fileName: "Surat_Justifikasi_KCI.pdf", size: "1.9 MB", isMandatory: true, status: "Selesai" },
-              { label: "MI Permohonan Release", fileName: "Memo_Internal_Rilis.pdf", size: "1.1 MB", isMandatory: true, status: "Selesai" },
-            ]}
+            files={[]}
+            pengadaanId={showDetail.id}
             onBack={() => setShowDetail(null)}
             onApprove={() => handleAction("approve", showDetail)}
             onRevisi={() => handleAction("revisi", showDetail)}

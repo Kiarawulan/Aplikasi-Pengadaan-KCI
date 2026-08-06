@@ -250,6 +250,7 @@ export const Sp3DetailView: React.FC<Sp3DetailViewProps> = ({
       status={infoData.status}
       infoFields={infoFields}
       files={files}
+      pengadaanId={item?.pengadaan_id || item?.pengadaanId || item?.id}
       extraTabs={tabsNav}
       onBack={onBack}
       onApprove={onApprove}

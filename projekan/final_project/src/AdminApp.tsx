@@ -1338,21 +1338,34 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
   );
   const [showRevisionBox, setShowRevisionBox] = useState(false);
   const [revisionNote, setRevisionNote] = useState("");
-  const [trackingList, setTrackingList] = useState([
-    { tanggal: "13-JAN-2026 14:00:41", keterangan: "USER MELAKUKAN UPDATE PERMINTAAN NPD" },
-    { tanggal: "13-JAN-2026 14:00:16", keterangan: "USER MELAKUKAN UPDATE PERMINTAAN NPD" },
-    { tanggal: "13-JAN-2026 10:28:53", keterangan: "USER MELAKUKAN PEMBUATAN PERMINTAAN NPD" },
-  ]);
 
-  const berkasItems = [
-    { status: "Selesai", tanggal: "13-JAN-2026 14:00:41", keterangan: "Checklist PD", file: "Checklist_PD_Signed.pdf", size: "1.2 MB", mandatory: true },
-    { status: "Selesai", tanggal: "13-JAN-2026 14:00:41", keterangan: "Nota Permohonan Dana", file: "Nota_Permohonan_Dana.pdf", size: "2.5 MB", mandatory: true },
-    { status: "Selesai", tanggal: "13-JAN-2026 14:00:41", keterangan: "RAB", file: "RAB_Pengadaan_2026.xlsx", size: "850 KB", mandatory: true },
-    { status: "Selesai", tanggal: "13-JAN-2026 14:00:41", keterangan: "Justifikasi", file: "Surat_Justifikasi_KCI.pdf", size: "1.8 MB", mandatory: true },
-    { status: "Selesai", tanggal: "13-JAN-2026 14:00:41", keterangan: "MI Permohonan Release", file: "Memo_Internal_Release.pdf", size: "1.1 MB", mandatory: true },
-    { status: "Belum Upload", tanggal: "-", keterangan: "Dasar Harga", file: "-", size: "-", mandatory: true },
-    { status: "Belum Upload", tanggal: "-", keterangan: "Dokumen Pendukung Lainnya", file: "-", size: "-", mandatory: false },
-  ];
+  const [berkasItems, setBerkasItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!row.noDok) return;
+    api.get(`/pengadaan/${row.noDok}/documents`)
+      .then((response) => setBerkasItems((response.data?.data || []).map((file: any) => ({
+        id: file.id,
+        status: "Selesai",
+        keterangan: String(file.stage || "Dokumen Pendukung").replace(/[-_]/g, " "),
+        file: file.original_name,
+        size: file.size ? `${Math.max(1, Math.round(Number(file.size) / 1024))} KB` : "",
+        mandatory: false,
+      }))))
+      .catch(() => setBerkasItems([]));
+  }, [row.noDok]);
+
+  const downloadBerkas = async (item: any) => {
+    const response = await api.get(`/documents/${item.id}/download`, { responseType: "blob" });
+    const url = URL.createObjectURL(response.data);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = item.file;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const handleVerifikasi = async () => {
     try {
@@ -1507,7 +1520,7 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
             <span className="text-[#64748b] text-[12px] font-medium">* Dokumen Wajib / Mandatory</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-[14px]">
+          {berkasItems.length === 0 ? <p className="text-[12px] text-slate-500">Belum ada berkas yang diunggah user.</p> : <div className="grid grid-cols-2 gap-[14px]">
             {berkasItems.map((item, idx) => (
               <div key={idx} className="bg-[#f8fafc] border border-[#e2e8f0] rounded-[14px] p-[14px] flex items-center justify-between">
                 <div className="flex items-center gap-[12px] min-w-0">
@@ -1529,7 +1542,7 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
                   </span>
                   {item.file !== "-" && (
                     <button
-                      onClick={() => alert(`Mengunduh berkas ${item.file}`)}
+                      onClick={() => downloadBerkas(item).catch(() => alert("Gagal mengunduh dokumen."))}
                       className="px-[10px] py-[4px] bg-[#252271] text-white text-[11px] font-semibold rounded-[6px] hover:brightness-125 transition-colors cursor-pointer"
                     >
                       Unduh
@@ -1538,24 +1551,9 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
                 </div>
               </div>
             ))}
-          </div>
+          </div>}
         </div>
 
-        {/* Card Layout: Tracking Timeline */}
-        <div className="bg-white rounded-[16px] border border-[#e5e7eb] p-[20px] shadow-sm">
-          <h3 className="text-[#252271] text-[15px] font-bold mb-[16px]">Riwayat Tracking Permohonan</h3>
-          <div className="space-y-[12px] relative pl-4 border-l-2 border-[#e2e8f0] ml-2">
-            {trackingList.map((tr, i) => (
-              <div key={i} className="relative group">
-                <div className="absolute -left-[21px] top-1 size-3 rounded-full bg-[#252271] border-2 border-white" />
-                <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-[10px] p-[12px]">
-                  <p className="text-[#252271] text-[12px] font-bold">{tr.keterangan}</p>
-                  <p className="text-[#64748b] text-[11px] mt-0.5">{tr.tanggal}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -2609,10 +2607,13 @@ function PengadaanSubDocPage({ title }: { title: string }) {
     }
   };
 
-  const curr = sampleData[title] || {
+  const configuredTable = sampleData[title] || {
     headers: ["No.", "ID Document", "Tanggal", "Keterangan", "Status"],
-    rows: [["1", `DOC-${title}-001`, "15-01-2024", `Data ${title} aktif`, <span className="px-[8px] py-[2px] bg-[#d1fae5] text-[#065f46] rounded-full text-[11px]">Aktif</span>]]
+    rows: []
   };
+  // Sub-modul ini belum mempunyai endpoint sumber data. Jangan tampilkan data
+  // contoh sebagai data operasional; tabel tetap kosong sampai API tersedia.
+  const curr = { ...configuredTable, rows: [] as (string | React.ReactNode)[][] };
 
   const cellText = (cell: string | React.ReactNode) => {
     if (typeof cell === "string") return cell;
@@ -5156,8 +5157,6 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
   const isUmd = breadcrumbFrom.toLowerCase().includes("umd");
   const isNonOutsource = breadcrumbFrom.toLowerCase().includes("non-outsource");
 
-  const [statusDates, setStatusDates] = useState({ cfff: "", cff: "", cf: "", siapBayar: "", lunas: "" });
-  const [updatedStatuses, setUpdatedStatuses] = useState<Record<string, boolean>>({});
 
   const SYARAT_LIST = isNonOutsource
     ? ["Surat permohonan pembayaran", "Invoice", "Kwitansi", "Faktur Pajak", "BAST", "BAHP", "GR", "BA Rekonsiliasi"]
@@ -5259,7 +5258,7 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
                 <div key={label} className="grid grid-cols-2 gap-3 items-center">
                   <label className="text-[11.5px] font-medium text-gray-700">{label} * <span className="text-[10px] text-gray-400 font-normal">(Pdf Maks. 20Mb)</span></label>
                   <div className="flex gap-2">
-                    <input type="text" defaultValue="nama_file.pdf" className="flex-1 border border-gray-200 rounded-lg px-3 py-1 text-[11.5px] bg-white" />
+                    <input type="text" value="" readOnly placeholder="Belum diunggah" className="flex-1 border border-gray-200 rounded-lg px-3 py-1 text-[11.5px] bg-white" />
                     <button onClick={() => alert("Membuka file")} className="px-3 py-1 border border-gray-200 rounded-lg text-[11.5px] font-semibold hover:bg-gray-50">View</button>
                   </div>
                 </div>
@@ -5283,7 +5282,7 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
             <div className="grid grid-cols-2 gap-3 items-center">
               <label className="text-[11.5px] font-medium text-gray-700">Upload Dokumen A9 Lengkap * <span className="text-[10px] text-gray-400 font-normal">(Pdf Maks. 20Mb)</span></label>
               <div className="flex gap-2">
-                <input type="text" defaultValue="nama_file.pdf" className="flex-1 border border-gray-200 rounded-lg px-3 py-1 text-[11.5px] bg-white" />
+                <input type="text" value="" readOnly placeholder="Belum diunggah" className="flex-1 border border-gray-200 rounded-lg px-3 py-1 text-[11.5px] bg-white" />
                 <button onClick={() => alert("Membuka file")} className="px-3 py-1 border border-gray-200 rounded-lg text-[11.5px] font-semibold hover:bg-gray-50">View</button>
               </div>
             </div>
@@ -5297,7 +5296,7 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
             <div className="p-4 bg-white grid grid-cols-2 gap-3 items-center">
               <label className="text-[11.5px] font-medium text-gray-700">Upload Bukti Transfer Pengembalian * <span className="text-[10px] text-gray-400 font-normal">(Pdf|Jpeg|Jpg|Png Maks. 20Mb)</span></label>
               <div className="flex gap-2">
-                <input type="text" defaultValue="nama_file.pdf" className="flex-1 border border-gray-200 rounded-lg px-3 py-1 text-[11.5px] bg-white" />
+                <input type="text" value="" readOnly placeholder="Belum diunggah" className="flex-1 border border-gray-200 rounded-lg px-3 py-1 text-[11.5px] bg-white" />
                 <button onClick={() => alert("Membuka file")} className="px-3 py-1 border border-gray-200 rounded-lg text-[11.5px] font-semibold hover:bg-gray-50">View</button>
               </div>
             </div>
@@ -5403,32 +5402,6 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
           <button onClick={onBack} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-[12px] font-semibold">
             ← Kembali
           </button>
-        </div>
-
-        {/* Status Steps */}
-        <div>
-          <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">STATUS PROSES PEMBAYARAN</p>
-          <div className="grid grid-cols-5 gap-2">
-            {[
-              { key: "cfff", label: "APPROVAL CFFF", note: "< Rp 200 juta" },
-              { key: "cff", label: "APPROVAL CFF", note: "Rp 200-500 juta" },
-              { key: "cf", label: "APPROVAL CF", note: "> Rp 500 juta" },
-              { key: "siapBayar", label: "SIAP BAYAR", note: "" },
-              { key: "lunas", label: "LUNAS", note: "" },
-            ].map(s => (
-              <div key={s.key} className="border border-gray-200 rounded-xl p-3 flex flex-col items-center gap-2 bg-gray-50/50">
-                <p className="text-[10px] font-bold text-gray-700 text-center">{s.label}</p>
-                {s.note && <p className="text-[9px] text-gray-400 text-center">{s.note}</p>}
-                <input type="date" value={(statusDates as any)[s.key]} onChange={e => setStatusDates(prev => ({ ...prev, [s.key]: e.target.value }))} className="border border-gray-200 rounded-lg px-2 py-1 text-[10.5px] w-full text-center bg-white" />
-                <button onClick={() => setUpdatedStatuses(prev => ({ ...prev, [s.key]: true }))} className={`text-[10px] font-semibold px-3 py-1 rounded-lg w-full transition-colors ${updatedStatuses[s.key] ? "bg-green-600 text-white" : "bg-[#252271] text-white hover:bg-[#1a1753]"}`}>
-                  {updatedStatuses[s.key] ? "Updated" : "Update"}
-                </button>
-              </div>
-            ))}
-          </div>
-          <p className="text-[10.5px] text-blue-800 bg-blue-50/70 border border-blue-100 rounded-lg p-2.5 mt-3">
-            Persetujuan sirkulir: CFFF (&lt; Rp 200 juta) &middot; CFF (Rp 200-500 juta) &middot; CF (&gt; Rp 500 juta). Setelah sirkulir disetujui &rarr; status &quot;Siap Bayar&quot; &rarr; setelah dibayar &rarr; status &quot;Lunas&quot;.
-          </p>
         </div>
 
         {/* Finance Verification Form */}
