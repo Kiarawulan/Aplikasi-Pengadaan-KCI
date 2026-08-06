@@ -5,40 +5,38 @@ import { api } from "@/services/api";
 type ProcessKind = "pbj" | "contract";
 
 const PBJ_STEPS = [
-  "Drafting RKS", "Calon Peserta Tender", "Aanwidjzing", "Pemasukan Dokumen",
-  "Pembukaan Dokumen", "Evaluasi Dokumen", "Klarifikasi & Negosiasi",
-  "Usulan Pemenang", "Pengumuman Pemenang", "Masa Sanggah", "Penunjukan Pemenang (SPPBJ)",
+  "Draft RKS", "Undangan RKS", "Pemasukan Calon Peserta Tender", "Proses Aanwijzing",
+  "Pemasukan Dokumen Penawaran", "Evaluasi Penawaran", "Undangan KKN",
+  "BA Hasil Pelelangan", "Usulan dan Penetapan Calon Pemenang", "Pengumuman Pemenang Tender", "SPR dan Pengantar Jamlak",
 ];
 
 const CONTRACT_STEPS = [
-  "Draft Kontrak", "Performance Bond", "Verifikasi Jamlak", "Review Legal",
-  "Approval Logistik", "Approval User", "Approval Legal", "Tanda Tangan Vendor", "Tanda Tangan KCI",
+  "Draft Kontrak", "Performance Bond", "Verifikasi Jaminan Pelaksanaan", "Review Legal",
+  "Approval Logistik", "Approval User", "Approval Legal", "Tanda Tangan Vendor", "Tanda Tangan KCI", "Summary Kontrak",
 ];
 
 const PBJ_FIELDS = [
-  ["No. SP3", "Nama Paket", "Tanggal Mulai", "Batas Akhir", "Penyusun RKS", "Dokumen RKS", "Keterangan", "Status Step"],
-  ["No. SP3", "Calon Peserta", "Batas Pendaftaran", "Kualifikasi Vendor", "Dokumen Pendaftaran", "Status Step"],
-  ["Lokasi Aanwijzing", "Tanggal Aanwijzing", "Berita Acara", "Catatan Penjelasan", "Status Step"],
-  ["Batas Pemasukan", "Metode Pemasukan", "Jumlah Dokumen", "Status Step"],
-  ["Tanggal Pembukaan", "Tim Pembuka", "Berita Acara Pembukaan", "Status Step"],
-  ["Evaluasi Administrasi", "Evaluasi Teknis", "Evaluasi Harga", "Dokumen Hasil Evaluasi"],
-  ["Peserta Negosiasi", "Harga Penawaran Awal", "Harga Kesepakatan Final", "BA Klarifikasi & Negosiasi"],
-  ["Calon Pemenang Usulan", "Nilai Usulan", "Nota Dinas Usulan", "Approver Usulan"],
-  ["Pemenang Resmi", "Tanggal Pengumuman", "Surat Pengumuman"],
-  ["Periode Masa Sanggah", "Hasil Sanggahan", "Status Sanggah"],
-  ["No. SPPBJ", "Tanggal SPPBJ", "Penerima SPPBJ", "Catatan SPPBJ", "Status Final"],
+  ["Rencana Kerja", "Tanggal Rencana Kerja dan Syarat", "Metode Submit Dokumen", "Catatan"],
+  ["Peserta Tender", "Tanggal Undangan RKS", "Catatan Undangan RKS", "Tanggal Undangan RKS", "Nomor Undangan RKS"],
+  ["Vendor Information"],
+  ["No", "Peserta Tender", "Keterangan", "Tanggal BA Rapat Penjelasan (Aanwijzing & Addendum)", "Nomor BA Rapat Penjelasan (Aanwijzing & Addendum)", "Kehadiran (Ya/Tidak)"],
+  ["Peserta Tender", "Tanggal Pembukaan Dokumen", "Nomor BA Pembukaan Dokumen Penawaran", "Catatan"],
+  ["Peserta Tender", "Tanggal Evaluasi", "Catatan Evaluasi", "Status Lulus/Gugur (Ya/Tidak)", "Tambahan Catatan Evaluasi", "Tanggal BA Evaluasi Dokumen Penawaran", "Nomor BA Evaluasi Dokumen Penawaran"],
+  ["Peserta Tender", "Tanggal Undangan KKN", "Catatan Undangan KKN", "Tanggal Undangan Klarifikasi, Konfirmasi, dan Negosiasi", "Nomor Undangan Klarifikasi, Konfirmasi, dan Negosiasi"],
+  ["Peserta Tender", "Tanggal BA", "Catatan Hasil Pelelangan", "Tanggal BA Hasil Pelelangan", "Nomor BA Hasil Pelelangan"],
+  ["Tanggal", "Nomor", "Catatan"],
+  ["Tanggal", "Nomor", "Catatan", "Pemenang Tender"],
+  ["Pemenang Tender", "Total Hari MPPL", "Nomor SPR", "Nama Penanda Tangan", "Start Jaminan Pelaksanaan", "Total Hari Kalender", "Uncontrolled Days", "Jabatan Penanda Tangan", "Catatan"],
 ];
 
 const CONTRACT_FIELDS = [
-  ["No. Kontrak", "Nama Paket", "Nilai Kontrak", "Vendor", "Tanggal Mulai", "Tanggal Akhir", "Penyusun Draft", "Dokumen Draft"],
-  ["Jenis Jaminan", "Nilai Jaminan (5%)", "Bank Penerbit", "Masa Berlaku"],
-  ["Hasil Verifikasi", "Status Verifikasi", "Verifikator"],
-  ["Reviewer Legal", "Catatan Legal", "Status Review"],
-  ["Approver", "Tanggal Approval", "Status Logistik"],
-  ["Approver User", "Tanggal Approval", "Status User"],
-  ["Approver Legal", "Tanggal Approval", "Status Legal"],
-  ["Penandatangan Vendor", "Tanggal TTD Vendor", "Dokumen TTD"],
-  ["Penandatangan KCI", "Tanggal TTD KCI", "Status Kontrak"],
+  ["Start Date", "End Date", "Catatan Draft"],
+  ["KAI Group (Ya/Tidak)", "Bank", "Cabang", "Tanggal Penerimaan", "No Bank Garansi", "Minimum Jaminan", "Masa Berlaku - Start Date", "Masa Berlaku - End Date", "Jumlah Hari Kalender", "Nilai Jaminan", "Tanggal Terbit Jamlak", "Catatan Performance"],
+  ["Start Date", "End Date", "Tanggal Penyerahan", "Catatan"],
+  ["Start Date", "End Date", "Catatan"], ["Start Date", "End Date", "Catatan"],
+  ["Start Date", "End Date", "Catatan"], ["Start Date", "End Date", "Catatan"],
+  ["Start Date", "End Date", "Catatan"], ["Start Date", "End Date", "Catatan"],
+  ["No Kontrak", "Tanggal Kontrak", "Total Hari Kalender", "Hari Libur", "Uncontrolled Days", "Total Hari Kerja", "Catatan"],
 ];
 
 type Props = { kind: ProcessKind; item: any };
@@ -75,6 +73,7 @@ export function InternalProcessView({ kind, item }: Props) {
   const processStep = Math.min(Number(progress.activeStep) || 0, steps.length - 1);
   const fieldValues: Record<number, Record<number, string>> = progress.fieldValues || {};
   const customFiles: Record<number, { name: string; size?: string; date?: string }[]> = progress.customFiles || {};
+  const vendorRows: Array<{ vendorName?: string; picName?: string; vendorAddress?: string; phoneNumber?: string; emailCorporate?: string; attendance?: string; description?: string }> = progress.vendorRows || [];
 
   const fields = useMemo(() => labels[viewStep].map((label, index) => {
     const persisted = fieldValues[viewStep]?.[index];
@@ -146,9 +145,7 @@ export function InternalProcessView({ kind, item }: Props) {
           <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-[#e0e7ff] text-[#252271]">Step {viewStep + 1} dari {steps.length}</span>
         </div>
         {loading ? <p className="text-[12px] text-slate-500">Memuat progres...</p> : !document ? <p className="text-[12px] text-slate-500">Proses belum dimulai oleh Admin.</p> : <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
-            {fields.map((field) => <div key={field.label} className="bg-[#f8fafc] border border-[#e2e8f0] rounded-[10px] p-3"><p className="text-[#64748b] text-[11px] font-semibold mb-1">{field.label}</p><p className="text-[#252271] text-[12.5px] font-bold break-words">{field.value}</p></div>)}
-          </div>
+          {kind === "pbj" && viewStep === 2 ? <div className="space-y-4">{vendorRows.length === 0 ? <p className="text-[11.5px] text-slate-500">Belum ada data vendor.</p> : vendorRows.map((vendor, index) => <div key={index} className="border-l-2 border-[#cc0000] pl-4 py-1"><p className="text-[12px] font-bold text-slate-600 mb-3">Vendor Information</p><div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-3">{[["Vendor Name", vendor.vendorName], ["Phone Number", vendor.phoneNumber], ["PIC Name", vendor.picName], ["Email Corporate", vendor.emailCorporate], ["Vendor Address", vendor.vendorAddress]].map(([label, value]) => <div key={label} className="grid grid-cols-[120px_1fr] gap-3 text-[11.5px]"><span className="font-semibold text-slate-500">{label}:</span><span className="font-medium text-slate-700">{value || "Belum diisi Admin"}</span></div>)}</div></div>)}</div> : kind === "pbj" && viewStep === 3 ? <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-[11.5px]"><thead><tr className="border-b border-slate-200 text-slate-500"><th className="text-left px-2 py-3">NO</th><th className="text-left px-2 py-3">PESERTA TENDER</th><th className="text-center px-2 py-3">KEHADIRAN</th><th className="text-left px-2 py-3">KETERANGAN</th></tr></thead><tbody>{vendorRows.map((vendor, index) => <tr key={index} className="border-b border-slate-100"><td className="px-2 py-3">{index + 1}</td><td className="px-2 py-3">{vendor.vendorName || "Belum diisi Admin"}</td><td className="px-2 py-3 text-center">{vendor.attendance || "Tidak"}</td><td className="px-2 py-3">{vendor.description || "Belum diisi Admin"}</td></tr>)}</tbody></table><div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-3 mt-4">{fields.filter((field) => !["No", "Peserta Tender", "Keterangan", "Kehadiran (Ya/Tidak)"].includes(field.label)).map((field) => <div key={field.label} className="grid grid-cols-[190px_1fr] gap-3 text-[11.5px]"><span className="font-semibold text-slate-500">{field.label}:</span><span className="font-medium text-slate-700">{field.value}</span></div>)}</div></div> : <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-3">{fields.filter((field) => field.label !== "No" && field.label !== "No.").map((field) => <div key={field.label} className="grid grid-cols-[170px_1fr] gap-3 py-1 text-[11.5px]"><span className="font-semibold text-slate-500">{field.label}:</span><span className="font-medium text-slate-700 break-words">{field.value}</span></div>)}</div>}
           <div className="mt-5 pt-4 border-t border-slate-100">
             <p className="text-[#252271] text-[12px] font-bold mb-3">Dokumen Lampiran Step Ini</p>
             {attachments.length === 0 ? <p className="text-[11.5px] text-slate-500">Belum ada lampiran pada tahap ini.</p> : <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{attachments.map((file: any) => <div key={`${file.id || "saved"}-${file.name}`} className="flex items-center justify-between gap-3 bg-[#f8fafc] border border-[#e2e8f0] rounded-[10px] p-3"><div className="flex min-w-0 items-center gap-2"><FileText size={16} className="text-[#252271] shrink-0" /><div className="min-w-0"><p className="text-[11.5px] text-slate-800 font-semibold truncate">{file.name}</p><p className="text-[10px] text-slate-400">{file.size} {file.date && `• ${file.date}`}</p></div></div>{file.id && <button onClick={() => download(file)} className="shrink-0 flex items-center gap-1 px-2.5 py-1 bg-[#252271] text-white rounded-md text-[10px] font-bold"><Download size={11} /> Unduh</button>}</div>)}</div>}

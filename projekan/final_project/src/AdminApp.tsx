@@ -3200,18 +3200,34 @@ function ProcessStepper({ steps, activeStep, onStep }: { steps: string[]; active
 
 // ─── PBJ Page ────────────────────────────────────────────────────────────────
 const PBJ_STEPS = [
-  "Drafting RKS",
-  "Calon Peserta Tender",
-  "Aanwidjzing",
-  "Pemasukan Dokumen",
-  "Pembukaan Dokumen",
-  "Evaluasi Dokumen",
-  "Klarifikasi & Negosiasi",
-  "Usulan Pemenang",
-  "Pengumuman Pemenang",
-  "Masa Sanggah",
-  "Penunjukan Pemenang (SPPBJ)"
+  "Draft RKS",
+  "Undangan RKS",
+  "Pemasukan Calon Peserta Tender",
+  "Proses Aanwijzing",
+  "Pemasukan Dokumen Penawaran",
+  "Evaluasi Penawaran",
+  "Undangan KKN",
+  "BA Hasil Pelelangan",
+  "Usulan dan Penetapan Calon Pemenang",
+  "Pengumuman Pemenang Tender",
+  "SPR dan Pengantar Jamlak"
 ];
+
+const PBJ_STEP_TITLES = [
+  "Draft RKS", "Undangan RKS", "Calon Peserta Tender", "Proses Aanwijzing",
+  "Pemasukan Dokumen Penawaran", "Evaluasi Penawaran",
+  "Undangan Klarifikasi, Konfirmasi, dan Negosiasi", "BA Hasil Pelelangan",
+  "Usulan dan Penetapan Calon Pemenang", "Pengumuman Pemenang Tender", "SPR dan Pengantar Jamlak",
+];
+
+const PBJ_UPLOAD_LABELS: Record<number, string[]> = {
+  3: ["BA Aanwijzing"],
+  4: ["Dokumen Penawaran", "BA Pemasukan Dokumen"],
+  6: ["BA Undangan KKN"],
+  7: ["BA Hasil Pelelangan"],
+  8: ["BA Usulan Pemenang"],
+  10: ["SP Jamlak", "Summary Dokumen SPR", "Dokumen SPR"],
+};
 
 type DocFilters = { startDate: string; endDate: string; unit: string; status: string };
 
@@ -3283,82 +3299,91 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
   const [activeStep, setActiveStep] = useState(savedProgress.activeStep || 0);
   const [isEditing, setIsEditing] = useState(false);
   const [fieldValues, setFieldValues] = useState<Record<number, Record<number, string>>>(savedProgress.fieldValues || {});
-  const [customFiles, setCustomFiles] = useState<Record<number, { name: string; size: string; date: string }[]>>(savedProgress.customFiles || {});
+  const [customFiles, setCustomFiles] = useState<Record<number, { name: string; size: string; date: string; documentType?: string }[]>>(savedProgress.customFiles || {});
+  const [vendorRows, setVendorRows] = useState<Array<{ vendorName: string; picName: string; vendorAddress: string; phoneNumber: string; emailCorporate: string; attendance: string; description: string }>>(
+    savedProgress.vendorRows?.length ? savedProgress.vendorRows : [{
+      vendorName: row.vendor || row.formData?.vendor || "",
+      picName: "", vendorAddress: "", phoneNumber: "", emailCorporate: "", attendance: "Tidak", description: "",
+    }],
+  );
 
   const defaultAttachments: Record<number, { name: string; size: string; date: string }[]> = {};
 
-  const initialFields: Record<number, { label: string; value: string }[]> = {
+  const initialFields: Record<number, { label: string; value: string; type?: string }[]> = {
     0: [
-      { label: "No. SP3", value: row.noSp3 || "SP3-2024-001" },
-      { label: "Nama Paket", value: row.namaPaket || row.judulPengadaan || "Pengadaan Server CTIT 2024" },
-      { label: "Tanggal Mulai", value: "01-03-2024" },
-      { label: "Batas Akhir", value: "15-03-2024" },
-      { label: "Penyusun RKS", value: "Tim Pengadaan PBJ / Tim Teknis CTIT" },
-      { label: "Dokumen RKS", value: "RKS-2024-V2.pdf (1.8 MB)" },
-      { label: "Keterangan", value: "Drafting Rencana Kerja dan Syarat-syarat (RKS) disetujui tim legal." },
-      { label: "Status Step", value: "Selesai / Approved" },
+      { label: "Rencana Kerja", value: "" },
+      { label: "Tanggal Rencana Kerja dan Syarat", value: "", type: "date" },
+      { label: "Metode Submit Dokumen", value: "" },
+      { label: "Catatan", value: "" },
     ],
     1: [
-      { label: "No. SP3", value: row.noSp3 || "SP3-2024-001" },
-      { label: "Calon Peserta", value: "PT Maju Bersama, PT Tech Solution, CV Logistik Sejahtera" },
-      { label: "Batas Pendaftaran", value: "20-03-2024" },
-      { label: "Kualifikasi Vendor", value: "Non-Kecil / Bidang Teknologi Informasi & Sub-Sistem" },
-      { label: "Dokumen Pendaftaran", value: "Form-Pendaftaran-Tender-2024.zip" },
-      { label: "Status Step", value: "Selesai" }
+      { label: "Peserta Tender", value: "" },
+      { label: "Tanggal Undangan RKS", value: "", type: "date" },
+      { label: "Catatan Undangan RKS", value: "" },
+      { label: "Tanggal Undangan RKS", value: "", type: "date" },
+      { label: "Nomor Undangan RKS", value: "" },
     ],
     2: [
-      { label: "Lokasi Aanwijzing", value: "Ruang Rapat Utama KCI Kantor Pusat & Online Zoom" },
-      { label: "Tanggal Aanwijzing", value: "22-03-2024" },
-      { label: "Berita Acara", value: "BA-AANWIJZING-2024.pdf" },
-      { label: "Catatan Penjelasan", value: "Spesifikasi Server CPU 64-Core & RAM 128GB terverifikasi" },
-      { label: "Status Step", value: "Selesai" }
+      { label: "Vendor Information", value: "" },
     ],
     3: [
-      { label: "Batas Pemasukan", value: "24-03-2024 15:00 WIB" },
-      { label: "Metode Pemasukan", value: "Sistem E-Procurement KCI (Ter-enkripsi)" },
-      { label: "Jumlah Dokumen", value: "3 Sampul Dokumen Penawaran Terunggah" },
-      { label: "Status Step", value: "Selesai" }
+      { label: "No", value: "" },
+      { label: "Peserta Tender", value: "" },
+      { label: "Keterangan", value: "" },
+      { label: "Tanggal BA Rapat Penjelasan (Aanwijzing & Addendum)", value: "", type: "date" },
+      { label: "Nomor BA Rapat Penjelasan (Aanwijzing & Addendum)", value: "" },
+      { label: "Kehadiran (Ya/Tidak)", value: "Tidak", type: "boolean" },
     ],
     4: [
-      { label: "Tanggal Pembukaan", value: "25-03-2024" },
-      { label: "Tim Pembuka", value: "Panitia PBJ KCI & Tim Pengawas" },
-      { label: "Berita Acara Pembukaan", value: "BA-PEMBUKAAN-2024.pdf" },
-      { label: "Status Step", value: "Selesai" }
+      { label: "Peserta Tender", value: "" },
+      { label: "Tanggal Pembukaan Dokumen", value: "", type: "date" },
+      { label: "Nomor BA Pembukaan Dokumen Penawaran", value: "" },
+      { label: "Catatan", value: "" },
     ],
     5: [
-      { label: "Evaluasi Administrasi", value: "Lulus (3 Vendor Memenuhi Syarat)" },
-      { label: "Evaluasi Teknis", value: "Lulus (2 Vendor Memenuhi Nilai Ambang Batas 80)" },
-      { label: "Evaluasi Harga", value: "Peringkat 1: PT Maju Bersama (Rp 485.000.000)" },
-      { label: "Dokumen Hasil Evaluasi", value: "Laporan-Evaluasi-PBJ-2024.pdf" }
+      { label: "Peserta Tender", value: "" },
+      { label: "Tanggal Evaluasi", value: "", type: "date" },
+      { label: "Catatan Evaluasi", value: "" },
+      { label: "Status Lulus/Gugur (Ya/Tidak)", value: "Tidak", type: "boolean" },
+      { label: "Tambahan Catatan Evaluasi", value: "" },
+      { label: "Tanggal BA Evaluasi Dokumen Penawaran", value: "", type: "date" },
+      { label: "Nomor BA Evaluasi Dokumen Penawaran", value: "" },
     ],
     6: [
-      { label: "Peserta Negosiasi", value: "PT Maju Bersama" },
-      { label: "Harga Penawaran Awal", value: "Rp 495.000.000" },
-      { label: "Harga Kesepakatan Final", value: "Rp 485.000.000" },
-      { label: "BA Klarifikasi & Negosiasi", value: "BA-KLARIFIKASI-NEGO-001.pdf" }
+      { label: "Peserta Tender", value: "" },
+      { label: "Tanggal Undangan KKN", value: "", type: "date" },
+      { label: "Catatan Undangan KKN", value: "" },
+      { label: "Tanggal Undangan Klarifikasi, Konfirmasi, dan Negosiasi", value: "", type: "date" },
+      { label: "Nomor Undangan Klarifikasi, Konfirmasi, dan Negosiasi", value: "" },
     ],
     7: [
-      { label: "Calon Pemenang Usulan", value: "PT Maju Bersama" },
-      { label: "Nilai Usulan", value: "Rp 485.000.000" },
-      { label: "Nota Dinas Usulan", value: "ND-USULAN-PEMENANG-2024.pdf" },
-      { label: "Approver Usulan", value: "VP Logistik & Pengadaan KCI" }
+      { label: "Peserta Tender", value: "" },
+      { label: "Tanggal BA", value: "", type: "date" },
+      { label: "Catatan Hasil Pelelangan", value: "" },
+      { label: "Tanggal BA Hasil Pelelangan", value: "", type: "date" },
+      { label: "Nomor BA Hasil Pelelangan", value: "" },
     ],
     8: [
-      { label: "Pemenang Resmi", value: "PT Maju Bersama" },
-      { label: "Tanggal Pengumuman", value: "08-04-2024" },
-      { label: "Surat Pengumuman", value: "PENGUMUMAN-PEMENANG-PBJ-001.pdf" }
+      { label: "Tanggal", value: "", type: "date" },
+      { label: "Nomor", value: "" },
+      { label: "Catatan", value: "" },
     ],
     9: [
-      { label: "Periode Masa Sanggah", value: "09-04-2024 s/d 11-04-2024 (3 Hari Kerja)" },
-      { label: "Hasil Sanggahan", value: "Nihil / Tidak ada sanggahan dari peserta lain" },
-      { label: "Status Sanggah", value: "Clear & Clean" }
+      { label: "Tanggal", value: "", type: "date" },
+      { label: "Nomor", value: "" },
+      { label: "Catatan", value: "" },
+      { label: "Pemenang Tender", value: "" },
     ],
     10: [
-      { label: "No. SPPBJ", value: "SPPBJ-2024-001" },
-      { label: "Tanggal SPPBJ", value: "14-04-2024" },
-      { label: "Penerima SPPBJ", value: "Direktur PT Maju Bersama" },
-      { label: "Catatan SPPBJ", value: "Peserta wajib menyerahkan Jaminan Pelaksanaan dalam 7 hari kerja" },
-      { label: "Status Final", value: "Penunjukan Pemenang Resmi" }
+      { label: "Pemenang Tender", value: "" },
+      { label: "Total Hari MPPL", value: "" },
+      { label: "Nomor SPR", value: "" },
+      { label: "Nama Penanda Tangan", value: "" },
+      { label: "Start Jaminan Pelaksanaan", value: "", type: "date" },
+      { label: "Total Hari Kalender", value: "" },
+      { label: "Uncontrolled Days", value: "" },
+      { label: "Jabatan Penanda Tangan", value: "" },
+      { label: "Catatan", value: "" },
     ],
   };
 
@@ -3376,7 +3401,7 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
     }));
   };
 
-  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>, documentType = "Lampiran") => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       try {
@@ -3389,6 +3414,7 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
         name: file.name,
         size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
         date: new Date().toISOString().split("T")[0],
+        documentType,
       };
       setCustomFiles((prev) => ({
         ...prev,
@@ -3504,7 +3530,7 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
           <div className="flex items-center justify-between mb-[16px]">
             <div className="flex items-center gap-2">
               <h3 className="text-[#252271] text-[15px] font-bold">
-                {PBJ_STEPS[activeStep]} {isEditing && <span className="text-amber-600 text-[12px] font-semibold ml-2">(Mode Edit Aktif)</span>}
+                {PBJ_STEP_TITLES[activeStep]} {isEditing && <span className="text-amber-600 text-[12px] font-semibold ml-2">(Mode Edit Aktif)</span>}
               </h3>
               {stepVerifications[activeStep] && (
                 <span className="text-[11px] font-bold px-[8px] py-[2px] rounded-full bg-green-100 text-green-800 border border-green-200">
@@ -3517,26 +3543,47 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-[24px] gap-y-[14px] mb-[20px]">
-            {(initialFields[activeStep] || []).map((f, i) => {
-              const currentVal = getFieldValue(activeStep, i, f.value);
-              return (
-                <div key={i} className="bg-[#f8fafc] border border-[#e2e8f0] rounded-[10px] p-[12px]">
-                  <p className="text-[#64748b] text-[11.5px] font-semibold mb-[4px]">{f.label}</p>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={currentVal}
-                      onChange={(e) => updateFieldValue(activeStep, i, e.target.value)}
-                      className="w-full h-[34px] bg-white border border-[#252271]/40 rounded-[6px] px-[10px] text-[13px] text-[#0f172a] font-medium focus:border-[#252271] outline-none transition-colors"
-                    />
-                  ) : (
-                    <p className="text-[#252271] text-[13.5px] font-bold">{currentVal}</p>
-                  )}
+          {activeStep === 2 ? (
+            <div className="mb-[20px] space-y-[16px]">
+              {vendorRows.map((vendor, vendorIndex) => (
+                <div key={vendorIndex} className="border-l-2 border-[#cc0000] pl-[14px] py-[6px]">
+                  <p className="text-[#475569] text-[12px] font-bold mb-[14px]">Vendor Information</p>
+                  <div className="grid grid-cols-2 gap-x-[48px] gap-y-[12px]">
+                    {([
+                      ["Vendor Name", "vendorName"], ["Phone Number", "phoneNumber"],
+                      ["PIC Name", "picName"], ["Email Corporate", "emailCorporate"],
+                      ["Vendor Address", "vendorAddress"],
+                    ] as const).map(([label, key]) => <div key={key} className="grid grid-cols-[130px_1fr] items-center gap-[12px]"><span className="text-[11px] font-semibold text-[#64748b]">{label}:</span>{isEditing ? <input value={vendor[key]} onChange={(event) => updateVendorRow(vendorIndex, key, event.target.value)} className="h-[32px] border-b border-[#cbd5e1] bg-transparent px-[4px] text-[12px] outline-none focus:border-[#252271]" /> : <span className="text-[12px] font-medium text-[#334155]">{vendor[key] || "Belum diisi"}</span>}</div>)}
+                  </div>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+              {isEditing && <button type="button" onClick={addVendorRow} className="text-[11.5px] font-bold text-[#252271]">+ Tambah Vendor</button>}
+            </div>
+          ) : activeStep === 3 ? (
+            <div className="mb-[20px]">
+              <div className="overflow-x-auto">
+                <table className="w-full text-[11.5px]">
+                  <thead><tr className="border-b border-[#e2e8f0] text-[#64748b]"><th className="px-[8px] py-[10px] text-left w-[52px]">NO</th><th className="px-[8px] py-[10px] text-left">PESERTA TENDER</th><th className="px-[8px] py-[10px] text-center">KEHADIRAN</th><th className="px-[8px] py-[10px] text-left">KETERANGAN</th></tr></thead>
+                  <tbody>{vendorRows.map((vendor, vendorIndex) => <tr key={vendorIndex} className="border-b border-[#f1f5f9]"><td className="px-[8px] py-[12px]">{vendorIndex + 1}</td><td className="px-[8px] py-[12px]">{vendor.vendorName || "Belum diisi"}</td><td className="px-[8px] py-[12px]"><div className="flex justify-center gap-[18px]">{["Ya", "Tidak"].map((option) => <label key={option} className="flex items-center gap-[5px]"><input type="radio" name={`attendance-${vendorIndex}`} checked={vendor.attendance === option} disabled={!isEditing} onChange={() => updateVendorRow(vendorIndex, "attendance", option)} />{option}</label>)}</div></td><td className="px-[8px] py-[12px]">{isEditing ? <input value={vendor.description} onChange={(event) => updateVendorRow(vendorIndex, "description", event.target.value)} className="w-full h-[30px] border-b border-[#cbd5e1] bg-transparent outline-none focus:border-[#252271]" /> : vendor.description || "Belum diisi"}</td></tr>)}</tbody>
+                </table>
+              </div>
+              <div className="mt-[18px] grid grid-cols-2 gap-x-[32px] gap-y-[12px]">
+                {(initialFields[activeStep] || []).filter((field) => field.label !== "No" && field.label !== "Peserta Tender" && !field.label.startsWith("Kehadiran") && field.label !== "Keterangan").map((field, fieldIndex) => {
+                  const originalIndex = initialFields[activeStep].findIndex((entry) => entry.label === field.label);
+                  const currentVal = getFieldValue(activeStep, originalIndex, field.value);
+                  return <div key={fieldIndex} className="grid grid-cols-[220px_1fr] items-center gap-[12px]"><span className="text-[11px] font-semibold text-[#64748b]">{field.label}:</span>{isEditing ? <input type={field.type === "date" ? "date" : "text"} value={currentVal} onChange={(event) => updateFieldValue(activeStep, originalIndex, event.target.value)} className="h-[32px] border-b border-[#cbd5e1] bg-transparent px-[4px] text-[12px] outline-none focus:border-[#252271]" /> : <span className="text-[12px] font-medium text-[#334155]">{currentVal || "Belum diisi"}</span>}</div>;
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-x-[48px] gap-y-[14px] mb-[20px]">
+              {(initialFields[activeStep] || []).filter((field) => field.label !== "No" && field.label !== "No.").map((field, fieldIndex) => {
+                const originalIndex = initialFields[activeStep].findIndex((entry) => entry === field);
+                const currentVal = getFieldValue(activeStep, originalIndex, field.value);
+                return <div key={fieldIndex} className="grid grid-cols-[190px_1fr] items-center gap-[12px] py-[4px]"><span className="text-[11px] font-semibold text-[#64748b]">{field.label}:</span>{isEditing && field.type === "boolean" ? <div className="flex gap-[16px]">{["Ya", "Tidak"].map((option) => <label key={option} className="flex items-center gap-[5px] text-[12px]"><input type="radio" checked={currentVal === option} onChange={() => updateFieldValue(activeStep, originalIndex, option)} />{option}</label>)}</div> : isEditing ? <input type={field.type === "date" ? "date" : "text"} value={currentVal} onChange={(event) => updateFieldValue(activeStep, originalIndex, event.target.value)} className="h-[32px] border-b border-[#cbd5e1] bg-transparent px-[4px] text-[12px] outline-none focus:border-[#252271]" /> : <span className="text-[12px] font-medium text-[#334155]">{currentVal || "Belum diisi"}</span>}</div>;
+              })}
+            </div>
+          )}
 
           {/* Textbox Catatan Revisi */}
           {showRevisionBox && (
@@ -3572,11 +3619,15 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
           <div className="mt-[24px] pt-[18px] border-t border-[#f1f5f9]">
             <div className="flex items-center justify-between mb-[12px]">
               <p className="text-[#252271] text-[12px] font-bold tracking-[0.3px]">Dokumen Lampiran Step Ini</p>
-              <label className="bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#252271] text-[11.5px] font-semibold px-[12px] py-[5px] rounded-[8px] flex items-center gap-[6px] cursor-pointer transition-colors border border-[#cbd5e1]">
-                <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M6 2.5V9.5M2.5 6H9.5" stroke="#252271" strokeLinecap="round" strokeWidth="1.5"/></svg>
-                Unggah Lampiran
-                <input type="file" className="hidden" onChange={handleUploadFile} />
-              </label>
+              <div className="flex flex-wrap justify-end gap-[6px]">
+                {(PBJ_UPLOAD_LABELS[activeStep] || ["Lampiran"]).map((documentType) => (
+                  <label key={documentType} className="bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#252271] text-[11.5px] font-semibold px-[12px] py-[5px] rounded-[8px] flex items-center gap-[6px] cursor-pointer transition-colors border border-[#cbd5e1]">
+                    <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M6 2.5V9.5M2.5 6H9.5" stroke="#252271" strokeLinecap="round" strokeWidth="1.5"/></svg>
+                    Unggah {documentType}
+                    <input type="file" className="hidden" onChange={(event) => handleUploadFile(event, documentType)} />
+                  </label>
+                ))}
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-[12px]">
               {currentAttachments.map((file, fIdx) => (
@@ -3586,7 +3637,7 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
                       <svg fill="none" height="16" viewBox="0 0 16 16" width="16"><path d="M4 2H10L14 6V14H4V2Z" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round"/><path d="M10 2V6H14" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round"/></svg>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[#0f172a] text-[12px] font-semibold truncate">{file.name}</p>
+                      <p className="text-[#0f172a] text-[12px] font-semibold truncate">{file.documentType ? `${file.documentType}: ` : ""}{file.name}</p>
                       <p className="text-[#94a3b8] text-[10px]">{file.size} &middot; {file.date}</p>
                     </div>
                   </div>
@@ -3864,70 +3915,75 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
 }
 
 // ─── Contract Page ────────────────────────────────────────────────────────────
-const CONTRACT_STEPS = ["Draft Kontrak", "Performance Bond", "Verifikasi Jamlak", "Review Legal", "Approval Logistik", "Approval User", "Approval Legal", "Tanda Tangan Vendor", "Tanda Tangan KCI"];
+const CONTRACT_STEPS = ["Draft Kontrak", "Performance Bond", "Verifikasi Jaminan Pelaksanaan", "Review Legal", "Approval Logistik", "Approval User", "Approval Legal", "Tanda Tangan Vendor", "Tanda Tangan KCI", "Summary Kontrak"];
+const CONTRACT_STEP_TITLES = ["Draft Kontrak", "Performance Bond", "Verifikasi Jaminan Pelaksanaan", "Informasi Review Legal", "Informasi Approval Logistik", "Information Approval User", "Approval Legal Information", "Information Tanda Tangan Vendor", "Tanda Tangan KCI", "Summary Kontrak"];
+const CONTRACT_UPLOAD_LABELS: Record<number, string[]> = {
+  0: ["Draft Contract"], 1: ["File Jaminan Pelaksanaan"], 2: ["Performance Bond", "File Verifikasi Jaminan"],
+  3: ["Dokumen Review Legal"], 4: ["Dokumen Approval Logistik"], 5: ["Dokumen Approval User"],
+  6: ["Dokumen Approval Legal"], 7: ["Dokumen Tanda Tangan Vendor"], 8: ["Dokumen Tanda Tangan KCI"],
+  9: ["Dokumen Perjanjian"],
+};
 
 function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSaveStep, onUpload }: { row: any; breadcrumbFrom: string; onBack: () => void; onComplete?: () => Promise<void>; onRevisi?: (catatan: string) => Promise<void>; onSaveStep?: (progress: any) => Promise<void>; onUpload?: (file: File, step: string) => Promise<void> }) {
   const savedProgress = row.formData?.admin_progress || {};
   const [activeStep, setActiveStep] = useState(savedProgress.activeStep || 0);
   const [isEditing, setIsEditing] = useState(false);
   const [fieldValues, setFieldValues] = useState<Record<number, Record<number, string>>>(savedProgress.fieldValues || {});
-  const [customFiles, setCustomFiles] = useState<Record<number, { name: string; size: string; date: string }[]>>(savedProgress.customFiles || {});
+  const [customFiles, setCustomFiles] = useState<Record<number, { name: string; size: string; date: string; documentType?: string }[]>>(savedProgress.customFiles || {});
 
   const defaultContractAttachments: Record<number, { name: string; size: string; date: string }[]> = {};
 
-  const initialContractFields: Record<number, { label: string; value: string }[]> = {
+  const initialContractFields: Record<number, { label: string; value: string; type?: string }[]> = {
     0: [
-      { label: "No. Kontrak", value: row.noKontrak || "KTR-2024-001" },
-      { label: "Nama Paket", value: row.namaPaket || "Pengadaan Server CTIT 2024" },
-      { label: "Nilai Kontrak", value: row.nilaiKontrak || "Rp 485.000.000" },
-      { label: "Vendor", value: row.vendor || "PT Maju Bersama" },
-      { label: "Tanggal Mulai", value: "01-03-2024" },
-      { label: "Tanggal Akhir", value: "31-12-2024" },
-      { label: "Penyusun Draft", value: "Tim Legal & Logistik KCI" },
-      { label: "Dokumen Draft", value: "Draft-Kontrak-V1.docx" }
+      { label: "Start Date", value: "", type: "date" },
+      { label: "End Date", value: "", type: "date" },
+      { label: "Catatan Draft", value: "" },
     ],
     1: [
-      { label: "Jenis Jaminan", value: "Jaminan Pelaksanaan (Performance Bond)" },
-      { label: "Nilai Jaminan (5%)", value: "Rp 24.250.000" },
-      { label: "Bank Penerbit", value: "Bank Mandiri Cabang Juanda" },
-      { label: "Masa Berlaku", value: "01-03-2024 s/d 31-12-2024" }
+      { label: "KAI Group (Ya/Tidak)", value: "Tidak", type: "boolean" },
+      { label: "Bank", value: "" }, { label: "Cabang", value: "" },
+      { label: "Tanggal Penerimaan", value: "", type: "date" }, { label: "No Bank Garansi", value: "" },
+      { label: "Minimum Jaminan", value: "" }, { label: "Masa Berlaku - Start Date", value: "", type: "date" },
+      { label: "Masa Berlaku - End Date", value: "", type: "date" }, { label: "Jumlah Hari Kalender", value: "" },
+      { label: "Nilai Jaminan", value: "" }, { label: "Tanggal Terbit Jamlak", value: "", type: "date" },
+      { label: "Catatan Performance", value: "" },
     ],
     2: [
-      { label: "Hasil Verifikasi", value: "Keabsahan Surat Jaminan Terkonfirmasi Bank Penerbit" },
-      { label: "Status Verifikasi", value: "Valid & Disetujui" },
-      { label: "Verifikator", value: "Tim Finance / Logistik KCI" }
+      { label: "Start Date", value: "", type: "date" }, { label: "End Date", value: "", type: "date" },
+      { label: "Tanggal Penyerahan", value: "", type: "date" }, { label: "Catatan", value: "" },
     ],
     3: [
-      { label: "Reviewer Legal", value: "Tim GRC & Legal KCI" },
-      { label: "Catatan Legal", value: "Klausal Denda & Force Majeure Telah Sesuai Standard KCI" },
-      { label: "Status Review", value: "Approved With Clear Conditions" }
+      { label: "Start Date", value: "", type: "date" }, { label: "End Date", value: "", type: "date" }, { label: "Catatan", value: "" },
     ],
     4: [
-      { label: "Approver", value: "VP Logistik KCI" },
-      { label: "Tanggal Approval", value: "05-03-2024" },
-      { label: "Status Logistik", value: "Approved" }
+      { label: "Start Date", value: "", type: "date" }, { label: "End Date", value: "", type: "date" }, { label: "Catatan", value: "" },
     ],
     5: [
-      { label: "Approver User", value: "VP CTIT KCI" },
-      { label: "Tanggal Approval", value: "06-03-2024" },
-      { label: "Status User", value: "Approved" }
+      { label: "Start Date", value: "", type: "date" }, { label: "End Date", value: "", type: "date" }, { label: "Catatan", value: "" },
     ],
     6: [
-      { label: "Approver Legal", value: "VP GRC & Legal KCI" },
-      { label: "Tanggal Approval", value: "07-03-2024" },
-      { label: "Status Legal", value: "Approved Final" }
+      { label: "Start Date", value: "", type: "date" }, { label: "End Date", value: "", type: "date" }, { label: "Catatan", value: "" },
     ],
     7: [
-      { label: "Penandatangan Vendor", value: "Direktur Utama PT Maju Bersama" },
-      { label: "Tanggal TTD Vendor", value: "08-03-2024" },
-      { label: "Dokumen TTD", value: "Kontrak-Signed-Vendor.pdf" }
+      { label: "Start Date", value: "", type: "date" }, { label: "End Date", value: "", type: "date" }, { label: "Catatan", value: "" },
     ],
     8: [
-      { label: "Penandatangan KCI", value: "Direktur Keuangan & Logistik KCI" },
-      { label: "Tanggal TTD KCI", value: "10-03-2024" },
-      { label: "Status Kontrak", value: "Aktif & Berlaku Legally Binding" }
+      { label: "Start Date", value: "", type: "date" }, { label: "End Date", value: "", type: "date" }, { label: "Catatan", value: "" },
+    ],
+    9: [
+      { label: "No Kontrak", value: row.noKontrak || "" }, { label: "Tanggal Kontrak", value: "", type: "date" },
+      { label: "Total Hari Kalender", value: "" }, { label: "Hari Libur", value: "" },
+      { label: "Uncontrolled Days", value: "" }, { label: "Total Hari Kerja", value: "" }, { label: "Catatan", value: "" },
     ],
   };
+
+  const updateVendorRow = (index: number, key: "vendorName" | "picName" | "vendorAddress" | "phoneNumber" | "emailCorporate" | "attendance" | "description", value: string) => {
+    setVendorRows((previous) => previous.map((vendor, vendorIndex) => vendorIndex === index ? { ...vendor, [key]: value } : vendor));
+  };
+
+  const addVendorRow = () => setVendorRows((previous) => [...previous, {
+    vendorName: "", picName: "", vendorAddress: "", phoneNumber: "", emailCorporate: "", attendance: "Tidak", description: "",
+  }]);
 
   const getFieldValue = (step: number, idx: number, fallback: string) => {
     return fieldValues[step]?.[idx] !== undefined ? fieldValues[step][idx] : fallback;
@@ -3943,7 +3999,7 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
     }));
   };
 
-  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>, documentType = "Lampiran") => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       try {
@@ -3956,6 +4012,7 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
         name: file.name,
         size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
         date: new Date().toISOString().split("T")[0],
+        documentType,
       };
       setCustomFiles((prev) => ({
         ...prev,
@@ -3974,6 +4031,7 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
       stepName: CONTRACT_STEPS[activeStep],
       fieldValues,
       customFiles,
+      vendorRows,
     });
   };
 
@@ -4072,7 +4130,7 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
           <div className="flex items-center justify-between mb-[16px]">
             <div className="flex items-center gap-2">
               <h3 className="text-[#252271] text-[15px] font-bold">
-                {CONTRACT_STEPS[activeStep]} {isEditing && <span className="text-amber-600 text-[12px] font-semibold ml-2">(Mode Edit Aktif)</span>}
+                {CONTRACT_STEP_TITLES[activeStep]} {isEditing && <span className="text-amber-600 text-[12px] font-semibold ml-2">(Mode Edit Aktif)</span>}
               </h3>
               {stepVerifications[activeStep] && (
                 <span className="text-[11px] font-bold px-[8px] py-[2px] rounded-full bg-green-100 text-green-800 border border-green-200">
@@ -4091,15 +4149,19 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
               return (
                 <div key={idx} className="bg-[#f8fafc] border border-[#e2e8f0] rounded-[10px] p-[12px]">
                   <p className="text-[#64748b] text-[11.5px] font-semibold mb-[4px]">{f.label}</p>
-                  {isEditing ? (
+                  {isEditing && f.type === "boolean" ? (
+                    <div className="flex items-center gap-[16px] h-[34px]">
+                      {["Ya", "Tidak"].map((option) => <label key={option} className="flex items-center gap-[5px] text-[12px] font-semibold text-[#252271]"><input type="checkbox" checked={currentVal === option} onChange={() => updateFieldValue(activeStep, idx, option)} />{option}</label>)}
+                    </div>
+                  ) : isEditing ? (
                     <input
-                      type="text"
+                      type={f.type === "date" ? "date" : "text"}
                       value={currentVal}
                       onChange={(e) => updateFieldValue(activeStep, idx, e.target.value)}
                       className="w-full h-[34px] bg-white border border-[#252271]/40 rounded-[6px] px-[10px] text-[13px] text-[#0f172a] font-medium focus:border-[#252271] outline-none transition-colors"
                     />
                   ) : (
-                    <p className="text-[#252271] text-[13.5px] font-bold">{currentVal}</p>
+                    <p className="text-[#252271] text-[13.5px] font-bold">{currentVal || "Belum diisi"}</p>
                   )}
                 </div>
               );
@@ -4140,11 +4202,15 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
           <div className="mt-[24px] pt-[18px] border-t border-[#f1f5f9]">
             <div className="flex items-center justify-between mb-[12px]">
               <p className="text-[#252271] text-[12px] font-bold tracking-[0.3px]">Dokumen Lampiran Step Ini</p>
-              <label className="bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#252271] text-[11.5px] font-semibold px-[12px] py-[5px] rounded-[8px] flex items-center gap-[6px] cursor-pointer transition-colors border border-[#cbd5e1]">
-                <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M6 2.5V9.5M2.5 6H9.5" stroke="#252271" strokeLinecap="round" strokeWidth="1.5"/></svg>
-                {activeStep === CONTRACT_STEPS.length - 1 ? "Unggah Surat Kontrak" : "Unggah Lampiran"}
-                <input type="file" className="hidden" onChange={handleUploadFile} />
-              </label>
+              <div className="flex flex-wrap justify-end gap-[6px]">
+                {(CONTRACT_UPLOAD_LABELS[activeStep] || ["Lampiran"]).map((documentType) => (
+                  <label key={documentType} className="bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#252271] text-[11.5px] font-semibold px-[12px] py-[5px] rounded-[8px] flex items-center gap-[6px] cursor-pointer transition-colors border border-[#cbd5e1]">
+                    <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M6 2.5V9.5M2.5 6H9.5" stroke="#252271" strokeLinecap="round" strokeWidth="1.5"/></svg>
+                    Unggah {documentType}
+                    <input type="file" className="hidden" onChange={(event) => handleUploadFile(event, documentType)} />
+                  </label>
+                ))}
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-[12px]">
               {currentAttachments.map((file, fIdx) => (
@@ -4154,7 +4220,7 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
                       <svg fill="none" height="16" viewBox="0 0 16 16" width="16"><path d="M4 2H10L14 6V14H4V2Z" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round"/><path d="M10 2V6H14" stroke="#252271" strokeWidth="1.2" strokeLinejoin="round"/></svg>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[#0f172a] text-[12px] font-semibold truncate">{file.name}</p>
+                      <p className="text-[#0f172a] text-[12px] font-semibold truncate">{file.documentType ? `${file.documentType}: ` : ""}{file.name}</p>
                       <p className="text-[#94a3b8] text-[10px]">{file.size} &middot; {file.date}</p>
                     </div>
                   </div>
