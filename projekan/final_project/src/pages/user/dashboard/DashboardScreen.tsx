@@ -87,8 +87,25 @@ function MetricCard({ title, value, icon, tone, inProgress, completed }: {
   );
 }
 
-function CardTitle({ icon: Icon, children, action }: { icon: React.ElementType; children: React.ReactNode; action?: string }) {
-  return <div className="mb-5 flex items-center justify-between"><div className="flex items-center gap-2 text-[#252271]"><span className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-50"><Icon size={16} /></span><h2 className="text-sm font-extrabold">{children}</h2></div>{action && <button className="inline-flex items-center gap-0.5 text-[11px] font-bold text-[#e6251c] hover:underline">{action}<ChevronRight size={14} /></button>}</div>;
+function CardTitle({ icon: Icon, children, action, onAction }: { icon: React.ElementType; children: React.ReactNode; action?: string; onAction?: () => void }) {
+  return (
+    <div className="mb-5 flex items-center justify-between">
+      <div className="flex items-center gap-2 text-[#252271]">
+        <span className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-50"><Icon size={16} /></span>
+        <h2 className="text-sm font-extrabold">{children}</h2>
+      </div>
+      {action && (
+        <button
+          onClick={onAction}
+          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#e6251c] hover:underline cursor-pointer bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-colors border border-red-200/60"
+          title="Ekspor laporan dashboard ke Excel"
+        >
+          <span>{action}</span>
+          <ChevronRight size={14} />
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function DashboardScreen() {
@@ -112,6 +129,151 @@ export function DashboardScreen() {
     tone: index % 2 ? "bg-[#252271]" : "bg-[#e6251c]",
   }));
 
+  const handleExportExcel = () => {
+    const nowStr = new Date().toLocaleString("id-ID", {
+      dateStyle: "full",
+      timeStyle: "short",
+    });
+
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="utf-8" />
+        <!--[if gte mso 9]>
+        <xml>
+          <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+              <x:Name>Laporan Pengadaan</x:Name>
+              <x:WorksheetOptions>
+                <x:DisplayGridlines/>
+              </x:WorksheetOptions>
+            </x:ExcelWorksheet>
+          </x:ExcelWorksheets>
+        </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11pt; }
+          th { background-color: #252271; color: white; font-weight: bold; border: 1px solid #1a1754; padding: 8px; text-align: left; }
+          td { border: 1px solid #d1d5db; padding: 6px 8px; }
+          .title { font-size: 16pt; font-weight: bold; color: #252271; }
+          .subtitle { font-size: 10pt; color: #6b7280; }
+          .section-header { font-size: 11pt; font-weight: bold; color: #ffffff; background-color: #e6251c; padding: 6px; }
+          .num { text-align: right; }
+          .center { text-align: center; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <tr><td colspan="5" class="title">LAPORAN REKAPITULASI PENGADAAN & PROSES DOKUMEN</td></tr>
+          <tr><td colspan="5" class="subtitle">PT Kereta Commuter Indonesia (KCI)</td></tr>
+          <tr><td colspan="5"></td></tr>
+          <tr><td><strong>Nama User / Pemohon:</strong></td><td colspan="4">${currentUser?.name || "User"}</td></tr>
+          <tr><td><strong>Divisi / Departemen:</strong></td><td colspan="4">${currentUser?.departemen || "Umum"}</td></tr>
+          <tr><td><strong>Periode Aktif Laporan:</strong></td><td colspan="4">${periodLabel}</td></tr>
+          <tr><td><strong>Waktu Ekspor:</strong></td><td colspan="4">${nowStr}</td></tr>
+          <tr><td colspan="5"></td></tr>
+
+          <!-- SUMMARY METRICS -->
+          <tr><th colspan="5" class="section-header">1. RINGKASAN METRIK UTAMA</th></tr>
+          <tr>
+            <th>Modul / Kategori</th>
+            <th class="num">Total</th>
+            <th class="num">Sedang Proses</th>
+            <th class="num">Selesai</th>
+            <th class="center">Persentase Selesai</th>
+          </tr>
+          <tr>
+            <td>Total Pengadaan</td>
+            <td class="num">${summary?.pengadaan?.total ?? 0}</td>
+            <td class="num">${summary?.pengadaan?.inProgress ?? 0}</td>
+            <td class="num">${summary?.pengadaan?.completed ?? 0}</td>
+            <td class="center">${summary?.pengadaan?.total ? Math.round(((summary?.pengadaan?.completed ?? 0) / summary.pengadaan.total) * 100) : 0}%</td>
+          </tr>
+          <tr>
+            <td>Total Pengajuan Dana</td>
+            <td class="num">${summary?.pengajuanDana?.total ?? 0}</td>
+            <td class="num">${summary?.pengajuanDana?.inProgress ?? 0}</td>
+            <td class="num">${summary?.pengajuanDana?.completed ?? 0}</td>
+            <td class="center">${summary?.pengajuanDana?.total ? Math.round(((summary?.pengajuanDana?.completed ?? 0) / summary.pengajuanDana.total) * 100) : 0}%</td>
+          </tr>
+          <tr>
+            <td>Total Pengujian</td>
+            <td class="num">${summary?.pengujian?.total ?? 0}</td>
+            <td class="num">${summary?.pengujian?.inProgress ?? 0}</td>
+            <td class="num">${summary?.pengujian?.completed ?? 0}</td>
+            <td class="center">${summary?.pengujian?.total ? Math.round(((summary?.pengujian?.completed ?? 0) / summary.pengujian.total) * 100) : 0}%</td>
+          </tr>
+          <tr>
+            <td>Total Pembayaran</td>
+            <td class="num">${summary?.pembayaran?.total ?? 0}</td>
+            <td class="num">${summary?.pembayaran?.inProgress ?? 0}</td>
+            <td class="num">${summary?.pembayaran?.completed ?? 0}</td>
+            <td class="center">${summary?.pembayaran?.total ? Math.round(((summary?.pembayaran?.completed ?? 0) / summary.pembayaran.total) * 100) : 0}%</td>
+          </tr>
+          <tr><td colspan="5"></td></tr>
+
+          <!-- STATUS DISTRIBUTION -->
+          <tr><th colspan="5" class="section-header">2. DISTRIBUSI STATUS DOKUMEN</th></tr>
+          <tr>
+            <th colspan="2">Status Dokumen</th>
+            <th class="num" colspan="3">Jumlah Dokumen</th>
+          </tr>
+          ${liveStatus.map((st: any) => `
+            <tr>
+              <td colspan="2">${st.name}</td>
+              <td class="num" colspan="3"><strong>${st.value}</strong></td>
+            </tr>
+          `).join("")}
+          <tr><td colspan="5"></td></tr>
+
+          <!-- MONTHLY TREN -->
+          <tr><th colspan="5" class="section-header">3. TREN PENGADAAN BULANAN (${periodLabel})</th></tr>
+          <tr>
+            <th>Bulan</th>
+            <th class="num" colspan="2">Pengadaan Masuk</th>
+            <th class="num" colspan="2">Selesai</th>
+          </tr>
+          ${visibleProgress.map((m: any) => `
+            <tr>
+              <td>${m.month}</td>
+              <td class="num" colspan="2">${m.pengadaan}</td>
+              <td class="num" colspan="2">${m.selesai}</td>
+            </tr>
+          `).join("")}
+          <tr><td colspan="5"></td></tr>
+
+          <!-- RECENT ACTIVITY -->
+          <tr><th colspan="5" class="section-header">4. AKTIVITAS TERBARU</th></tr>
+          <tr>
+            <th colspan="2">Nama Kegiatan / Paket</th>
+            <th colspan="2">Keterangan / Waktu</th>
+            <th class="center">Status</th>
+          </tr>
+          ${liveActivities.map((act: any) => `
+            <tr>
+              <td colspan="2">${act.title}</td>
+              <td colspan="2">${act.meta}</td>
+              <td class="center">${act.status}</td>
+            </tr>
+          `).join("")}
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob(["\uFEFF" + html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const cleanPeriod = periodLabel.replace(/[^a-zA-Z0-9]/g, "_");
+    a.download = `Laporan_Pengadaan_KCI_${cleanPeriod}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex-1 min-h-0 overflow-auto">
       <TopBar title="Dashboard" />
@@ -134,7 +296,7 @@ export function DashboardScreen() {
 
         <section className="mt-5 grid gap-5 xl:grid-cols-3">
           <article className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm xl:col-span-2">
-            <CardTitle icon={BarChart3} action="Lihat laporan">Tren Pengadaan · {periodLabel}</CardTitle>
+            <CardTitle icon={BarChart3} action="Lihat laporan (Ekspor Excel)" onAction={handleExportExcel}>Tren Pengadaan · {periodLabel}</CardTitle>
             <div className="mb-3 flex items-center gap-4 text-[10px] font-semibold text-slate-500"><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-[#E6251C]" />Pengadaan masuk</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-[#252271]" />Selesai</span></div>
             <div className="h-[240px] w-full"><ResponsiveContainer><AreaChart data={visibleProgress} margin={{ top: 8, right: 4, left: -22, bottom: 0 }}><defs><linearGradient id="procurementFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#E6251C" stopOpacity={0.28} /><stop offset="100%" stopColor="#E6251C" stopOpacity={0} /></linearGradient><linearGradient id="finishedFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#252271" stopOpacity={0.2} /><stop offset="100%" stopColor="#252271" stopOpacity={0} /></linearGradient></defs><XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#25227199" }} /><YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#25227199" }} /><Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #25227133", fontSize: 11 }} /><Area type="monotone" dataKey="pengadaan" stroke="#E6251C" strokeWidth={3} fill="url(#procurementFill)" /><Area type="monotone" dataKey="selesai" stroke="#252271" strokeWidth={3} fill="url(#finishedFill)" /></AreaChart></ResponsiveContainer></div>
           </article>
