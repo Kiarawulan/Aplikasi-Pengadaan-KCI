@@ -220,7 +220,18 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
                           </span>
                           <button
                             type="button"
-                            onClick={() => alert(`Mendownload ${file.fileName}`)}
+                            onClick={() => {
+                              const content = `PT KERETA COMMUTER INDONESIA (KCI)\nDOKUMEN PENGADAAN OFFICIAL\n=========================================\nNama Berkas: ${file.fileName}\nWaktu Unduh: ${new Date().toLocaleString("id-ID")}\n=========================================\nBerkas dokumen ini telah tersimpan dalam sistem pengadaan KCI.`;
+                              const blob = new Blob([content], { type: "application/octet-stream;charset=utf-8" });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = file.fileName;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              URL.revokeObjectURL(url);
+                            }}
                             className="px-2.5 py-1 bg-[#252271] hover:bg-[#1a1753] text-white text-[10px] font-bold rounded-md flex items-center gap-1 transition-colors cursor-pointer"
                           >
                             <Download size={10} />
