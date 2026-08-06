@@ -6,6 +6,7 @@ import { api } from "@/services/api";
 
 
 import { useAuth } from "@/store/authStore";
+import { DIVISI_LIST } from "@/constants/divisi";
 
 export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Pengadaan Baru", submitLabel = "Submit", initialStep = "npp" as ParkStep, initialData, isViewOnly, requiresRup = true }: {
   onClose: () => void; onSubmit: (item: any) => void;
@@ -234,28 +235,7 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
               <label className="block text-[11.5px] font-medium text-[#0a0a0a] mb-1.5">Divisi <span className="text-[#e6251c]">*</span></label>
               <select value={form.divisi} onChange={set("divisi")} className={`w-full border rounded-xl px-3 py-2 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] bg-white ${errors.divisi ? "border-red-400" : "border-gray-200"}`}>
                 <option value="" disabled>Pilih Divisi</option>
-                <option value="CUS - CORPORATE SECRETARY">CUS - CORPORATE SECRETARY</option>
-                <option value="CUL - GRC AND LEGAL">CUL - GRC AND LEGAL</option>
-                <option value="CUG - LOGISTIC">CUG - LOGISTIC</option>
-                <option value="CUI - INTERNAL AUDIT">CUI - INTERNAL AUDIT</option>
-                <option value="CUP - STRATEGIC PLANNING">CUP - STRATEGIC PLANNING</option>
-                <option value="COS - HSE AND SECURITY">COS - HSE AND SECURITY</option>
-                <option value="COC - COMMERCIAL">COC - COMMERCIAL</option>
-                <option value="COH - TRAIN SERVICES FACILITIES AND CUSTOMER CARE">COH - TRAIN SERVICES FACILITIES AND CUSTOMER CARE</option>
-                <option value="COLA - LOCAL TRAIN">COLA - LOCAL TRAIN</option>
-                <option value="COLB - AREA II BANDUNG">COLB - AREA II BANDUNG</option>
-                <option value="COLS - AREA VIII SURABAYA">COLS - AREA VIII SURABAYA</option>
-                <option value="CTI - INFORMATION TECHNOLOGY">CTI - INFORMATION TECHNOLOGY</option>
-                <option value="CTP - MAINTENANCE PLANNING AND EVALUATING">CTP - MAINTENANCE PLANNING AND EVALUATING</option>
-                <option value="CTR - ROLLING STOCK">CTR - ROLLING STOCK</option>
-                <option value="CTS - INFRASTRUCTURE">CTS - INFRASTRUCTURE</option>
-                <option value="COCB - BASOETTA DEPARTMENT">COCB - BASOETTA DEPARTMENT</option>
-                <option value="CARM - RISK MANAGEMENT">CARM - RISK MANAGEMENT</option>
-                <option value="CUT - TESTING COMMITEE">CUT - TESTING COMMITEE</option>
-                <option value="CAF - FINANCE">CAF - FINANCE</option>
-                <option value="CAA - BUDGETING AND ACCOUNTING">CAA - BUDGETING AND ACCOUNTING</option>
-                <option value="CAH - HUMAN CAPITAL">CAH - HUMAN CAPITAL</option>
-                <option value="CAP - PSO AND TAC">CAP - PSO AND TAC</option>
+                {DIVISI_LIST.map((divisi) => <option key={divisi} value={divisi}>{divisi}</option>)}
               </select>
             </div>
             <div>

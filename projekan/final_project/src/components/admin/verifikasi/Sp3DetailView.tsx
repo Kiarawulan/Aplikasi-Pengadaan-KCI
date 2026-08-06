@@ -122,7 +122,7 @@ export const Sp3DetailView: React.FC<Sp3DetailViewProps> = ({
     { label: "Procurement Title", value: infoData.title },
     { label: "RKAP Value", value: infoData.rkapValue },
     { label: "Vendor Name", value: infoData.vendorName },
-    { label: "Department", value: infoData.department },
+    { label: "Divisi", value: infoData.department },
     { label: "Division", value: infoData.division },
     { label: "Tax Type", value: infoData.taxType },
     { label: "Tax Value", value: infoData.taxValue },

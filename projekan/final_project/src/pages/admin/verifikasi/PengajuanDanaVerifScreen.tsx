@@ -7,6 +7,7 @@ import { DetailDocumentView } from "../../../components/user/pengadaan/DetailDoc
 import { Plus, CheckCircle2, XCircle, FileWarning } from "lucide-react";
 import { useAuth } from "../../../store/authStore";
 import { getVerifRecords } from "../../../store/dataStore";
+import { DIVISI_OPTIONS } from "../../../constants/divisi";
 
 type ScreenProps = {
   activeSubItem: string;
@@ -175,7 +176,7 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
   };
 
   const topFiltersConfig: FilterConfig[] = [
-    { key: "divisi", label: "Divisi/Unit", type: "text" },
+    { key: "divisi", label: "Divisi", type: "select", options: DIVISI_OPTIONS },
     {
       key: "status",
       label: "Status",

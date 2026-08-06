@@ -142,7 +142,7 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50/80">
-                {["No. Dokumen", "Judul Pengadaan", "Nilai", "Departemen", "Status", "Tahap & Progres", "Aksi"].map((h) => (
+                {["No. Dokumen", "Judul Pengadaan", "Nilai", "Divisi", "Status", "Tahap & Progres", "Aksi"].map((h) => (
                   <th key={h} className="text-left px-4 py-3 text-[10.5px] font-medium text-gray-500">{h}</th>
                 ))}
               </tr>

@@ -121,7 +121,7 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50/80">
-                {["No", "Nama Pengadaan", "Departemen", "Nominal", "Status", "Aksi"].map((h) => (
+                {["No", "Nama Pengadaan", "Divisi", "Nominal", "Status", "Aksi"].map((h) => (
                   <th key={h} className="text-left px-4 py-3 text-[10.5px] font-medium text-gray-500">{h}</th>
                 ))}
               </tr>

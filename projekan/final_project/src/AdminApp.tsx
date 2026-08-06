@@ -19,6 +19,7 @@ import { getRupList, updateRup, updateVerifRecord } from "./store/dataStore";
 import { PengadaanVerifScreen } from "./pages/admin/verifikasi/PengadaanVerifScreen";
 import { PengujianVerifScreen } from "./pages/admin/verifikasi/PengujianVerifScreen";
 import { PembayaranVerifScreen } from "./pages/admin/verifikasi/PembayaranVerifScreen";
+import { DIVISI_LIST } from "./constants/divisi";
 
 // ─── SVG path data (inlined from Figma exports) ───────────────────────────────
 const ICONS = {
@@ -492,16 +493,16 @@ interface ManajemenUserProps {
 
 function ManajemenUserPage({ onTambahUser, onDetailUser }: ManajemenUserProps) {
   const [search, setSearch] = useState("");
-  const [dept, setDept] = useState("Semua Departemen");
+  const [dept, setDept] = useState("Semua Divisi");
   const [users, setUsers] = useState(USERS);
 
   const filtered = users.filter(
     (u) =>
       (u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())) &&
-      (dept === "Semua Departemen" || u.dept === dept)
+      (dept === "Semua Divisi" || u.dept === dept)
   );
 
-  const depts = ["Semua Departemen", ...Array.from(new Set(USERS.map((u) => u.dept)))];
+  const depts = ["Semua Divisi", ...DIVISI_LIST];
 
   return (
     <div className="flex-1 min-h-0 overflow-auto bg-[#f8fafc]">
@@ -547,7 +548,7 @@ function ManajemenUserPage({ onTambahUser, onDetailUser }: ManajemenUserProps) {
             {/* Header */}
             <div className="bg-[#252271] flex">
               <div className="pl-[22px] pr-[12px] py-[12px] w-[340px] text-white text-[12px] font-bold">User</div>
-              <div className="px-[12px] py-[12px] w-[160px] text-white text-[12px] font-bold">Departemen</div>
+              <div className="px-[12px] py-[12px] w-[160px] text-white text-[12px] font-bold">Divisi</div>
               <div className="px-[12px] py-[12px] flex-1 text-white text-[12px] font-bold">Role</div>
               <div className="px-[12px] py-[12px] w-[130px] text-white text-[12px] font-bold">Status</div>
               <div className="px-[12px] py-[12px] w-[100px] text-white text-[12px] font-bold text-right">Aksi</div>
@@ -1386,11 +1387,11 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
               <p className="text-[#252271] text-[14px] font-bold">{row.noDok}</p>
             </div>
             <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-[12px] p-[14px]">
-              <p className="text-[#64748b] text-[11.5px] font-semibold mb-[4px]">Unit Kerja</p>
+              <p className="text-[#64748b] text-[11.5px] font-semibold mb-[4px]">Divisi</p>
               <p className="text-[#252271] text-[14px] font-bold">{row.unit}</p>
             </div>
             <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-[12px] p-[14px]">
-              <p className="text-[#64748b] text-[11.5px] font-semibold mb-[4px]">Sub Unit</p>
+              <p className="text-[#64748b] text-[11.5px] font-semibold mb-[4px]">Divisi</p>
               <p className="text-[#252271] text-[14px] font-bold">CTIP - Information System Planning &amp; Dev</p>
             </div>
             <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-[12px] p-[14px] col-span-2">
@@ -1597,10 +1598,10 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
               <input value={endDate} onChange={(event) => setEndDate(event.target.value)} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
-              <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Unit</label>
+              <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Divisi</label>
               <select value={unitFilter} onChange={(event) => setUnitFilter(event.target.value)} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
-                <option value="">Semua Unit</option>
-                {Array.from(new Set(danaItems.map((entry) => entry.unit).filter(Boolean))).map((entry) => <option key={entry} value={entry}>{entry}</option>)}
+                <option value="">Semua Divisi</option>
+                {DIVISI_LIST.map((divisi) => <option key={divisi} value={divisi}>{divisi}</option>)}
               </select>
             </div>
             <div>
@@ -1864,7 +1865,7 @@ const INITIAL_GROUPS: PermGroup[] = [
       { id: "pj-menu-report", name: "Menu Report", desc: "(Report Pengujian)", view: true, action: true },
       { id: "pj-dashboard-tc", name: "Dashboard Testing Committee", desc: "(Dashboard Testing Committee)", view: true, action: true },
       { id: "pj-generate-bahp", name: "Generate BAHP", desc: "(List Pengujian Cetak)", view: true, action: true },
-      { id: "pj-m-user-detail", name: "Management User Detail", desc: "(List Users, Add Users Level Manager Unit)", view: true, action: true },
+      { id: "pj-m-user-detail", name: "Management User Detail", desc: "(List Users, Add Users Level Manager Divisi)", view: true, action: true },
     ],
   },
   {
@@ -2057,7 +2058,7 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
   const [search, setSearch] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [unitFilter, setUnitFilter] = useState("Semua Unit");
+  const [unitFilter, setUnitFilter] = useState("Semua Divisi");
   const [statusFilter, setStatusFilter] = useState("Semua Status");
   const [view, setView] = useState<"list" | "detail" | "create">("list");
   const [selectedRow, setSelectedRow] = useState<any>(null);
@@ -2182,7 +2183,7 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
       (r.departemen && r.departemen.toLowerCase().includes(search.toLowerCase())) ||
       (r.nama && r.nama.toLowerCase().includes(search.toLowerCase()));
 
-    const matchUnit = unitFilter === "Semua Unit" || 
+    const matchUnit = unitFilter === "Semua Divisi" ||
       r.vpDept.toLowerCase().includes(unitFilter.toLowerCase()) || 
       (r.departemen && r.departemen.toLowerCase().includes(unitFilter.toLowerCase()));
 
@@ -2304,9 +2305,9 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
               <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
-              <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Unit</label>
+              <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Divisi</label>
               <select value={unitFilter} onChange={e => setUnitFilter(e.target.value)} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
-                <option>Semua Unit</option><option>CTIT</option><option>Logistik</option>
+                <option>Semua Divisi</option>{DIVISI_LIST.map((divisi) => <option key={divisi}>{divisi}</option>)}
               </select>
             </div>
             <div>
@@ -2327,7 +2328,7 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
               <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><circle cx="6.875" cy="6.875" r="4.875" stroke="white" strokeWidth="1.17" /><path d="M12.25 12.25L9.74 9.74" stroke="white" strokeLinecap="round" strokeWidth="1.17" /></svg>
               Cari
             </button>
-            <button onClick={() => { setSearch(""); setStartDate(""); setEndDate(""); setUnitFilter("Semua Unit"); setStatusFilter("Semua Status"); fetchData(); }} className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150">
+            <button onClick={() => { setSearch(""); setStartDate(""); setEndDate(""); setUnitFilter("Semua Divisi"); setStatusFilter("Semua Status"); fetchData(); }} className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150">
               <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
                 <path d={group14Svg.p3bd12900} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                 <path d="M1.625 1.625V4.33333H4.33333" stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
@@ -2354,7 +2355,7 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
               <thead>
                 <tr className="bg-[#252271] text-white text-[10.5px] font-medium">
                   <th className="text-left px-[14px] py-[10px]">ID RUP</th>
-                  <th className="text-left px-[14px] py-[10px]">VP Departement</th>
+                  <th className="text-left px-[14px] py-[10px]">Divisi</th>
                   <th className="text-center px-[14px] py-[10px]">OPEX/CAPEX</th>
                   <th className="text-left px-[14px] py-[10px]">Tahun</th>
                   <th className="text-center px-[14px] py-[10px]">Status</th>
@@ -3044,8 +3045,8 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
             <div><label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Start Date</label><input value={sp3FilterDraft.startDate} onChange={(event) => setSp3FilterDraft((current) => ({ ...current, startDate: event.target.value }))} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" /></div>
             <div><label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">End Date</label><input value={sp3FilterDraft.endDate} onChange={(event) => setSp3FilterDraft((current) => ({ ...current, endDate: event.target.value }))} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" /></div>
             <div>
-              <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Unit</label>
-              <select value={sp3FilterDraft.unit} onChange={(event) => setSp3FilterDraft((current) => ({ ...current, unit: event.target.value }))} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors"><option value="">Semua Unit</option>{Array.from(new Set(allSp3Rows.map((row) => row.dept).filter(Boolean))).map((unit) => <option key={unit} value={unit}>{unit}</option>)}</select>
+              <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Divisi</label>
+              <select value={sp3FilterDraft.unit} onChange={(event) => setSp3FilterDraft((current) => ({ ...current, unit: event.target.value }))} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors"><option value="">Semua Divisi</option>{DIVISI_LIST.map((divisi) => <option key={divisi} value={divisi}>{divisi}</option>)}</select>
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Status</label>
@@ -3086,7 +3087,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
                   <th className="text-left px-[14px] py-[10px] whitespace-nowrap">No. SP3</th>
                   <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Judul Pengadaan</th>
                   <th className="text-left px-[14px] py-[10px] whitespace-nowrap">RKAP Value</th>
-                  <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Departement</th>
+                  <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Divisi</th>
                   <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Tax Value</th>
                   <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Realisation</th>
                   <th className="text-center px-[14px] py-[10px] whitespace-nowrap">Status</th>
@@ -3250,8 +3251,8 @@ function DocFilterBar({ onSearch, search, onFilter }: { search: string; onSearch
           <input value={filters.endDate} onChange={(event) => updateFilter({ endDate: event.target.value })} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
         </div>
         <div>
-          <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Unit</label>
-          <input value={filters.unit} onChange={(event) => updateFilter({ unit: event.target.value })} placeholder="Semua Unit..." className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+          <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Divisi</label>
+          <select value={filters.unit} onChange={(event) => updateFilter({ unit: event.target.value })} className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors"><option value="">Semua Divisi</option>{DIVISI_LIST.map((divisi) => <option key={divisi} value={divisi}>{divisi}</option>)}</select>
         </div>
         <div>
           <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Status</label>
@@ -4302,7 +4303,7 @@ function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" 
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">No. SP3 &#8645;</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Judul Pengadaan &#8645;</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Nilai Kontrak &#8645;</th>
-                    <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Departement &#8645;</th>
+                    <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Divisi &#8645;</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">PBJ &#8645;</th>
                     <th className="text-left px-[14px] py-[10px] whitespace-nowrap">Performance Bond &#8645;</th>
                     <th className="text-center px-[14px] py-[10px] whitespace-nowrap">Status</th>
@@ -4531,9 +4532,9 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
               <input value={endDate} onChange={(event) => setEndDate(event.target.value)} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
-              <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Unit</label>
+              <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Divisi</label>
               <select value={unit} onChange={(event) => setUnit(event.target.value)} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
-                <option value="">Semua Unit</option>{Array.from(new Set(verificationItems.map((entry: any) => entry.departemen).filter(Boolean))).map((entry: string) => <option key={entry} value={entry}>{entry}</option>)}
+                <option value="">Semua Divisi</option>{DIVISI_LIST.map((divisi) => <option key={divisi} value={divisi}>{divisi}</option>)}
               </select>
             </div>
             <div>
@@ -4704,9 +4705,9 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
               <input value={filterDraft.endDate} onChange={(event) => setFilterDraft((current) => ({ ...current, endDate: event.target.value }))} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
-              <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Unit</label>
+              <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Divisi</label>
               <select value={filterDraft.unit} onChange={(event) => setFilterDraft((current) => ({ ...current, unit: event.target.value }))} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
-                <option value="">Semua Unit</option>{Array.from(new Set(allQueueRows.map((row) => row.divisi).filter(Boolean))).map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                <option value="">Semua Divisi</option>{DIVISI_LIST.map((divisi) => <option key={divisi} value={divisi}>{divisi}</option>)}
               </select>
             </div>
             <div>
@@ -5534,11 +5535,10 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
               <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
-              <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Unit</label>
+              <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Divisi</label>
               <select className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
-                <option value="">Semua Unit</option>
-                <option>CTIT</option>
-                <option>Logistik</option>
+                <option value="">Semua Divisi</option>
+                {DIVISI_LIST.map((divisi) => <option key={divisi} value={divisi}>{divisi}</option>)}
               </select>
             </div>
             <div>
@@ -5731,7 +5731,7 @@ function TambahUserModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div className="flex flex-col gap-[4px]">
-            <label className="text-[12px] font-medium text-[rgba(82,82,82,0.6)]">Departemen</label>
+            <label className="text-[12px] font-medium text-[rgba(82,82,82,0.6)]">Divisi</label>
             <select
               value={form.dept}
               onChange={(e) => setForm({ ...form, dept: e.target.value })}
@@ -5820,7 +5820,7 @@ function DetailUserModal({ userId, onClose }: { userId: number; onClose: () => v
               </div>
             </div>
             <div className="flex flex-col gap-[4px]">
-              <label className="text-[12px] font-medium text-[rgba(82,82,82,0.6)]">Departemen</label>
+              <label className="text-[12px] font-medium text-[rgba(82,82,82,0.6)]">Divisi</label>
               <div className="h-[33px] rounded-[15px] border border-[#d3d3d3] px-[16px] flex items-center text-[12px] text-[#0f172a]">
                 {user.dept}
               </div>

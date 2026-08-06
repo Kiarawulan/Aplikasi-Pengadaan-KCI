@@ -7,6 +7,7 @@ import {
   Filter, Download, Search, ChevronRight, PieChart, Calendar, Users,
   CheckCircle2, Clock, XCircle, AlertTriangle, ArrowRight, Building2
 } from "lucide-react";
+import { DIVISI_LIST } from "@/constants/divisi";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -119,7 +120,7 @@ function DataTable({ columns, data }: { columns: { key: string; label: string; r
 }
 
 // ─── UNIT & TAHUN FILTERS ──────────────────────────────────────────────────────
-const DEFAULT_UNITS = ["Pilih Unit", "Semua Unit"];
+const DEFAULT_UNITS = ["Pilih Divisi", "Semua Divisi", ...DIVISI_LIST];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
 type ApiRow = Record<string, any>;
@@ -154,7 +155,7 @@ function currency(value: unknown) {
 
 function filterRecords(rows: ApiRow[], unit: string, year: string) {
   return rows.filter((row) => {
-    const matchesUnit = !unit || unit === "Pilih Unit" || unit === "Semua Unit" || row.departemen === unit;
+    const matchesUnit = !unit || unit === "Pilih Divisi" || unit === "Semua Divisi" || row.departemen === unit;
     const date = recordDate(row);
     const matchesYear = !year || !date || date.startsWith(year);
     return matchesUnit && matchesYear;
@@ -172,7 +173,7 @@ function monthlyRows(rows: ApiRow[], getValues: (row: ApiRow) => number[]) {
 
 function rowsByDepartment(rows: ApiRow[], color = "#252271") {
   const totals = rows.reduce<Record<string, number>>((acc, row) => {
-    const department = row.departemen || "Tanpa Unit";
+    const department = row.departemen || "Tanpa Divisi";
     acc[department] = (acc[department] || 0) + 1;
     return acc;
   }, {});
@@ -218,7 +219,7 @@ function UnitYearFilter({ unit, setUnit, tahun, setTahun, units = DEFAULT_UNITS 
   return (
     <div className="flex items-center gap-3 mb-5">
       <div className="flex items-center gap-2">
-        <label className="text-[11px] font-semibold text-gray-500 uppercase">Unit</label>
+        <label className="text-[11px] font-semibold text-gray-500 uppercase">Divisi</label>
         <select value={unit} onChange={e => setUnit(e.target.value)}
           className="h-8 px-3 rounded-lg border border-gray-200 text-[11.5px] text-gray-700 font-medium bg-white outline-none cursor-pointer">
           {units.map(u => <option key={u} value={u}>{u}</option>)}
@@ -242,7 +243,7 @@ function UnitYearFilter({ unit, setUnit, tahun, setTahun, units = DEFAULT_UNITS 
 // 1. PENGAJUAN DANA DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
 function PengajuanDanaDashboard() {
-  const [unit, setUnit] = useState("Pilih Unit");
+  const [unit, setUnit] = useState("Pilih Divisi");
   const [tahun, setTahun] = useState(() => String(new Date().getFullYear()));
   const [search, setSearch] = useState("");
   const { pengadaan, verifikasi, units } = useAdminDashboardData();
@@ -250,14 +251,14 @@ function PengajuanDanaDashboard() {
   const pengadaanById = useMemo(() => new Map(pengadaan.map((row) => [row.id, row])), [pengadaan]);
   const pdStatus = useMemo(() => rowsByDepartment(scopedPengadaan.filter((row) => row.flowType === "pd")).map((row) => ({
     unit: row.label,
-    onProgress: scopedPengadaan.filter((item) => item.flowType === "pd" && (item.departemen || "Tanpa Unit") === row.label && isInProgress(item.status)).length,
-    selesai: scopedPengadaan.filter((item) => item.flowType === "pd" && (item.departemen || "Tanpa Unit") === row.label && isDone(item.status)).length,
+    onProgress: scopedPengadaan.filter((item) => item.flowType === "pd" && (item.departemen || "Tanpa Divisi") === row.label && isInProgress(item.status)).length,
+    selesai: scopedPengadaan.filter((item) => item.flowType === "pd" && (item.departemen || "Tanpa Divisi") === row.label && isDone(item.status)).length,
   })), [scopedPengadaan]);
   const prStatus = useMemo(() => rowsByDepartment(scopedPengadaan.filter((row) => row.flowType === "pr")).map((row) => ({
     unit: row.label,
-    submit: scopedPengadaan.filter((item) => item.flowType === "pr" && (item.departemen || "Tanpa Unit") === row.label && item.status === "draft").length,
-    onGoing: scopedPengadaan.filter((item) => item.flowType === "pr" && (item.departemen || "Tanpa Unit") === row.label && isInProgress(item.status)).length,
-    done: scopedPengadaan.filter((item) => item.flowType === "pr" && (item.departemen || "Tanpa Unit") === row.label && isDone(item.status)).length,
+    submit: scopedPengadaan.filter((item) => item.flowType === "pr" && (item.departemen || "Tanpa Divisi") === row.label && item.status === "draft").length,
+    onGoing: scopedPengadaan.filter((item) => item.flowType === "pr" && (item.departemen || "Tanpa Divisi") === row.label && isInProgress(item.status)).length,
+    done: scopedPengadaan.filter((item) => item.flowType === "pr" && (item.departemen || "Tanpa Divisi") === row.label && isDone(item.status)).length,
   })), [scopedPengadaan]);
   const pendingMatters = useMemo(() => filterRecords(verifikasi, unit, tahun)
     .filter((row) => row.status === "pending")
@@ -289,10 +290,10 @@ function PengajuanDanaDashboard() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-2 gap-5">
-        {/* Summary Status PD Per Unit */}
+        {/* Summary Status PD Per Divisi */}
         <div className="bg-white rounded-[20px] shadow-sm border border-gray-100 p-5">
-          <SectionTitle icon={BarChart3}>Summary Status PD Per Unit</SectionTitle>
-          <p className="text-[10px] text-gray-400 mb-2">Status PD per Unit</p>
+          <SectionTitle icon={BarChart3}>Summary Status PD Per Divisi</SectionTitle>
+          <p className="text-[10px] text-gray-400 mb-2">Status PD per Divisi</p>
           <SimpleBarChart
             data={pdStatus.map(s => ({
               label: s.unit,
@@ -304,10 +305,10 @@ function PengajuanDanaDashboard() {
           <ChartLegend items={[{ label: "On Progress", color: "#252271" }, { label: "Selesai", color: "#e6251c" }]} />
         </div>
 
-        {/* Summary Status PR Per Unit */}
+        {/* Summary Status PR Per Divisi */}
         <div className="bg-white rounded-[20px] shadow-sm border border-gray-100 p-5">
-          <SectionTitle icon={BarChart3}>Summary Status PR Per Unit</SectionTitle>
-          <p className="text-[10px] text-gray-400 mb-2">Status PR per Unit</p>
+          <SectionTitle icon={BarChart3}>Summary Status PR Per Divisi</SectionTitle>
+          <p className="text-[10px] text-gray-400 mb-2">Status PR per Divisi</p>
           <SimpleBarChart
             data={prStatus.map(s => ({
               label: s.unit,
@@ -371,7 +372,7 @@ function PengajuanDanaDashboard() {
 // 2. PENGUJIAN DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
 function PengujianDashboard() {
-  const [unit, setUnit] = useState("Pilih Unit");
+  const [unit, setUnit] = useState("Pilih Divisi");
   const [bulan, setBulan] = useState("");
   const [tahun, setTahun] = useState(() => String(new Date().getFullYear()));
   const { pengujian, units } = useAdminDashboardData();
@@ -427,7 +428,7 @@ function PengujianDashboard() {
 
         {/* Pengujian By Department */}
         <div className="col-span-2 bg-white rounded-[20px] shadow-sm border border-gray-100 p-5">
-          <SectionTitle icon={Building2}>Pengujian Per Departemen</SectionTitle>
+          <SectionTitle icon={Building2}>Pengujian Per Divisi</SectionTitle>
           <SimpleBarChart data={pengujianByDept} height={160} />
         </div>
       </div>
@@ -484,7 +485,7 @@ function PengadaanDashboard() {
   const [bulan, setBulan] = useState("");
   const [tahun, setTahun] = useState(() => String(new Date().getFullYear()));
   const { pengadaan } = useAdminDashboardData();
-  const scopedPengadaan = useMemo(() => filterRecords(pengadaan, "Semua Unit", tahun)
+  const scopedPengadaan = useMemo(() => filterRecords(pengadaan, "Semua Divisi", tahun)
     .filter((row) => !bulan || new Date(recordDate(row)).getMonth() === Number(bulan)), [pengadaan, bulan, tahun]);
   const pengadaanStats = useMemo(() => [
     { label: "Jumlah Kontrak", value: scopedPengadaan.filter((row) => ["contract", "completed"].includes(row.currentStep) || isDone(row.status)).length, gradient: "from-[#252271] to-[#3b3baa]", icon: FileText },
@@ -495,7 +496,7 @@ function PengadaanDashboard() {
   const pengadaanChart = useMemo(() => monthlyRows(scopedPengadaan, (row) => [1, isInProgress(row.status) ? 1 : 0, isDone(row.status) ? 1 : 0]), [scopedPengadaan]);
   const trenPengajuan = useMemo(() => pengadaanChart.map((row) => ({ bulan: row.label, nilai: row.values[0] })), [pengadaanChart]);
   const topAssignment = useMemo(() => Object.entries(scopedPengadaan.reduce<Record<string, ApiRow[]>>((groups, row) => {
-    const key = row.departemen || "Tanpa Unit";
+    const key = row.departemen || "Tanpa Divisi";
     (groups[key] ||= []).push(row);
     return groups;
   }, {})).sort(([, left], [, right]) => right.length - left.length).slice(0, 5).map(([assignee, rows]) => ({
@@ -599,7 +600,7 @@ function PengadaanDashboard() {
 
         {/* Proses Pengajuan By Department */}
         <div className="bg-white rounded-[20px] shadow-sm border border-gray-100 p-5">
-          <SectionTitle icon={Building2}>Proses Pengajuan By Department</SectionTitle>
+          <SectionTitle icon={Building2}>Proses Pengajuan Per Divisi</SectionTitle>
           <SimpleBarChart data={pengadaanByDept} height={140} />
         </div>
       </div>
@@ -664,7 +665,7 @@ function PaymentTable({ title, data, showPackage, gradient }: {
 }
 
 function PembayaranDashboard() {
-  const [unit, setUnit] = useState("Pilih Unit");
+  const [unit, setUnit] = useState("Pilih Divisi");
   const [vendor, setVendor] = useState("Pilih Vendor");
   const [currency, setCurrency] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -677,7 +678,7 @@ function PembayaranDashboard() {
     const paymentDate = recordDate(payment);
     const paymentVendor = getVendor(parent);
     const paymentCurrency = String((parent.formData?.["buat-npp"] || parent.formData?.npp || parent.formData || {}).kurs || "IDR").toUpperCase();
-    return (unit === "Pilih Unit" || unit === "Semua Unit" || parent.departemen === unit)
+    return (unit === "Pilih Divisi" || unit === "Semua Divisi" || parent.departemen === unit)
       && (vendor === "Pilih Vendor" || paymentVendor === vendor)
       && (!currency || paymentCurrency === currency)
       && (!startDate || paymentDate >= startDate)
@@ -724,7 +725,7 @@ function PembayaranDashboard() {
       <div className="flex items-center gap-3 flex-wrap">
         <select value={unit} onChange={e => setUnit(e.target.value)}
           className="h-8 px-3 rounded-lg border border-gray-200 text-[11px] text-gray-600 font-medium outline-none cursor-pointer">
-          <option value="Pilih Unit">SELECT UNIT ▼</option>{units.filter((item) => item !== "Pilih Unit").map(u => <option key={u} value={u}>{u}</option>)}
+          <option value="Pilih Divisi">PILIH DIVISI ▼</option>{units.filter((item) => item !== "Pilih Divisi").map(u => <option key={u} value={u}>{u}</option>)}
         </select>
         <select value={vendor} onChange={e => setVendor(e.target.value)}
           className="h-8 px-3 rounded-lg border border-gray-200 text-[11px] text-gray-600 font-medium outline-none cursor-pointer">

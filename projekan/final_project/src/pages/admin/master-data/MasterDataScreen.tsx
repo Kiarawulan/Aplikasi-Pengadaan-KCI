@@ -27,8 +27,8 @@ interface TabDef {
 // ─── Tab Definitions ───────────────────────────────────────────────────────────
 const TABS: TabDef[] = [
   { id: "vendor", label: "Vendor", icon: Building2, group: "Umum" },
-  { id: "unit-kerja", label: "Unit Kerja / Divisi", icon: Users, group: "Umum" },
-  { id: "department", label: "Department", icon: Briefcase, group: "Umum" },
+  { id: "unit-kerja", label: "Divisi", icon: Users, group: "Umum" },
+  { id: "department", label: "Detail Divisi", icon: Briefcase, group: "Umum" },
   { id: "direktorat", label: "Direktorat", icon: Building2, group: "Umum" },
   { id: "jenis-pengadaan", label: "Jenis Pengadaan", icon: Tag, group: "Pengadaan" },
   { id: "metode-pengadaan", label: "Metode Pengadaan", icon: FileStack, group: "Pengadaan" },
@@ -190,13 +190,13 @@ function getColumns(tab: TabId): ColDef[] {
     case "unit-kerja":
       return [
         { key: "kode", label: "Kode", render: (v) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{v.kode}</span> },
-        { key: "nama", label: "Nama Unit Kerja", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+        { key: "nama", label: "Nama Divisi", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
         { key: "kepala", label: "Kepala", render: (v) => <span className="text-[11.5px] text-gray-600">{v.kepala}</span> },
       ];
     case "department":
       return [
         { key: "kode", label: "Kode", render: (v) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{v.kode}</span> },
-        { key: "nama", label: "Nama Department", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
+        { key: "nama", label: "Nama Divisi", render: (v) => <span className="font-semibold text-gray-800 text-[12px]">{v.nama}</span> },
         { key: "divisi", label: "Divisi", render: (v) => <span className="bg-indigo-50 text-indigo-600 text-[10.5px] font-medium px-2 py-0.5 rounded-full">{v.divisi}</span> },
       ];
     case "direktorat":
@@ -299,9 +299,9 @@ function getFormFields(tab: TabId): { key: string; label: string; type?: string;
         { key: "telepon", label: "Telepon" },
       ];
     case "unit-kerja":
-      return [{ key: "nama", label: "Nama Unit Kerja", required: true }, { key: "kode", label: "Kode", required: true }, { key: "kepala", label: "Kepala" }];
+      return [{ key: "nama", label: "Nama Divisi", required: true }, { key: "kode", label: "Kode", required: true }, { key: "kepala", label: "Kepala" }];
     case "department":
-      return [{ key: "nama", label: "Nama Department", required: true }, { key: "kode", label: "Kode", required: true }, { key: "divisi", label: "Divisi" }];
+      return [{ key: "nama", label: "Nama Divisi", required: true }, { key: "kode", label: "Kode", required: true }, { key: "divisi", label: "Divisi Induk" }];
     case "direktorat":
       return [{ key: "nama", label: "Nama Direktorat", required: true }, { key: "kode", label: "Kode", required: true }];
     case "jenis-pengadaan":

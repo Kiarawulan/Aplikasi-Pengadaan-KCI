@@ -5,6 +5,7 @@ import { VerifTable, FilterConfig } from "../../../components/admin/shared/Verif
 import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/shared/AdminModal";
 import { Plus, CheckCircle2, XCircle, FileWarning, Download, ChevronRight, Trash2 } from "lucide-react";
 import { useAuth } from "../../../store/authStore";
+import { DIVISI_OPTIONS } from "../../../constants/divisi";
 
 type ScreenProps = { activeSubItem: string; };
 
@@ -39,16 +40,6 @@ const BANK_OPTS = [
   { value: "Bank BTN", label: "Bank BTN" },
 ];
 
-const DEPT_OPTS = [
-  { value: "CUG - LOGISTIC", label: "CUG - LOGISTIC" },
-  { value: "CTR - ROLLING STOCK", label: "CTR - ROLLING STOCK" },
-  { value: "CTI - INFORMATION TECHNOLOGY", label: "CTI - INFORMATION TECHNOLOGY" },
-  { value: "COS - HSE AND SECURITY", label: "COS - HSE AND SECURITY" },
-  { value: "CTS - INFRASTRUCTURE", label: "CTS - INFRASTRUCTURE" },
-  { value: "CUS - CORPORATE SECRETARY", label: "CUS - CORPORATE SECRETARY" },
-  { value: "CAF - FINANCE", label: "CAF - FINANCE" },
-];
-
 // ─── Finance Verification Form ────────────────────────────────────────────────
 function FinanceVerifModal({
   item,
@@ -70,7 +61,7 @@ function FinanceVerifModal({
   const [syarat, setSyarat] = useState(docsList.map(d => ({ doc: d, syarat: false, ada: false, ket: "" })));
   const [syaratLain, setSyaratLain] = useState<{ doc: string; syarat: boolean; ada: boolean; ket: string }[]>([]);
   const [form, setForm] = useState({
-    unit: "CUG", date: "", currency: "IDR", noPr: "", noPo: "",
+    unit: DIVISI_OPTIONS[0].value, date: "", currency: "IDR", noPr: "", noPo: "",
     typeVendor: "anak-perusahaan", namaVendor: item.namaVendor || "",
     noKontrak: item.noKontrak || "", amandemen: "0", tanggalKontrak: "",
     judulKontrak: item.nama || "", mppl: "",
@@ -145,9 +136,9 @@ function FinanceVerifModal({
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-              <ModalField label="Unit" required>
+              <ModalField label="Divisi" required>
                 <ModalSelect value={form.unit} onChange={v => setForm(p => ({ ...p, unit: v }))}
-                  options={["CUG", "CTR", "CTI", "COS", "CTS", "CUS", "CAF"].map(u => ({ value: u, label: u }))} />
+                  options={DIVISI_OPTIONS} />
               </ModalField>
               <ModalField label="Date" required>
                 <ModalInput type="date" value={form.date} onChange={v => setForm(p => ({ ...p, date: v }))} />
@@ -770,7 +761,7 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
     setShowUmd(null);
   };
   const topFiltersPayment: FilterConfig[] = [
-    { key: "departemen", label: "Departemen", type: "text" },
+    { key: "departemen", label: "Divisi", type: "select", options: DIVISI_OPTIONS },
     { key: "status", label: "Status", type: "select", options: [{ value: "pending", label: "Pending" }, { value: "approved", label: "Disetujui" }, { value: "revisi", label: "Revisi" }, { value: "rejected", label: "Ditolak" }] },
   ];
 
@@ -787,7 +778,7 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
     { key: "nominal", label: "Nominal", render: (r: any) => <span className="font-semibold text-gray-800">{r.nominal}</span> },
     { key: "namaVendor", label: "Vendor", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.namaVendor}</span> },
     { key: "bank", label: "Bank", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.bank}</span> },
-    { key: "departemen", label: "Dept", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.departemen.split(" - ")[0]}</span> },
+    { key: "departemen", label: "Divisi", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.departemen}</span> },
     { key: "tgl", label: "Tgl Bayar", render: (r: any) => <span className="text-[11px]">{new Date(r.tgl).toLocaleDateString("id-ID")}</span> },
     { key: "status", label: "Status", render: (r: any) => statusBadge(r.status) },
   ];
@@ -862,7 +853,7 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <ModalField label="No. Rekening"><ModalInput value={form.noRekening} onChange={v => setForm(p => ({ ...p, noRekening: v }))} placeholder="1234-5678-9012" /></ModalField>
-              <ModalField label="Departemen" required><ModalSelect value={form.departemen} onChange={v => setForm(p => ({ ...p, departemen: v }))} options={DEPT_OPTS} /></ModalField>
+              <ModalField label="Divisi" required><ModalSelect value={form.departemen} onChange={v => setForm(p => ({ ...p, departemen: v }))} options={DIVISI_OPTIONS} /></ModalField>
             </div>
           </div>
         </AdminModal>
@@ -872,7 +863,7 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
         <AdminModal title="Detail Pembayaran" onClose={() => setShowDetail(null)} hideFooter width="max-w-lg">
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
-              {[{ k: "No. Dokumen", v: showDetail.id }, { k: "No. SP3", v: showDetail.noSp3 }, { k: "No. Kontrak", v: showDetail.noKontrak }, { k: "Judul Pengadaan", v: showDetail.nama }, { k: "Nominal", v: showDetail.nominal }, { k: "Nama Vendor", v: showDetail.namaVendor }, { k: "No. Rekening", v: showDetail.noRekening }, { k: "Bank", v: showDetail.bank }, { k: "Departemen", v: showDetail.departemen }, { k: "Tanggal", v: showDetail.tgl }, { k: "Tipe", v: showDetail.tipe }, { k: "Status", v: showDetail.status }].map(row => (
+              {[{ k: "No. Dokumen", v: showDetail.id }, { k: "No. SP3", v: showDetail.noSp3 }, { k: "No. Kontrak", v: showDetail.noKontrak }, { k: "Judul Pengadaan", v: showDetail.nama }, { k: "Nominal", v: showDetail.nominal }, { k: "Nama Vendor", v: showDetail.namaVendor }, { k: "No. Rekening", v: showDetail.noRekening }, { k: "Bank", v: showDetail.bank }, { k: "Divisi", v: showDetail.departemen }, { k: "Tanggal", v: showDetail.tgl }, { k: "Tipe", v: showDetail.tipe }, { k: "Status", v: showDetail.status }].map(row => (
                 <div key={row.k} className="flex flex-col border-b border-gray-50 pb-1.5">
                   <span className="text-gray-400 text-[10px] font-mono uppercase">{row.k}</span>
                   <span className="font-semibold text-gray-700 text-[12px]">{row.v}</span>

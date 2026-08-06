@@ -24,7 +24,7 @@ export const RupDetailView: React.FC<RupDetailViewProps> = ({
     { label: "No. Timeline", value: item?.noTimeline || item?.id || '-' },
     { label: "Procurement Title", value: d.namaPaket || item?.procurementTitle || item?.judul || item?.nama || '-' },
     { label: "RKAP Value", value: d.nilaiSebelumPajak || item?.rkapValue || item?.nilaiRkap || item?.nilai || '-' },
-    { label: "Department", value: d.departemen || item?.dept || item?.departemen || '-' },
+    { label: "Divisi", value: d.departemen || item?.dept || item?.departemen || '-' },
     { label: "PBJ", value: d.pbj || item?.pbj || '-' },
     { label: "Cost", value: d.opexCapex || item?.cost || item?.capexOpex || item?.opex || '-' },
     { label: "Directorate", value: item?.directorate || item?.direktorat || '-' },

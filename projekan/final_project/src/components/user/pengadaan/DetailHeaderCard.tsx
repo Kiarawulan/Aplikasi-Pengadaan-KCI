@@ -25,7 +25,7 @@ export function DetailHeaderCard({ item, allFd, verifStatus }: { item: Pengadaan
           <div className="flex flex-wrap gap-6 mt-2.5">
             {[
               { label: "Tanggal Pembuatan:", val: item.tanggal },
-              { label: "Departemen:", val: item.departemen },
+              { label: "Divisi:", val: item.departemen },
               { label: "Nominal:", val: item.nominal },
               { label: "Email PIC:", val: emailPic },
               { label: "Jenis Permohonan:", val: jenisPermohonan },

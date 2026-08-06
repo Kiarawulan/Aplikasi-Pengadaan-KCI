@@ -11,6 +11,7 @@ import { RupDetailView } from "../../../components/admin/verifikasi/RupDetailVie
 import { NppDetailView } from "../../../components/admin/verifikasi/NppDetailView";
 import { PengujianDetailView } from "../../../components/admin/verifikasi/PengujianDetailView";
 import { getVerifRecords, getRupList, saveVerifRecords, saveRupList, updateRup, updateVerifRecord } from "../../../store/dataStore";
+import { DIVISI_OPTIONS } from "../../../constants/divisi";
 
 type ScreenProps = {
   activeSubItem: string;
@@ -210,8 +211,8 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
     },
     {
       key: "dept",
-      label: "Departemen",
-      options: Array.from(new Set(verifTasks.map(task => task.dept).filter(Boolean))).map(dept => ({ value: dept, label: dept })),
+      label: "Divisi",
+      options: DIVISI_OPTIONS,
     },
   ];
 
@@ -293,7 +294,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
   // Columns
   const rupColumns = [
     { key: "id", label: "ID RUP", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id}</span> },
-    { key: "vpDept", label: "VP Departemen", render: (r: any) => <span className="text-gray-700 text-[11px] font-medium">{r.vpDept}</span> },
+    { key: "vpDept", label: "Divisi", render: (r: any) => <span className="text-gray-700 text-[11px] font-medium">{r.vpDept}</span> },
     { key: "judul", label: "Nama Paket Pengadaan", render: (r: any) => <div><p className="font-semibold text-gray-800 text-[11.5px] max-w-[200px] truncate">{r.judul}</p><p className="text-gray-400 text-[10px]">{r.bebanBiaya}</p></div> },
     { key: "jenisKontrak", label: "Jenis", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.jenisKontrak}</span> },
     { key: "pbj", label: "PBJ", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.pbj}</span> },
@@ -320,7 +321,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
     { key: "id", label: "No. Pengadaan", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id}</span> },
     { key: "nama", label: "Procurement Title", render: (r: any) => <div><p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama || r.title}</p><p className="text-gray-400 text-[10px]">{r.vendor}</p></div> },
     { key: "nominal", label: "Nilai Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.rkap}</span> },
-    { key: "dept", label: "Department", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.departemen || r.dept}</span> },
+    { key: "dept", label: "Divisi", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.departemen || r.dept}</span> },
   ];
 
   const pbjColumns = activeSubItem === 'pbj-task-approval-pbj' ? [
@@ -349,7 +350,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
     { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id || r.sp3 || "SP3-2024-001"}</span> },
     { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[200px] truncate">{r.nama || r.paket}</p> },
     { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.nilai || "Rp 485.000.000"}</span> },
-    { key: "dept", label: "Departement", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen || r.dept || "CTIT"}</span> },
+    { key: "dept", label: "Divisi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen || r.dept || "CTIT"}</span> },
     { key: "pbj", label: "PBJ", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.pbj || "Sarana"}</span> },
     { key: "bond", label: "Performance Bond", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.performanceBond || "Rp 24.250.000"}</span> },
     { key: "status", label: "Status", render: (r: any) => <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-indigo-50 text-[#3b82f6] border border-indigo-200">{r.status || "Contract Release"}</span> },
@@ -717,9 +718,9 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                         endDate: "Tanggal Selesai",
                         keterangan: "Keterangan",
                         status: "Status",
-                        vpDept: "VP Departemen",
-                        dept: "Departemen",
-                        departemen: "Departemen",
+                        vpDept: "Divisi",
+                        dept: "Divisi",
+                        departemen: "Divisi",
                         capexOpex: "Capex / Opex",
                         rkapKat: "Kategori RKAP",
                         sp3: "No. SP3",

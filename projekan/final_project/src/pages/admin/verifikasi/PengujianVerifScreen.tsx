@@ -5,6 +5,7 @@ import { VerifTable, FilterConfig } from "../../../components/admin/shared/Verif
 import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/shared/AdminModal";
 import { FileUploadInput } from "../../../components/common/FileUploadInput";
 import { Plus, CheckCircle2, XCircle, FileWarning, Eye, BarChart3, TrendingUp, ShieldCheck } from "lucide-react";
+import { DIVISI_OPTIONS } from "../../../constants/divisi";
 
 type ScreenProps = {
   activeSubItem: string;
@@ -113,7 +114,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
   };
 
   const topFiltersConfig: FilterConfig[] = [
-    { key: "departemen", label: "Departemen", type: "text" },
+    { key: "departemen", label: "Divisi", type: "select", options: DIVISI_OPTIONS },
     {
       key: "status",
       label: "Status",
@@ -169,7 +170,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
         { key: "sp3", label: "No. SP3", render: (r: any) => <span className="font-mono text-[11px] text-gray-500">{r.sp3}</span> },
         { key: "nama", label: "Judul Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[12.5px]">{r.nama}</span> },
         { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-[#252271]">{r.nominal}</span> },
-        { key: "departemen", label: "Departemen", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen}</span> },
+        { key: "departemen", label: "Divisi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen}</span> },
         { key: "tanggal", label: "Tanggal Kontrak", render: (r: any) => <span className="text-gray-500 text-[11.5px]">{r.tanggal}</span> },
         { key: "status", label: "Status", render: (r: any) => <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-blue-50 text-blue-600 border border-blue-200">{r.status}</span> }
       ];
@@ -190,7 +191,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
               data={currentList}
               searchKeys={["nama", "id", "departemen", "vendor"]}
               dateKey="tanggal"
-              topFilters={[{ key: "departemen", label: "Departemen", type: "text" }]}
+              topFilters={[{ key: "departemen", label: "Divisi", type: "select", options: DIVISI_OPTIONS }]}
               showCrudActions={false}
               showVerifActions={true}
               onApprove={async (r) => {
@@ -251,7 +252,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
         { key: "kontrakNo", label: "Nomor Kontrak", render: (r: any) => <span className="font-mono font-bold text-gray-700">{r.kontrakNo}</span> },
         { key: "nama", label: "Judul Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[12.5px]">{r.nama}</span> },
         { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-[#252271]">{r.nominal}</span> },
-        { key: "departemen", label: "Departemen", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen}</span> },
+        { key: "departemen", label: "Divisi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen}</span> },
         { key: "jadwal", label: "Jadwal Pengujian", render: (r: any) => <span className="text-gray-500 text-[11.5px]">{r.jadwal}</span> },
         { key: "timeline", label: "Timeline", render: (r: any) => <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-green-50 text-green-600 border border-green-200">{r.timeline}</span> }
       ];
@@ -272,7 +273,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
               data={requestList}
               searchKeys={["nama", "kontrakNo", "departemen"]}
               dateKey="jadwal"
-              topFilters={[{ key: "departemen", label: "Departemen", type: "text" }]}
+              topFilters={[{ key: "departemen", label: "Divisi", type: "select", options: DIVISI_OPTIONS }]}
               showCrudActions={false}
               emptyMessage="Tidak ada data request pengujian."
             />
@@ -304,7 +305,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
         { key: "kontrakNo", label: "Nomor Kontrak", render: (r: any) => <span className="font-mono font-bold text-gray-700">{r.kontrakNo}</span> },
         { key: "nama", label: "Judul Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[12.5px]">{r.nama}</span> },
         { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-[#252271]">{r.nominal}</span> },
-        { key: "departemen", label: "Departemen", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen}</span> },
+        { key: "departemen", label: "Divisi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen}</span> },
         { key: "status", label: "Status Pengujian", render: (r: any) => {
           const colors: Record<string, string> = {
             "Request Pengujian": "bg-blue-50 text-blue-600 border border-blue-200",
@@ -339,7 +340,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
                   { k: "Nomor Kontrak", v: showReviewDetail.kontrakNo },
                   { k: "Judul Pengadaan", v: showReviewDetail.nama },
                   { k: "Nilai Kontrak", v: showReviewDetail.nominal },
-                  { k: "Departemen", v: showReviewDetail.departemen },
+                  { k: "Divisi", v: showReviewDetail.departemen },
                   { k: "Status", v: showReviewDetail.status }
                 ].map(r => (
                   <div key={r.k} className="flex justify-between border-b border-gray-50 pb-1.5 text-[12px]">

@@ -27,7 +27,7 @@ export const NppDetailView: React.FC<NppDetailViewProps> = ({
     { label: "Procurement Title", value: nppFd?.judulPermohonan || item?.procTitle || item?.judul || item?.nama || 'Pengadaan Lisensi OS Server' },
     { label: "Vendor Name", value: nppFd?.vendor || item?.vendorName || item?.vendor || 'PT Software Nusantara' },
     { label: "Nilai PR", value: nppFd?.nilaiPr ? (String(nppFd.nilaiPr).startsWith("Rp") ? nppFd.nilaiPr : `Rp ${Number(nppFd.nilaiPr).toLocaleString("id-ID")}`) : (item?.prVal || item?.rkap || item?.nilai || 'Rp 150.000.000') },
-    { label: "Department", value: nppFd?.subUnit || nppFd?.divisi || item?.dept || item?.divisi || item?.departemen || 'CTIT' },
+    { label: "Divisi", value: nppFd?.subUnit || nppFd?.divisi || item?.dept || item?.divisi || item?.departemen || 'CTIT' },
     { label: "Kode COA", value: nppFd?.coa || item?.coa || '5211101' },
     { label: "Jenis Barang", value: nppFd?.jenisBarang || item?.jenisBarang || item?.kategori || 'IT Software' },
     { label: "Kurs", value: nppFd?.kurs || item?.kurs || 'IDR' },

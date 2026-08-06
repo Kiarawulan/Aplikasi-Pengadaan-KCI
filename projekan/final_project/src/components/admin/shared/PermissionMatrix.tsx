@@ -84,7 +84,7 @@ export const DEFAULT_HAK_AKSES_GROUPS: PermGroup[] = [
       { id: "pj-menu-report", name: "Menu Report", desc: "(Report Pengujian)", view: false, action: false },
       { id: "pj-dashboard-tc", name: "Dashboard Testing Committee", desc: "(Dashboard Testing Committee)", view: false, action: false },
       { id: "pj-generate-bahp", name: "Generate BAHP", desc: "(List Pengujian (Cetak))", view: false, action: false },
-      { id: "pj-m-user-detail", name: "Management User Detail", desc: "(List Users, Add Users (Level Manager Unit))", view: false, action: false },
+      { id: "pj-m-user-detail", name: "Management User Detail", desc: "(List Users, Add Users (Level Manager Divisi))", view: false, action: false },
     ],
   },
   {

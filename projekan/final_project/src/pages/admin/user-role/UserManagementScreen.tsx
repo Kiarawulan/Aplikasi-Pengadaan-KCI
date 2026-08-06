@@ -4,26 +4,9 @@ import { AdminModal, ConfirmModal, ModalField, ModalInput, ModalSelect } from "@
 import { api } from "@/services/api";
 import type { AppUser, AppRole } from "@/types";
 import { useAuth } from "@/store/authStore";
+import { DIVISI_OPTIONS } from "@/constants/divisi";
 
 
-
-const DEPARTEMEN_OPTIONS = [
-  { value: "CUS - CORPORATE SECRETARY", label: "CUS - CORPORATE SECRETARY" },
-  { value: "CUL - GRC AND LEGAL", label: "CUL - GRC AND LEGAL" },
-  { value: "CUG - LOGISTIC", label: "CUG - LOGISTIC" },
-  { value: "CUI - INTERNAL AUDIT", label: "CUI - INTERNAL AUDIT" },
-  { value: "CUP - STRATEGIC PLANNING", label: "CUP - STRATEGIC PLANNING" },
-  { value: "COS - HSE AND SECURITY", label: "COS - HSE AND SECURITY" },
-  { value: "COC - COMMERCIAL", label: "COC - COMMERCIAL" },
-  { value: "COH - TRAIN SERVICES FACILITIES AND CUSTOMER CARE", label: "COH - TRAIN SERVICES FACILITIES AND CUSTOMER CARE" },
-  { value: "CTI - INFORMATION TECHNOLOGY", label: "CTI - INFORMATION TECHNOLOGY" },
-  { value: "CTR - ROLLING STOCK", label: "CTR - ROLLING STOCK" },
-  { value: "CTS - INFRASTRUCTURE", label: "CTS - INFRASTRUCTURE" },
-  { value: "CUT - TESTING COMMITEE", label: "CUT - TESTING COMMITEE" },
-  { value: "CAF - FINANCE", label: "CAF - FINANCE" },
-  { value: "CAA - BUDGETING AND ACCOUNTING", label: "CAA - BUDGETING AND ACCOUNTING" },
-  { value: "CAH - HUMAN CAPITAL", label: "CAH - HUMAN CAPITAL" },
-];
 
 export function UserManagementScreen() {
   const { hasPermission } = useAuth();
@@ -32,7 +15,7 @@ export function UserManagementScreen() {
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
-  const [deptFilter, setDeptFilter] = useState("Semua Departemen");
+  const [deptFilter, setDeptFilter] = useState("Semua Divisi");
 
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState<AppUser | null>(null);
@@ -126,11 +109,11 @@ export function UserManagementScreen() {
   const filteredUsers = users.filter((u) => {
     const matchSearch = (u.name || "").toLowerCase().includes(search.toLowerCase()) ||
                         (u.email || "").toLowerCase().includes(search.toLowerCase());
-    const matchDept = deptFilter === "Semua Departemen" || (u.departemen && u.departemen.includes(deptFilter));
+    const matchDept = deptFilter === "Semua Divisi" || (u.departemen && u.departemen.includes(deptFilter));
     return matchSearch && matchDept;
   });
 
-  const depts = ["Semua Departemen", ...Array.from(new Set(users.map(u => u.departemen ? u.departemen.split(" - ")[0] : "Lainnya").filter(Boolean)))];
+  const depts = ["Semua Divisi", ...DIVISI_OPTIONS.map((option) => option.value)];
 
   const getRoleBadge = (roleId?: string) => {
     const r = roles.find(role => role.id === roleId);
@@ -180,7 +163,7 @@ export function UserManagementScreen() {
                 setForm({
                   name: "", username: "", email: "", password: "",
                   roleId: roles[0]?.id || "",
-                  departemen: DEPARTEMEN_OPTIONS[0]?.value || "CUG - LOGISTIC",
+                  departemen: DIVISI_OPTIONS[0]?.value || "CUG - LOGISTIC",
                   division: "Operational",
                   directorate: "Direktorat Operasi & Pemasaran",
                   kodeUser: "USR-" + Math.floor(100 + Math.random() * 900)
@@ -200,7 +183,7 @@ export function UserManagementScreen() {
               <thead>
                 <tr className="bg-[#252271] text-white text-[12px] font-bold">
                   <th className="pl-5 pr-3 py-3 w-[320px]">User</th>
-                  <th className="px-3 py-3 w-[160px]">Departemen</th>
+                  <th className="px-3 py-3 w-[160px]">Divisi</th>
                   <th className="px-3 py-3">Role</th>
                   <th className="px-3 py-3 w-[130px]">Status</th>
                   <th className="px-3 py-3 w-[120px] text-right pr-5">Aksi</th>
@@ -302,7 +285,7 @@ export function UserManagementScreen() {
             </div>
             <div className="grid grid-cols-2 gap-3 text-[#334155]">
               <div>
-                <p className="text-gray-400 text-[10px] uppercase font-bold">Departemen</p>
+                <p className="text-gray-400 text-[10px] uppercase font-bold">Divisi</p>
                 <p className="font-semibold">{showDetail.departemen || "-"}</p>
               </div>
               <div>
@@ -345,8 +328,8 @@ export function UserManagementScreen() {
               </ModalField>
               <ModalField label="Kode User"><ModalInput value={form.kodeUser} onChange={v => setForm(p => ({ ...p, kodeUser: v }))} placeholder="USR-001" /></ModalField>
             </div>
-            <ModalField label="Departemen" required>
-              <ModalSelect value={form.departemen} onChange={v => setForm(p => ({ ...p, departemen: v }))} options={DEPARTEMEN_OPTIONS} />
+            <ModalField label="Divisi" required>
+              <ModalSelect value={form.departemen} onChange={v => setForm(p => ({ ...p, departemen: v }))} options={DIVISI_OPTIONS} />
             </ModalField>
           </div>
         </AdminModal>
@@ -361,8 +344,8 @@ export function UserManagementScreen() {
             <ModalField label="Role / Level" required>
               <ModalSelect value={editForm.roleId || ""} onChange={v => setEditForm(p => ({ ...p, roleId: v }))} options={roles.map(r => ({ value: r.id, label: r.name }))} />
             </ModalField>
-            <ModalField label="Departemen" required>
-              <ModalSelect value={editForm.departemen || ""} onChange={v => setEditForm(p => ({ ...p, departemen: v }))} options={DEPARTEMEN_OPTIONS} />
+            <ModalField label="Divisi" required>
+              <ModalSelect value={editForm.departemen || ""} onChange={v => setEditForm(p => ({ ...p, departemen: v }))} options={DIVISI_OPTIONS} />
             </ModalField>
           </div>
         </AdminModal>
