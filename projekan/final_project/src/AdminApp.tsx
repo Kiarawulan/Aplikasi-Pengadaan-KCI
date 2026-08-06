@@ -2421,6 +2421,8 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
 // ─── Sub-document custom tables for Pengadaan ──────────────────────────────────
 function PengadaanSubDocPage({ title }: { title: string }) {
   const [search, setSearch] = useState("");
+  const [dateDraft, setDateDraft] = useState({ startDate: "", endDate: "" });
+  const [dateFilter, setDateFilter] = useState({ startDate: "", endDate: "" });
 
   const sampleData: Record<string, { headers: string[]; rows: (string | React.ReactNode)[][] }> = {
     "Jaminan Pelaksanaan": {
@@ -2494,7 +2496,18 @@ function PengadaanSubDocPage({ title }: { title: string }) {
     rows: [["1", `DOC-${title}-001`, "15-01-2024", `Data ${title} aktif`, <span className="px-[8px] py-[2px] bg-[#d1fae5] text-[#065f46] rounded-full text-[11px]">Aktif</span>]]
   };
 
-  const filteredRows = curr.rows.filter((r) => r.some((cell) => typeof cell === 'string' && cell.toLowerCase().includes(search.toLowerCase())));
+  const cellText = (cell: string | React.ReactNode) => {
+    if (typeof cell === "string") return cell;
+    return React.isValidElement(cell) ? String((cell.props as { children?: React.ReactNode }).children ?? "") : "";
+  };
+  const filteredRows = curr.rows.filter((row) => {
+    const text = row.map(cellText).join(" ").toLowerCase();
+    const dateMatch = text.match(/(\d{2})-(\d{2})-(\d{4})/);
+    const rowDate = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : "";
+    const matchesDate = (!dateFilter.startDate || (!!rowDate && rowDate >= dateFilter.startDate))
+      && (!dateFilter.endDate || (!!rowDate && rowDate <= dateFilter.endDate));
+    return text.includes(search.toLowerCase()) && matchesDate;
+  });
 
   return (
     <div className="flex-1 min-h-0 overflow-auto bg-white">
@@ -2510,18 +2523,19 @@ function PengadaanSubDocPage({ title }: { title: string }) {
           <div className="grid grid-cols-2 gap-x-[16px] gap-y-[16px] mb-[16px]">
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Start Date</label>
-              <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+              <input value={dateDraft.startDate} onChange={(event) => setDateDraft((current) => ({ ...current, startDate: event.target.value }))} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">End Date</label>
-              <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+              <input value={dateDraft.endDate} onChange={(event) => setDateDraft((current) => ({ ...current, endDate: event.target.value }))} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
           </div>
           <div className="flex gap-[5px]">
-            <button className="bg-[#252271] text-white text-[14px] font-medium h-[36px] px-[20px] rounded-[15px] flex items-center gap-[8px] hover:brightness-110 active:scale-95 transition-all duration-150">
+            <button onClick={() => setDateFilter(dateDraft)} className="bg-[#252271] text-white text-[14px] font-medium h-[36px] px-[20px] rounded-[15px] flex items-center gap-[8px] hover:brightness-110 active:scale-95 transition-all duration-150">
               <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><circle cx="6.875" cy="6.875" r="4.875" stroke="white" strokeWidth="1.17" /><path d="M12.25 12.25L9.74 9.74" stroke="white" strokeLinecap="round" strokeWidth="1.17" /></svg>
               Cari
             </button>
+            <button aria-label="Reset filter" onClick={() => { const empty = { startDate: "", endDate: "" }; setDateDraft(empty); setDateFilter(empty); }} className="h-[36px] px-[14px] rounded-[15px] border border-[#cc0000] text-[#cc0000] text-[12px] font-semibold hover:bg-red-50 transition-colors">Reset</button>
           </div>
         </div>
 
@@ -2586,11 +2600,20 @@ function PengadaanSubDocPage({ title }: { title: string }) {
 function RupSignedPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [search, setSearch] = useState("");
+  const [dateDraft, setDateDraft] = useState({ startDate: "", endDate: "" });
+  const [dateFilter, setDateFilter] = useState({ startDate: "", endDate: "" });
   const [uploaded, setUploaded] = useState([
     { idRup: "RUP-2024-001", namaFile: "RUP-Signed-001.pdf", tanggal: "13-JAN-2026", status: "Uploaded" },
   ]);
 
-  const filtered = uploaded.filter((r) => r.idRup.toLowerCase().includes(search.toLowerCase()) || r.namaFile.toLowerCase().includes(search.toLowerCase()));
+  const filtered = uploaded.filter((row) => {
+    const matchesSearch = row.idRup.toLowerCase().includes(search.toLowerCase()) || row.namaFile.toLowerCase().includes(search.toLowerCase());
+    const parsed = new Date(row.tanggal);
+    const rowDate = Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
+    return matchesSearch
+      && (!dateFilter.startDate || (!!rowDate && rowDate >= dateFilter.startDate))
+      && (!dateFilter.endDate || (!!rowDate && rowDate <= dateFilter.endDate));
+  });
 
   return (
     <div className="flex-1 min-h-0 overflow-auto bg-white">
@@ -2606,11 +2629,11 @@ function RupSignedPage() {
           <div className="grid grid-cols-2 gap-x-[16px] gap-y-[16px] mb-[16px]">
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Start Date</label>
-              <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+              <input value={dateDraft.startDate} onChange={(event) => setDateDraft((current) => ({ ...current, startDate: event.target.value }))} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">End Date</label>
-              <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+              <input value={dateDraft.endDate} onChange={(event) => setDateDraft((current) => ({ ...current, endDate: event.target.value }))} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
           </div>
           <div className="flex gap-[5px]">
@@ -2621,11 +2644,11 @@ function RupSignedPage() {
               <svg fill="none" height="13" viewBox="0 0 13 13" width="13"><path d="M2.708 6.5H10.292M6.5 2.708V10.292" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08" /></svg>
               Upload RUP Signed
             </button>
-            <button className="bg-[#252271] text-white text-[14px] font-medium h-[36px] px-[20px] rounded-[15px] flex items-center gap-[8px] hover:brightness-110 active:scale-95 transition-all duration-150">
+            <button onClick={() => setDateFilter(dateDraft)} className="bg-[#252271] text-white text-[14px] font-medium h-[36px] px-[20px] rounded-[15px] flex items-center gap-[8px] hover:brightness-110 active:scale-95 transition-all duration-150">
               <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><circle cx="6.875" cy="6.875" r="4.875" stroke="white" strokeWidth="1.17" /><path d="M12.25 12.25L9.74 9.74" stroke="white" strokeLinecap="round" strokeWidth="1.17" /></svg>
               Cari
             </button>
-            <button className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150">
+            <button aria-label="Reset filter" onClick={() => { const empty = { startDate: "", endDate: "" }; setDateDraft(empty); setDateFilter(empty); }} className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150">
               <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
                 <path d={group14Svg.p3bd12900} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                 <path d="M1.625 1.625V4.33333H4.33333" stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
@@ -2731,6 +2754,9 @@ function RupSignedPage() {
 // ─── SP3 Page ─────────────────────────────────────────────────────────────────
 function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
   const [search, setSearch] = useState("");
+  const emptySp3Filters = { startDate: "", endDate: "", unit: "", status: "" };
+  const [sp3FilterDraft, setSp3FilterDraft] = useState(emptySp3Filters);
+  const [sp3Filters, setSp3Filters] = useState(emptySp3Filters);
   const [view, setView] = useState<"list" | "detail">("list");
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const [showDelete, setShowDelete] = useState(false);
@@ -2742,9 +2768,16 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
   const [activeTab, setActiveTab] = useState<"informasi" | "evaluasi">("evaluasi");
   const { items: verificationItems, process: processVerification } = useAdminVerificationQueue("sp3");
 
-  const rows = verificationItems.map(mapVerificationRow).filter(
-    (r) => r.noSp3.toLowerCase().includes(search.toLowerCase()) || r.procTitle.toLowerCase().includes(search.toLowerCase())
-  );
+  const allSp3Rows = verificationItems.map(mapVerificationRow);
+  const rows = allSp3Rows.filter((row) => {
+    const date = row.submit_at ? String(row.submit_at).slice(0, 10) : "";
+    const matchesSearch = row.noSp3.toLowerCase().includes(search.toLowerCase()) || row.procTitle.toLowerCase().includes(search.toLowerCase());
+    return matchesSearch
+      && (!sp3Filters.startDate || (!!date && date >= sp3Filters.startDate))
+      && (!sp3Filters.endDate || (!!date && date <= sp3Filters.endDate))
+      && (!sp3Filters.unit || String(row.dept || "").toLowerCase().includes(sp3Filters.unit.toLowerCase()))
+      && (!sp3Filters.status || String(row.status || "").toLowerCase() === sp3Filters.status.toLowerCase());
+  });
 
   const submitAction = async (action: "approve" | "revisi" | "reject") => {
     if (!selectedRow?.verif_id) return;
@@ -3008,23 +3041,23 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
         {/* Filter */}
         <div className="bg-[#f5f7fd] border border-[#e5e7eb] rounded-[15px] p-[20px] mb-[20px]">
           <div className="grid grid-cols-2 gap-x-[16px] gap-y-[16px] mb-[16px]">
-            <div><label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Start Date</label><input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" /></div>
-            <div><label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">End Date</label><input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" /></div>
+            <div><label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Start Date</label><input value={sp3FilterDraft.startDate} onChange={(event) => setSp3FilterDraft((current) => ({ ...current, startDate: event.target.value }))} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" /></div>
+            <div><label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">End Date</label><input value={sp3FilterDraft.endDate} onChange={(event) => setSp3FilterDraft((current) => ({ ...current, endDate: event.target.value }))} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" /></div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Unit</label>
-              <select className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors"><option>Semua Unit</option><option>CTIT</option><option>Logistik</option></select>
+              <select value={sp3FilterDraft.unit} onChange={(event) => setSp3FilterDraft((current) => ({ ...current, unit: event.target.value }))} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors"><option value="">Semua Unit</option>{Array.from(new Set(allSp3Rows.map((row) => row.dept).filter(Boolean))).map((unit) => <option key={unit} value={unit}>{unit}</option>)}</select>
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Status</label>
-              <select className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors"><option>Semua Status</option><option>Draft</option><option>Final</option></select>
+              <select value={sp3FilterDraft.status} onChange={(event) => setSp3FilterDraft((current) => ({ ...current, status: event.target.value }))} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors"><option value="">Semua Status</option>{Array.from(new Set(allSp3Rows.map((row) => row.status).filter(Boolean))).map((status) => <option key={status} value={status}>{status}</option>)}</select>
             </div>
           </div>
           <div className="flex gap-[5px]">
-            <button className="bg-[#252271] text-white text-[14px] font-medium h-[36px] px-[20px] rounded-[15px] flex items-center gap-[8px] hover:brightness-110 active:scale-95 transition-all duration-150">
+            <button onClick={() => setSp3Filters(sp3FilterDraft)} className="bg-[#252271] text-white text-[14px] font-medium h-[36px] px-[20px] rounded-[15px] flex items-center gap-[8px] hover:brightness-110 active:scale-95 transition-all duration-150">
               <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><circle cx="6.875" cy="6.875" r="4.875" stroke="white" strokeWidth="1.17" /><path d="M12.25 12.25L9.74 9.74" stroke="white" strokeLinecap="round" strokeWidth="1.17" /></svg>
               Cari
             </button>
-            <button className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150">
+            <button aria-label="Reset filter" onClick={() => { setSp3FilterDraft(emptySp3Filters); setSp3Filters(emptySp3Filters); }} className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150">
               <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
                 <path d={group14Svg.p3bd12900} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                 <path d="M1.625 1.625V4.33333H4.33333" stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
@@ -4596,10 +4629,20 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
 
 function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
   const [search, setSearch] = useState("");
+  const emptyFilters = { startDate: "", endDate: "", unit: "", status: "" };
+  const [filterDraft, setFilterDraft] = useState(emptyFilters);
+  const [filters, setFilters] = useState(emptyFilters);
   const [view, setView] = useState<"list" | "detail">("list");
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const { items: verificationItems, refresh, process: processVerification } = useAdminVerificationQueue("pengujian");
-  const queueRows = verificationItems.map(mapVerificationRow);
+  const allQueueRows = verificationItems.map(mapVerificationRow);
+  const queueRows = allQueueRows.filter((row) => {
+    const date = row.submit_at ? String(row.submit_at).slice(0, 10) : "";
+    return (!filters.startDate || (!!date && date >= filters.startDate))
+      && (!filters.endDate || (!!date && date <= filters.endDate))
+      && (!filters.unit || String(row.divisi || row.dept || "").toLowerCase().includes(filters.unit.toLowerCase()))
+      && (!filters.status || String(row.status || "").toLowerCase() === filters.status.toLowerCase());
+  });
 
   React.useEffect(() => {
     setView("list");
@@ -4654,31 +4697,31 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
           <div className="grid grid-cols-2 gap-x-[16px] gap-y-[16px] mb-[16px]">
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Start Date</label>
-              <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+              <input value={filterDraft.startDate} onChange={(event) => setFilterDraft((current) => ({ ...current, startDate: event.target.value }))} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">End Date</label>
-              <input type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
+              <input value={filterDraft.endDate} onChange={(event) => setFilterDraft((current) => ({ ...current, endDate: event.target.value }))} type="date" className="w-full h-[37px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors" />
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Unit</label>
-              <select className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
-                <option value="">Semua Unit</option><option>CTIT</option><option>Logistik</option>
+              <select value={filterDraft.unit} onChange={(event) => setFilterDraft((current) => ({ ...current, unit: event.target.value }))} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
+                <option value="">Semua Unit</option>{Array.from(new Set(allQueueRows.map((row) => row.divisi).filter(Boolean))).map((unit) => <option key={unit} value={unit}>{unit}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Status</label>
-              <select className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
-                <option value="">Semua Status</option><option>Status</option><option>Final</option>
+              <select value={filterDraft.status} onChange={(event) => setFilterDraft((current) => ({ ...current, status: event.target.value }))} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
+                <option value="">Semua Status</option>{Array.from(new Set(allQueueRows.map((row) => row.status).filter(Boolean))).map((status) => <option key={status} value={status}>{status}</option>)}
               </select>
             </div>
           </div>
           <div className="flex gap-[5px]">
-            <button className="bg-[#252271] text-white text-[14px] font-medium h-[36px] px-[20px] rounded-[15px] flex items-center gap-[8px] hover:brightness-110 active:scale-95 transition-all duration-150">
+            <button onClick={() => setFilters(filterDraft)} className="bg-[#252271] text-white text-[14px] font-medium h-[36px] px-[20px] rounded-[15px] flex items-center gap-[8px] hover:brightness-110 active:scale-95 transition-all duration-150">
               <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><circle cx="6.875" cy="6.875" r="4.875" stroke="white" strokeWidth="1.17" /><path d="M12.25 12.25L9.74 9.74" stroke="white" strokeLinecap="round" strokeWidth="1.17" /></svg>
               Cari
             </button>
-            <button className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150">
+            <button aria-label="Reset filter" onClick={() => { setFilterDraft(emptyFilters); setFilters(emptyFilters); }} className="h-[35px] w-[34px] rounded-[15px] border border-[#c00] flex items-center justify-center hover:bg-[#fef2f2] active:scale-95 transition-all duration-150">
               <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
                 <path d={group14Svg.p3bd12900} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                 <path d="M1.625 1.625V4.33333H4.33333" stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />

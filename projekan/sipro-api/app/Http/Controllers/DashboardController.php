@@ -7,6 +7,7 @@ use App\Models\Pengujian;
 use App\Models\Rup;
 use App\Models\Verifikasi;
 use App\Models\ProcessHistory;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -21,13 +22,23 @@ class DashboardController extends Controller
         $verifikasi = Verifikasi::query()->when(! $user->is_admin, fn ($q) => $q->where('departemen', $user->departemen));
         $pengujian = Pengujian::query()->when(! $user->is_admin, fn ($q) => $q->where('departemen', $user->departemen));
         $rup = Rup::query()->when(! $user->is_admin, fn ($q) => $q->where('departemen', $user->departemen));
+        $payment = Payment::query()->when(! $user->is_admin, function ($query) use ($user) {
+            $query->whereIn('pengadaan_id', Pengadaan::where('departemen', $user->departemen)->select('id'));
+        });
 
-        foreach ([$pengadaan, $verifikasi, $pengujian, $rup] as $query) {
+        foreach ([$pengadaan, $verifikasi, $pengujian, $rup, $payment] as $query) {
             $query->whereYear('created_at', $year);
             if ($month && $month !== 'all') $query->whereMonth('created_at', (int) $month);
         }
 
         $records = (clone $pengadaan)->get();
+        $pengadaanRecords = $records->where('flow_type', 'pr');
+        $pengajuanDanaRecords = $records->where('flow_type', 'pd');
+        $pengujianRecords = (clone $pengujian)->get();
+        $paymentRecords = (clone $payment)->get();
+        $isCompleted = fn ($record) => in_array(strtolower((string) $record->status), [
+            'selesai', 'approved', 'sudah diverifikasi', 'paid', 'dibayar', 'completed',
+        ], true);
         $statusDistribution = [
             ['name' => 'Selesai', 'value' => $records->filter(fn ($r) => in_array(strtolower($r->status), ['selesai', 'approved', 'sudah diverifikasi']))->count(), 'color' => '#16a34a'],
             ['name' => 'Berjalan', 'value' => $records->filter(fn ($r) => ! in_array(strtolower($r->status), ['selesai', 'approved', 'sudah diverifikasi', 'rejected', 'ditolak']))->count(), 'color' => '#d97706'],
@@ -80,6 +91,26 @@ class DashboardController extends Controller
                 'totalPengujian' => (clone $pengujian)->count(),
                 'totalRup' => (clone $rup)->count(),
                 'perluVerifikasi' => (clone $verifikasi)->where('status', 'pending')->count(),
+                'pengadaan' => [
+                    'total' => $pengadaanRecords->count(),
+                    'inProgress' => $pengadaanRecords->reject($isCompleted)->count(),
+                    'completed' => $pengadaanRecords->filter($isCompleted)->count(),
+                ],
+                'pengajuanDana' => [
+                    'total' => $pengajuanDanaRecords->count(),
+                    'inProgress' => $pengajuanDanaRecords->reject($isCompleted)->count(),
+                    'completed' => $pengajuanDanaRecords->filter($isCompleted)->count(),
+                ],
+                'pengujian' => [
+                    'total' => $pengujianRecords->count(),
+                    'inProgress' => $pengujianRecords->reject($isCompleted)->count(),
+                    'completed' => $pengujianRecords->filter($isCompleted)->count(),
+                ],
+                'pembayaran' => [
+                    'total' => $paymentRecords->count(),
+                    'inProgress' => $paymentRecords->reject($isCompleted)->count(),
+                    'completed' => $paymentRecords->filter($isCompleted)->count(),
+                ],
             ],
             'monthly' => $monthly,
             'statusDistribution' => $statusDistribution,

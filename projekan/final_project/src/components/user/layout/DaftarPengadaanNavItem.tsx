@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
-import { Package, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { Screen } from "@/types";
+import pengadaanIcon from "@/assets/pengadaan.svg";
 
 
 export function DaftarPengadaanNavItem({ screen, backScreen, onNavigate, collapsed }: {
@@ -30,7 +31,7 @@ export function DaftarPengadaanNavItem({ screen, backScreen, onNavigate, collaps
         className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg transition-all text-left ${isActive ? "" : "hover:bg-white/10"}`}
         style={isActive ? { background: "rgba(255,255,255,0.18)" } : {}}
       >
-        <span className="text-white/75 shrink-0"><Package size={15} /></span>
+        <span className="shrink-0"><img src={pengadaanIcon} alt="" aria-hidden="true" className="size-[15px] object-contain brightness-0 invert opacity-75" /></span>
         {!collapsed && (
           <>
             <span className={`text-[12.5px] truncate flex-1 ${isActive ? "text-white font-semibold" : "text-white/70 font-normal"}`}>Daftar Pengadaan</span>

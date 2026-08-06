@@ -15,7 +15,7 @@ class PermissionManagementTest extends TestCase
 
     public function test_dashboard_only_role_cannot_open_other_modules(): void
     {
-        $role = $this->role('ROLE-DASH', ['dashboard' => 'viewer']);
+        $role = $this->role('ROLE-DASH', ['dashboard' => 'viewer'], 'admin');
         $user = $this->user('USR-DASH', $role);
 
         $this->actingAs($user, 'sanctum')->getJson('/api/dashboard')->assertOk();
@@ -25,10 +25,10 @@ class PermissionManagementTest extends TestCase
 
     public function test_procurement_viewer_is_blocked_from_actions_and_editor_is_allowed(): void
     {
-        $viewer = $this->user('USR-VIEW', $this->role('ROLE-VIEW', ['pengadaan' => 'viewer']));
+        $viewer = $this->user('USR-VIEW', $this->role('ROLE-VIEW', ['pengadaan' => 'viewer'], 'admin'));
         $this->actingAs($viewer, 'sanctum')->postJson('/api/pengadaan', [])->assertForbidden();
 
-        $editor = $this->user('USR-EDIT', $this->role('ROLE-EDIT', ['pengadaan' => 'editor']));
+        $editor = $this->user('USR-EDIT', $this->role('ROLE-EDIT', ['pengadaan' => 'editor'], 'admin'));
         $response = $this->actingAs($editor, 'sanctum')->postJson('/api/pengadaan', [
             'nama' => 'Pengadaan Pengujian Permission',
             'flow' => 'pr',
@@ -39,7 +39,7 @@ class PermissionManagementTest extends TestCase
 
     public function test_verification_is_scoped_to_the_permission_module(): void
     {
-        $tester = $this->user('USR-TEST', $this->role('ROLE-TEST', ['pengujian' => 'viewer']));
+        $tester = $this->user('USR-TEST', $this->role('ROLE-TEST', ['pengujian' => 'viewer'], 'admin'));
 
         $this->actingAs($tester, 'sanctum')->getJson('/api/verifikasi?tipe=pengujian')->assertOk();
         $this->actingAs($tester, 'sanctum')->getJson('/api/verifikasi?tipe=npp')->assertForbidden();
@@ -59,6 +59,22 @@ class PermissionManagementTest extends TestCase
         $this->assertDatabaseHas('role_permissions', ['role_id' => $targetRole->id, 'module' => 'pengadaan', 'access_level' => 'viewer']);
         $this->assertDatabaseMissing('role_permissions', ['role_id' => $targetRole->id, 'module' => 'dashboard']);
         $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_general_user_can_view_and_create_all_user_workflows(): void
+    {
+        $user = $this->user('USR-GENERAL', $this->role('ROLE-GENERAL', []));
+
+        $this->actingAs($user, 'sanctum')->getJson('/api/dashboard')->assertOk();
+        $this->actingAs($user, 'sanctum')->getJson('/api/rup')->assertOk();
+        $this->actingAs($user, 'sanctum')->getJson('/api/pengujian')->assertOk();
+        $this->actingAs($user, 'sanctum')->getJson('/api/payments')->assertOk();
+        $this->actingAs($user, 'sanctum')->postJson('/api/pengadaan', [
+            'nama' => 'Form Bebas User',
+            'flow' => 'pr',
+            'nominal' => '1000000',
+        ])->assertCreated();
+        $this->actingAs($user, 'sanctum')->getJson('/api/users')->assertForbidden();
     }
 
     public function test_user_crud_stores_hashed_credentials_and_an_audit_log(): void

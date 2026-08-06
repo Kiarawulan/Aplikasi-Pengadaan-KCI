@@ -26,7 +26,16 @@ class EnsureModulePermission
     {
         if (! $user || ! $user->is_active) return false;
 
-        $level = $user->loadMissing('role.permissions')->role?->permissions
+        $userModules = ['dashboard', 'pengajuanDana', 'pengadaan', 'pengujian', 'pembayaran', 'templateDokumen'];
+        $role = $user->loadMissing('role.permissions')->role;
+
+        // Akun User memakai alur operasional umum: seluruh form pada tampilan
+        // User dapat dilihat dan dibuat tanpa dipengaruhi matriks akses Admin.
+        if ($role?->role_type === 'user' && in_array($module, $userModules, true)) {
+            return true;
+        }
+
+        $level = $role?->permissions
             ->firstWhere('module', $module)?->access_level;
 
         return $required === 'editor'

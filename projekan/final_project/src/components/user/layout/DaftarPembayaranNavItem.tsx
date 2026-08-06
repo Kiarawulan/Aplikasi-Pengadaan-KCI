@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
-import { CreditCard, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { Screen } from "@/types";
+import pembayaranIcon from "@/assets/pembayaran.svg";
 
 
 export function DaftarPembayaranNavItem({ screen, backScreen, onNavigate, collapsed }: {
@@ -38,7 +39,7 @@ export function DaftarPembayaranNavItem({ screen, backScreen, onNavigate, collap
         className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg transition-all text-left ${isActive ? "" : "hover:bg-white/10"}`}
         style={isActive ? { background: "rgba(255,255,255,0.18)" } : {}}
       >
-        <span className="text-white/75 shrink-0"><CreditCard size={15} /></span>
+        <span className="shrink-0"><img src={pembayaranIcon} alt="" aria-hidden="true" className="size-[15px] object-contain brightness-0 invert opacity-75" /></span>
         {!collapsed && (
           <>
             <span className={`text-[12.5px] truncate flex-1 ${isActive ? "text-white font-semibold" : "text-white/70 font-normal"}`}>Daftar Pembayaran</span>

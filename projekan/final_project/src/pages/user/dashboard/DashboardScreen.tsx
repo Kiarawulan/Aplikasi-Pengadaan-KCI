@@ -10,6 +10,11 @@ import {
   Tooltip, XAxis, YAxis,
 } from "recharts";
 import { api } from "@/services/api";
+import section2Pattern from "@/assets/section-2-pattern.svg";
+import pengadaanIcon from "@/assets/pengadaan.svg";
+import pengajuanDanaIcon from "@/assets/pengajuan-dana.svg";
+import pengujianIcon from "@/assets/pengujian.svg";
+import pembayaranIcon from "@/assets/pembayaran.svg";
 
 const monthlyProgress = [
   { month: "Jan", pengadaan: 6, selesai: 4 }, { month: "Feb", pengadaan: 8, selesai: 5 },
@@ -38,19 +43,46 @@ const tasks = [
   { title: "Review permintaan pembayaran", detail: "Kontrak maintenance AC", progress: 25, tone: "bg-[#252271]" },
 ];
 
-function MetricCard({ title, value, detail, icon: Icon, tone, trend }: {
-  title: string; value: string; detail: string; icon: React.ElementType; tone: string; trend: string;
+function MetricCard({ title, value, icon, tone, inProgress, completed }: {
+  title: string; value: string; icon: string; tone: string; inProgress: number; completed: number;
 }) {
   return (
-    <article className="relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <div className={`absolute right-0 top-0 h-24 w-24 -translate-y-8 translate-x-8 rounded-full opacity-10 ${tone}`} />
-      <div className="relative flex items-start justify-between">
-        <div className={`grid h-10 w-10 place-items-center rounded-xl text-white ${tone}`}><Icon size={19} /></div>
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-600"><ArrowUpRight size={11} />{trend}</span>
+    <article className="group relative min-h-[168px] overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg">
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none absolute -bottom-24 -right-28 h-72 w-56 opacity-[0.12] ${tone}`}
+        style={{
+          WebkitMaskImage: `url(${section2Pattern})`,
+          maskImage: `url(${section2Pattern})`,
+          WebkitMaskPosition: "center",
+          maskPosition: "center",
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          WebkitMaskSize: "contain",
+          maskSize: "contain",
+        }}
+      />
+      <div className="relative transition-all duration-300 group-hover:-translate-y-2 group-hover:opacity-0">
+        <div className="flex items-start justify-between">
+          <div className={`grid h-12 w-12 place-items-center rounded-xl ${tone}`}>
+            <img src={icon} alt="" aria-hidden="true" className="h-7 w-7 object-contain brightness-0 invert" />
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-600"><ArrowUpRight size={11} />Data aktif</span>
+        </div>
+        <p className="mt-5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</p>
+        <p className="mt-1 text-2xl font-extrabold tracking-tight text-[#252271]">{value}</p>
+        <p className="mt-1 text-[10px] text-slate-400">Arahkan kursor untuk melihat detail</p>
       </div>
-      <p className="mt-5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</p>
-      <p className="mt-1 text-2xl font-extrabold tracking-tight text-[#252271]">{value}</p>
-      <p className="mt-1 text-[11px] text-slate-400">{detail}</p>
+      <div className="absolute inset-0 z-10 flex translate-y-3 flex-col justify-center bg-white/95 px-5 opacity-0 backdrop-blur-sm transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+        <div className="mb-3 flex items-center gap-2">
+          <img src={icon} alt="" aria-hidden="true" className="h-7 w-7 object-contain" />
+          <p className="text-[11px] font-extrabold uppercase tracking-wide text-[#252271]">{title}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-amber-50 p-3"><p className="text-[10px] font-semibold text-amber-600">Sedang proses</p><p className="mt-1 text-xl font-extrabold text-amber-700">{inProgress}</p></div>
+          <div className="rounded-xl bg-emerald-50 p-3"><p className="text-[10px] font-semibold text-emerald-600">Sudah selesai</p><p className="mt-1 text-xl font-extrabold text-emerald-700">{completed}</p></div>
+        </div>
+      </div>
     </article>
   );
 }
@@ -88,16 +120,16 @@ export function DashboardScreen() {
           <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full border-[32px] border-white/10" />
           <div className="absolute bottom-0 right-24 h-32 w-32 rounded-full bg-[#e6251c]/30 blur-2xl" />
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div><p className="text-sm text-white/60">Selamat datang kembali,</p><h1 className="mt-1 text-2xl font-extrabold sm:text-3xl">{currentUser?.name || "User"}</h1><p className="mt-2 max-w-xl text-[12px] leading-relaxed text-white/70">Pantau pengadaan, pengujian, dan pembayaran Anda dari satu tempat.</p></div>
+            <div><p className="text-sm text-white/60">Selamat datang kembali,</p><h1 className="mt-1 text-2xl font-extrabold sm:text-3xl">{currentUser?.name || "User"}</h1><p className="mt-2 max-w-xl text-[12px] leading-relaxed text-white/70">Pantau pengadaan anda disini :D </p></div>
             <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-3 py-3 backdrop-blur-sm"><CalendarDays size={19} className="text-[#ff928d]" /><div className="mr-1"><p className="text-[10px] font-semibold uppercase tracking-wider text-white/55">Periode aktif</p><p className="text-sm font-bold">{periodLabel}</p></div><select value={month} onChange={(event) => setMonth(event.target.value)} className="h-8 rounded-lg border border-white/15 bg-white/10 px-2 text-[11px] font-semibold text-white outline-none"><option className="text-slate-700" value="all">Semua bulan</option>{monthlyProgress.map((item, index) => <option className="text-slate-700" key={item.month} value={index + 1}>{item.month}</option>)}</select><select value={year} onChange={(event) => setYear(event.target.value)} className="h-8 rounded-lg border border-white/15 bg-white/10 px-2 text-[11px] font-semibold text-white outline-none"><option className="text-slate-700" value="2026">2026</option><option className="text-slate-700" value="2025">2025</option><option className="text-slate-700" value="2024">2024</option></select></div>
           </div>
         </section>
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard title="Total Pengadaan" value={String(summary?.totalPengadaan ?? 0)} detail="Data periode terpilih" icon={ClipboardList} tone="bg-[#e6251c]" trend="Data aktif" />
-          <MetricCard title="Dalam Proses" value={String(summary?.dalamProses ?? 0)} detail="Memerlukan tindak lanjut" icon={Clock3} tone="bg-[#E6251C]" trend="Data aktif" />
-          <MetricCard title="Pengujian Selesai" value={String(summary?.pengujianSelesai ?? 0)} detail={`dari ${summary?.totalPengujian ?? 0} pengujian`} icon={FlaskConical} tone="bg-[#252271]" trend="Data aktif" />
-          <MetricCard title="Menunggu Verifikasi" value={String(summary?.perluVerifikasi ?? 0)} detail={`${summary?.totalRup ?? 0} RUP pada periode ini`} icon={Wallet} tone="bg-[#252271]" trend="Data aktif" />
+          <MetricCard title="Total Pengadaan" value={String(summary?.pengadaan?.total ?? 0)} icon={pengadaanIcon} tone="bg-[#e6251c]" inProgress={summary?.pengadaan?.inProgress ?? 0} completed={summary?.pengadaan?.completed ?? 0} />
+          <MetricCard title="Total Pengajuan Dana" value={String(summary?.pengajuanDana?.total ?? 0)} icon={pengajuanDanaIcon} tone="bg-[#E6251C]" inProgress={summary?.pengajuanDana?.inProgress ?? 0} completed={summary?.pengajuanDana?.completed ?? 0} />
+          <MetricCard title="Total Pengujian" value={String(summary?.pengujian?.total ?? 0)} icon={pengujianIcon} tone="bg-[#252271]" inProgress={summary?.pengujian?.inProgress ?? 0} completed={summary?.pengujian?.completed ?? 0} />
+          <MetricCard title="Total Pembayaran" value={String(summary?.pembayaran?.total ?? 0)} icon={pembayaranIcon} tone="bg-[#252271]" inProgress={summary?.pembayaran?.inProgress ?? 0} completed={summary?.pembayaran?.completed ?? 0} />
         </section>
 
         <section className="mt-5 grid gap-5 xl:grid-cols-3">

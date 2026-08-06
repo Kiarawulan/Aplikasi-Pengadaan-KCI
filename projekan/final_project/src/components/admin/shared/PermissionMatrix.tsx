@@ -145,7 +145,7 @@ export function rolePermissionsFromGroups(groups: PermGroup[], initial: RolePerm
   groups.forEach((group) => group.subPerms.forEach((sub) => {
     const module = moduleForSubPermission(sub.id);
     const current = levels[module] || "no-access";
-    if (sub.action) levels[module] = "editor";
+    if (sub.view && sub.action) levels[module] = "editor";
     else if (sub.view && current !== "editor") levels[module] = "viewer";
   }));
 
@@ -238,7 +238,12 @@ export function PermissionMatrix({ groups: externalGroups, onGroupsChange }: Per
       prev.map((g) => {
         if (g.id !== gid) return g;
         const nowOn = col === "view" ? !g.selectAllView : !g.selectAllAction;
-        const subPerms = g.subPerms.map((s) => ({ ...s, [col]: nowOn, ...(col === "action" && nowOn ? { view: true } : {}) }));
+        const subPerms = g.subPerms.map((s) => ({
+          ...s,
+          [col]: nowOn,
+          ...(col === "action" && nowOn ? { view: true } : {}),
+          ...(col === "view" && !nowOn ? { action: false } : {}),
+        }));
         const anyChecked = subPerms.some((s) => s.view || s.action);
         return {
           ...g,
@@ -254,7 +259,12 @@ export function PermissionMatrix({ groups: externalGroups, onGroupsChange }: Per
     setGroups((prev) =>
       prev.map((g) => {
         if (g.id !== gid) return g;
-        const subPerms = g.subPerms.map((s) => (s.id === sid ? { ...s, [col]: !s[col], ...(col === "action" && !s.action ? { view: true } : {}) } : s));
+        const subPerms = g.subPerms.map((s) => (s.id === sid ? {
+          ...s,
+          [col]: !s[col],
+          ...(col === "action" && !s.action ? { view: true } : {}),
+          ...(col === "view" && s.view ? { action: false } : {}),
+        } : s));
         const allView = subPerms.every((s) => s.view);
         const allAction = subPerms.every((s) => s.action);
         const anyChecked = subPerms.some((s) => s.view || s.action);

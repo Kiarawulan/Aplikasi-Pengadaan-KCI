@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, FolderOpen, FileSearch } from "lucide-react";
+import { LayoutDashboard, FileText, FolderOpen } from "lucide-react";
 import type { Screen } from "@/types";
 import { Logo } from "./Logo";
 import { CollapseToggle } from "./CollapseToggle";
@@ -7,6 +7,7 @@ import { NavItem } from "./NavItem";
 import { DaftarPengadaanNavItem } from "./DaftarPengadaanNavItem";
 import { DaftarPembayaranNavItem } from "./DaftarPembayaranNavItem";
 import { useAuth } from "@/store/authStore";
+import pengujianIcon from "@/assets/pengujian.svg";
 
 export function Sidebar({ screen, backScreen, onNavigate, collapsed, onToggleCollapse }: {
   screen: Screen; backScreen?: Screen; onNavigate: (s: Screen) => void; collapsed: boolean; onToggleCollapse: () => void;
@@ -22,7 +23,7 @@ export function Sidebar({ screen, backScreen, onNavigate, collapsed, onToggleCol
         {hasPermission("dashboard", "viewer") && <NavItem icon={<LayoutDashboard size={15} />} label="Dashboard" active={screen === "dashboard"} collapsed={collapsed} onClick={() => onNavigate("dashboard")} />}
         {hasPermission("pengadaan", "viewer") && <NavItem icon={<FileText size={15} />} label="RUP" active={screen === "rup-list"} collapsed={collapsed} onClick={() => onNavigate("rup-list")} />}
         {hasPermission("pengadaan", "viewer") && <DaftarPengadaanNavItem screen={screen} backScreen={backScreen} onNavigate={onNavigate} collapsed={collapsed} />}
-        {hasPermission("pengujian", "viewer") && <NavItem icon={<FileSearch size={15} />} label="Daftar Pengujian" active={screen === "daftar-pengujian" || (["pd-detail", "pr-detail"].includes(screen) && backScreen === "daftar-pengujian")} collapsed={collapsed} onClick={() => onNavigate("daftar-pengujian")} />}
+        {hasPermission("pengujian", "viewer") && <NavItem icon={<img src={pengujianIcon} alt="" aria-hidden="true" className="size-[15px] object-contain brightness-0 invert" />} label="Daftar Pengujian" active={screen === "daftar-pengujian" || (["pd-detail", "pr-detail"].includes(screen) && backScreen === "daftar-pengujian")} collapsed={collapsed} onClick={() => onNavigate("daftar-pengujian")} />}
         {hasPermission("pembayaran", "viewer") && <DaftarPembayaranNavItem screen={screen} backScreen={backScreen} onNavigate={onNavigate} collapsed={collapsed} />}
         {hasPermission("templateDokumen", "viewer") && <NavItem icon={<FolderOpen size={15} />} label="Template Dokumen" active={screen === "template-dokumen"} collapsed={collapsed} onClick={() => onNavigate("template-dokumen")} />}
       </nav>
