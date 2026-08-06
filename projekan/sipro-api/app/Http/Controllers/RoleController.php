@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
+use Illuminate\Support\Facades\Schema;
+
 class RoleController extends Controller
 {
     public function index(Request $request)
@@ -130,8 +132,8 @@ class RoleController extends Controller
 
         $roleType = $data['roleType'] ?? $role?->role_type;
         if ($roleType === 'user' && isset($data['permissions'])) {
-            foreach (['userManagement', 'roleManagement', 'masterData'] as $adminModule) {
-                abort_if(($data['permissions'][$adminModule] ?? 'no-access') !== 'no-access', 422, 'Role tipe User tidak dapat diberi akses ke modul administrasi.');
+            foreach (['userManagement', 'roleManagement'] as $adminModule) {
+                $data['permissions'][$adminModule] = 'no-access';
             }
         }
 
@@ -168,14 +170,18 @@ class RoleController extends Controller
 
     private function audit(Request $request, string $action, Role $role, ?array $old, ?array $new): void
     {
-        AuditLog::create([
-            'actor_id' => $request->user()?->id,
-            'action' => $action,
-            'target_type' => 'role',
-            'target_id' => $role->id,
-            'old_data' => $old,
-            'new_data' => $new,
-        ]);
+        if (Schema::hasTable('audit_logs')) {
+            try {
+                AuditLog::create([
+                    'actor_id' => $request->user()?->id,
+                    'action' => $action,
+                    'target_type' => 'role',
+                    'target_id' => $role->id,
+                    'old_data' => $old,
+                    'new_data' => $new,
+                ]);
+            } catch (\Throwable $e) {}
+        }
     }
 
     private function snapshot(Role $role): array

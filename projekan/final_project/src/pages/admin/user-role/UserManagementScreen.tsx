@@ -176,7 +176,17 @@ export function UserManagementScreen() {
               </select>
             </div>
             {hasPermission("userManagement", "editor") && <button
-              onClick={() => setShowAdd(true)}
+              onClick={() => {
+                setForm({
+                  name: "", username: "", email: "", password: "",
+                  roleId: roles[0]?.id || "",
+                  departemen: DEPARTEMEN_OPTIONS[0]?.value || "CUG - LOGISTIC",
+                  division: "Operational",
+                  directorate: "Direktorat Operasi & Pemasaran",
+                  kodeUser: "USR-" + Math.floor(100 + Math.random() * 900)
+                });
+                setShowAdd(true);
+              }}
               className="w-full sm:w-auto bg-gradient-to-b from-[#e6251c] to-[#c20f06] rounded-[10px] px-4 py-2 flex items-center justify-center gap-1.5 text-white text-[12px] font-medium hover:brightness-110 active:scale-95 transition-all duration-150 shrink-0 shadow-md"
             >
               <Plus size={15} />
@@ -330,6 +340,7 @@ export function UserManagementScreen() {
             <div className="grid grid-cols-2 gap-3">
               <ModalField label="Level / Role" required>
                 <ModalSelect value={form.roleId} onChange={v => setForm(p => ({ ...p, roleId: v }))}
+                  placeholder="-- Pilih Level / Role --"
                   options={roles.map(r => ({ value: r.id, label: r.name }))} />
               </ModalField>
               <ModalField label="Kode User"><ModalInput value={form.kodeUser} onChange={v => setForm(p => ({ ...p, kodeUser: v }))} placeholder="USR-001" /></ModalField>

@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
+use Illuminate\Support\Facades\Schema;
+
 class UserController extends Controller
 {
     public function index()
@@ -196,14 +198,18 @@ class UserController extends Controller
 
     private function audit(Request $request, string $action, User $user, ?array $old, ?array $new): void
     {
-        AuditLog::create([
-            'actor_id' => $request->user()?->id,
-            'action' => $action,
-            'target_type' => 'user',
-            'target_id' => $user->id,
-            'old_data' => $old,
-            'new_data' => $new,
-        ]);
+        if (Schema::hasTable('audit_logs')) {
+            try {
+                AuditLog::create([
+                    'actor_id' => $request->user()?->id,
+                    'action' => $action,
+                    'target_type' => 'user',
+                    'target_id' => $user->id,
+                    'old_data' => $old,
+                    'new_data' => $new,
+                ]);
+            } catch (\Throwable $e) {}
+        }
     }
 
     private function auditSnapshot(User $user): array

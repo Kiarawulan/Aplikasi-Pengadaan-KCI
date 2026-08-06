@@ -87,10 +87,11 @@ export function RoleManagementScreen() {
         color: showEdit.color,
         permissions: rolePermissionsFromGroups(editGroups, normalizePermissions(showEdit.permissions)),
       });
+      alert('✅ Role berhasil diperbarui!');
       fetchRoles();
       setShowEdit(null);
     } catch (e: any) {
-      alert(e.response?.data?.message || 'Gagal merubah role di database.');
+      alert(e.response?.data?.message || e.response?.data?.errors?.name?.[0] || 'Gagal merubah role di database.');
     }
   };
 

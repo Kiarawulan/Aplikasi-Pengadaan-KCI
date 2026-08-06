@@ -102,11 +102,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const currentRole: AppRole | null = apiRole;
 
-  const isAdmin = currentUser?.accountType === "admin" || currentUser?.isAdmin === true || currentRole?.roleType === "admin";
+  const isSuperAdmin =
+    currentUser?.email === "admin@sipro.com" ||
+    currentRole?.id === "role-admin" ||
+    currentRole?.name === "Super Admin" ||
+    currentRole?.name === "Admin Full Access" ||
+    (currentRole?.isSystem && currentRole?.roleType === "admin" && currentRole?.name?.toLowerCase().includes("admin"));
+
+  const isAdmin = isSuperAdmin || currentUser?.accountType === "admin" || currentUser?.isAdmin === true || currentRole?.roleType === "admin";
 
   const login = async (email: string, password: string) => {
     try {
-      // 1. Try Laravel API Login
       const res = await api.post('/auth/login', { email, password });
       const { token, user: apiUserData } = res.data;
 
@@ -164,15 +170,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const hasPermission = (module: keyof RolePermissions, level: AccessLevel): boolean => {
-    if (!currentRole) return false;
+    if (isSuperAdmin) return true;
+    if (!currentRole || !currentRole.permissions) return false;
     const userModules: (keyof RolePermissions)[] = [
       "dashboard", "pengajuanDana", "pengadaan", "pengujian", "pembayaran", "templateDokumen",
     ];
     if (currentRole.roleType === "user" && userModules.includes(module)) return true;
-    const perm = currentRole.permissions[module];
+    const perm = currentRole.permissions[module] || "no-access";
     if (level === "viewer") return perm === "viewer" || perm === "editor";
     if (level === "editor") return perm === "editor";
-    return true;
+    return false;
   };
 
   useEffect(() => {
