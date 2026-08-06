@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Upload, Download, FileText, Trash2, Edit3, Eye, Plus, Search, X } from "lucide-react";
 import { AdminTopBar } from "@/components/admin/layout/AdminTopBar";
 import { useAuth } from "@/store/authStore";
@@ -28,6 +28,21 @@ const SUBKATEGORI_MAP: Record<KategoriUtama, string[]> = {
 };
 
 const TIPE_OPTIONS = ["DOCX", "PDF", "XLSX", "PPTX"];
+
+function downloadTemplate(t: Template) {
+  const content = `PT KERETA COMMUTER INDONESIA (KCI)\nTEMPLATE DOKUMEN SISTEM\n=========================================\nJudul Template  : ${t.judul}\nKategori Utama  : ${t.kategoriUtama}\nSubkategori     : ${t.subkategori}\nTipe File       : ${t.tipeFile}\nUkuran Berkas   : ${t.ukuran}\nDi-upload Oleh  : ${t.uploadedBy}\nTanggal Upload  : ${t.uploadedAt}\nDeskripsi       : ${t.deskripsi || "Dokumen template resmi KCI."}\n=========================================\nDokumen ini adalah template resmi untuk simulasi pengajuan.`;
+  const ext = t.tipeFile.toLowerCase();
+  const blob = new Blob([content], { type: "application/octet-stream;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const cleanTitle = t.judul.replace(/[^a-zA-Z0-9_-]/g, "_");
+  a.download = `${cleanTitle}.${ext}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 // ─── Mock Templates ────────────────────────────────────────────────────────────
 const INITIAL_TEMPLATES: Template[] = [
@@ -73,15 +88,36 @@ function TemplateModal({ title, initial, onSave, onClose }: {
   onSave: (data: Omit<Template, "id" | "uploadedBy" | "uploadedAt">) => void;
   onClose: () => void;
 }) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [judul, setJudul] = useState(initial?.judul || "");
   const [kategoriUtama, setKategoriUtama] = useState<KategoriUtama>(initial?.kategoriUtama || "Pengadaan");
   const [subkategori, setSubkategori] = useState(initial?.subkategori || SUBKATEGORI_MAP["Pengadaan"][0]);
   const [tipeFile, setTipeFile] = useState(initial?.tipeFile || "DOCX");
+  const [ukuran, setUkuran] = useState(initial?.ukuran || "—");
   const [deskripsi, setDeskripsi] = useState(initial?.deskripsi || "");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleKategoriChange = (k: KategoriUtama) => {
     setKategoriUtama(k);
     setSubkategori(SUBKATEGORI_MAP[k][0]);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedFile(file);
+
+    const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
+    if (!judul) setJudul(nameWithoutExt);
+
+    const ext = file.name.split(".").pop()?.toUpperCase() || "DOCX";
+    if (TIPE_OPTIONS.includes(ext)) {
+      setTipeFile(ext);
+    }
+
+    const sizeKB = (file.size / 1024).toFixed(0);
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    setUkuran(file.size > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`);
   };
 
   return (
@@ -97,11 +133,49 @@ function TemplateModal({ title, initial, onSave, onClose }: {
 
         {/* Form */}
         <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+          {/* File Input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".docx,.pdf,.xlsx,.pptx,.doc,.xls,.ppt"
+            onChange={handleFileChange}
+          />
+
           {/* Upload area */}
-          <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-[#252271]/30 transition-colors cursor-pointer">
-            <Upload size={28} className="mx-auto text-gray-300 mb-2" />
-            <p className="text-[12px] text-gray-500 font-medium">Klik untuk memilih file template</p>
-            <p className="text-[10.5px] text-gray-300 mt-1">DOCX, PDF, XLSX, PPTX • Maks 10MB</p>
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-[#252271]/50 hover:bg-gray-50/50 transition-all cursor-pointer group"
+          >
+            {selectedFile ? (
+              <div className="flex items-center justify-between bg-blue-50/80 border border-blue-200/80 rounded-xl p-3 text-left">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-lg bg-[#252271] flex items-center justify-center shrink-0 text-white font-bold text-xs">
+                    {tipeFile}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-bold text-gray-800 truncate">{selectedFile.name}</p>
+                    <p className="text-[10px] text-gray-500">{ukuran}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFile(null);
+                  }}
+                  className="p-1 rounded-md hover:bg-blue-100 text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ) : (
+              <>
+                <Upload size={30} className="mx-auto text-gray-400 mb-2 group-hover:text-[#252271] group-hover:scale-110 transition-all" />
+                <p className="text-[12.5px] text-gray-700 font-semibold">Klik untuk memilih file template</p>
+                <p className="text-[10.5px] text-gray-400 mt-1">DOCX, PDF, XLSX, PPTX • Maks 10MB</p>
+              </>
+            )}
           </div>
 
           {/* Judul */}
@@ -174,7 +248,7 @@ function TemplateModal({ title, initial, onSave, onClose }: {
             Batal
           </button>
           <button
-            onClick={() => onSave({ judul, kategoriUtama, subkategori, tipeFile, ukuran: "—", deskripsi })}
+            onClick={() => onSave({ judul, kategoriUtama, subkategori, tipeFile, ukuran: ukuran !== "—" ? ukuran : "180 KB", deskripsi })}
             disabled={!judul.trim()}
             className="px-6 py-2.5 rounded-xl text-[12.5px] font-semibold text-white bg-gradient-to-b from-[#e6251c] to-[#c20f06] hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
           >
@@ -219,7 +293,10 @@ function DetailModal({ template, onClose }: { template: Template; onClose: () =>
           ].map(f => (
             <div key={f.l}><p className="text-[10px] text-gray-400 font-medium">{f.l}</p><p className="text-[12.5px] text-gray-700">{f.v}</p></div>
           ))}
-          <button className="w-full h-10 rounded-xl bg-[#252271] text-white text-[12.5px] font-semibold flex items-center justify-center gap-2 hover:bg-[#1a1a5e] transition-colors">
+          <button
+            onClick={() => downloadTemplate(template)}
+            className="w-full h-10 rounded-xl bg-[#252271] text-white text-[12.5px] font-semibold flex items-center justify-center gap-2 hover:bg-[#1a1a5e] transition-colors cursor-pointer"
+          >
             <Download size={14} /> Download Template
           </button>
         </div>
@@ -455,7 +532,7 @@ export function TemplateDokumenAdminScreen() {
                   <button onClick={() => setShowEdit(t)} className="p-1.5 rounded-lg hover:bg-indigo-50 transition-colors" title="Edit">
                     <Edit3 size={14} className="text-indigo-500" />
                   </button>
-                  <button className="p-1.5 rounded-lg hover:bg-green-50 transition-colors" title="Download">
+                  <button onClick={() => downloadTemplate(t)} className="p-1.5 rounded-lg hover:bg-green-50 transition-colors cursor-pointer" title="Download Template">
                     <Download size={14} className="text-green-500" />
                   </button>
                   <button onClick={() => setDeleteId(t.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Hapus">
