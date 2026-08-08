@@ -26,15 +26,32 @@ class EnsureModulePermission
     {
         if (! $user || ! $user->is_active) return false;
 
-        // Superadmin bypass
-        if ($user->email === 'admin@sipro.com' || $user->role_id === 'role-admin' || in_array($user->role?->name, ['Super Admin', 'Admin Full Access'], true)) {
+        // Admin & Superadmin bypass
+        if (
+            $user->is_admin ||
+            $user->email === 'admin@sipro.com' ||
+            $user->role_id === 'role-admin' ||
+            in_array($user->role?->name, ['Super Admin', 'Admin Full Access', 'Admin'], true)
+        ) {
             return true;
         }
 
         $role = $user->loadMissing('role.permissions')->role;
 
-        $level = $role?->permissions
-            ->firstWhere('module', $module)?->access_level;
+        // User role default permission for core user workflow modules
+        if (!$role || $role->role_type === 'user' || empty($role->role_type)) {
+            if (in_array($module, ['pengadaan', 'pengajuanDana', 'pembayaran', 'pengujian', 'dashboard'], true)) {
+                return true;
+            }
+        }
+
+        $permission = $role?->permissions->firstWhere('module', $module);
+        $level = $permission?->access_level;
+
+        // Default fallback for core user workflow modules if not explicitly set
+        if (!$permission && in_array($module, ['pengadaan', 'pengajuanDana', 'pembayaran', 'pengujian', 'dashboard'], true)) {
+            return true;
+        }
 
         return $required === 'editor'
             ? $level === 'editor'
