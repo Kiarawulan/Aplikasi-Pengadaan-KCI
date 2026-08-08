@@ -799,48 +799,69 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
     setForm({ noSp3: "", noKontrak: "", nama: "", nominal: "", namaVendor: "", noRekening: "", bank: "Bank BNI", departemen: "CUG - LOGISTIC", tgl: "" });
   };
 
-  const handleAction = (type: "approve" | "reject" | "revisi", item: any) => { setConfirmAction({ type, item }); setCatatanText(""); };
-  const executeAction = async () => {
-    if (!confirmAction) return;
-    const { type, item } = confirmAction;
-
+  const performAction = async (type: "approve" | "reject" | "revisi", item: any, note?: string) => {
     try {
+      const pengadaanId = item.id || item.pengadaan_id || item.pengadaanId;
       let targetVerifId = item.verif_id;
-      if (!targetVerifId) {
-        const createRes = await api.post('/verifikasi', {
-          pengadaanId: item.id,
-          pengadaanNama: item.nama,
-          departemen: item.departemen || 'CTIT',
-          nominal: item.nominal || 'Rp 0',
-          tipe: item.tipe || 'pembayaran',
-          submitBy: 'User'
-        });
-        targetVerifId = createRes.data?.id;
+
+      if (!targetVerifId && pengadaanId) {
+        const resList = await api.get(`/verifikasi?pengadaan_id=${pengadaanId}`).catch(() => ({ data: [] }));
+        const list = Array.isArray(resList.data) ? resList.data : [];
+        const matched = list.find((v: any) => ["pembayaran", "umd", "outsource", "non-outsource", "payment-request"].includes(v.tipe));
+        if (matched) {
+          targetVerifId = matched.id;
+        } else {
+          const createRes = await api.post('/verifikasi', {
+            pengadaanId: pengadaanId,
+            pengadaanNama: item.nama || item.namaPaket || 'Pengadaan Pembayaran',
+            departemen: item.departemen || 'CTIT',
+            nominal: item.nominal || 'Rp 0',
+            tipe: item.tipe || 'pembayaran',
+            submitBy: 'User'
+          });
+          targetVerifId = createRes.data?.id;
+        }
       }
 
       if (targetVerifId) {
         if (type === "approve") {
           await api.post(`/verifikasi/${targetVerifId}/approve`);
         } else if (type === "revisi") {
-          await api.post(`/verifikasi/${targetVerifId}/revisi`, { catatan: catatanText || 'Perlu revisi' });
+          await api.post(`/verifikasi/${targetVerifId}/revisi`, { catatan: note || catatanText || 'Perlu revisi' });
         } else {
-          await api.post(`/verifikasi/${targetVerifId}/reject`, { catatan: catatanText || 'Ditolak Admin' });
+          await api.post(`/verifikasi/${targetVerifId}/reject`, { catatan: note || catatanText || 'Ditolak Admin' });
         }
-      } else {
-        await api.put(`/pengadaan/${item.id}`, {
-          status: type === 'approve' ? 'approved' : type === 'revisi' ? 'revision_required' : 'rejected'
-        });
       }
-      alert(`Pembayaran berhasil ${type === 'approve' ? 'disetujui (Approved)' : type === 'revisi' ? 'diminta revisi' : 'ditolak'}.`);
-      fetchPengadaanData();
-    } catch (err) {
+
+      if (pengadaanId) {
+        const newStatus = type === 'approve' ? 'approved' : type === 'revisi' ? 'revision_required' : 'rejected';
+        await api.put(`/pengadaan/${pengadaanId}`, { status: newStatus }).catch(() => {});
+      }
+
+      alert(`✅ Pembayaran berhasil ${type === 'approve' ? 'disetujui (Approved)' : type === 'revisi' ? 'diminta revisi' : 'ditolak'}.`);
+      await fetchPengadaanData();
+    } catch (err: any) {
       console.error('Gagal melakukan aksi verifikasi:', err);
-      alert('Gagal memproses. Silakan coba lagi.');
+      alert(err?.response?.data?.message || 'Gagal memproses verifikasi pembayaran. Silakan coba lagi.');
     }
 
     setConfirmAction(null);
     setShowVerif(null);
     setShowUmd(null);
+  };
+
+  const handleAction = (type: "approve" | "reject" | "revisi", item: any) => {
+    if (type === "approve") {
+      performAction("approve", item);
+    } else {
+      setConfirmAction({ type, item });
+      setCatatanText("");
+    }
+  };
+
+  const executeAction = async () => {
+    if (!confirmAction) return;
+    await performAction(confirmAction.type, confirmAction.item, catatanText);
   };
   const topFiltersPayment: FilterConfig[] = [
     { key: "departemen", label: "Divisi", type: "select", options: DIVISI_OPTIONS },

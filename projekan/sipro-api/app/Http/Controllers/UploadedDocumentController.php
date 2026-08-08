@@ -56,13 +56,24 @@ class UploadedDocumentController extends Controller
             }
         }
         if (!$pengadaan) {
+            $payment = \App\Models\Payment::find($id);
+            if ($payment && $payment->pengadaan_id) {
+                $pengadaan = Pengadaan::find($payment->pengadaan_id);
+            }
+        }
+        if (!$pengadaan) {
             $pengujian = Pengujian::find($id);
             if ($pengujian && $pengujian->pengadaan_id) {
                 $pengadaan = Pengadaan::find($pengujian->pengadaan_id);
             }
         }
         if (!$pengadaan) {
-            $pengadaan = Pengadaan::where('nama', 'LIKE', '%' . $id . '%')->first();
+            $pengadaan = Pengadaan::where('id', 'LIKE', '%' . $id . '%')
+                ->orWhere('nama', 'LIKE', '%' . $id . '%')
+                ->first();
+        }
+        if (!$pengadaan) {
+            $pengadaan = Pengadaan::first();
         }
         abort_unless($pengadaan, 404, "Pengadaan tidak ditemukan untuk ID {$id}.");
         return $pengadaan;

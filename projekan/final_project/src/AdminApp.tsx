@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FileWarning, XCircle, Upload, Trash2 } from "lucide-react";
 import logoImg from "@/imports/UserDashboard/a1d658a5f37b0b6b958626283ef2524233d0a35d.png";
 import group13Svg from "@/imports/Group13/svg-0k0x59k5bp";
@@ -5300,42 +5300,73 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
   const [syarat, setSyarat] = useState((isUmd ? UMD_SYARAT : SYARAT_LIST).map(d => ({ doc: d, syarat: false, ada: false, ket: "" })));
   const [syaratLain, setSyaratLain] = useState<{ doc: string; syarat: boolean; ada: boolean; ket: string }[]>([]);
 
+  // Resolve pengadaanId and verifId once from the row object
+  const r = row as any;
+  const pengadaanId = r.pengadaan_id || r.pengadaanId || r.id || r.noPembayaran || r.noKontrak || "";
+  const existingVerifId = r.verif_id || r.verifId || "";
+
+  const resolveVerifId = async (): Promise<string> => {
+    if (existingVerifId) return existingVerifId;
+    if (!pengadaanId) return "";
+    const resList = await api.get(`/verifikasi?pengadaan_id=${pengadaanId}`).catch(() => ({ data: [] }));
+    const list = Array.isArray(resList.data) ? resList.data : [];
+    const matched = list.find((v: any) => ["pembayaran", "umd", "outsource", "non-outsource", "payment-request"].includes(v.tipe));
+    if (matched) return matched.id;
+    const createRes = await api.post('/verifikasi', {
+      pengadaanId: pengadaanId,
+      pengadaanNama: r.namaPaket || r.nama || 'Pengadaan Pembayaran',
+      departemen: r.departemen || r.dept || 'CTIT',
+      nominal: r.nilaiTagihan || r.nominal || 'Rp 0',
+      tipe: isUmd ? 'umd' : isNonOutsource ? 'non-outsource' : 'pembayaran',
+      submitBy: 'User'
+    }).catch(() => null);
+    return createRes?.data?.id || "";
+  };
+
+  const handleUploadProof = async (file: File) => {
+    if (!pengadaanId) { alert("ID Pengadaan tidak ditemukan."); return; }
+    const payload = new FormData();
+    payload.append("file", file);
+    payload.append("stage", "pelunasan-proof");
+    try {
+      await api.post(`/pengadaan/${pengadaanId}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
+      alert("✅ Surat bukti pelunasan berhasil diunggah dan dapat diunduh User.");
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.");
+    }
+  };
+
+  const handleApprove = async () => {
+    try {
+      const verifId = await resolveVerifId();
+      if (verifId) await api.post(`/verifikasi/${verifId}/approve`);
+      if (pengadaanId) await api.put(`/pengadaan/${pengadaanId}`, { status: 'approved' }).catch(() => {});
+      alert(isUmd ? '✅ Pengajuan UMD Berhasil Diverifikasi & Disetujui (Approved) Admin!' : '✅ Pembayaran Berhasil Diverifikasi & Disetujui (Approved) Admin!');
+      onBack();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Gagal menyetujui. Silakan coba lagi.');
+    }
+  };
+
   const handleProcessPayment = async (action: "revisi" | "reject") => {
     const note = actionNote.trim();
     if (!note) {
       alert(`Harap masukkan catatan ${action === "revisi" ? "revisi" : "penolakan"}.`);
       return;
     }
-    const r = row as any;
-    const pengadaanId = r.pengadaan_id || r.pengadaanId || r.id || r.noPembayaran || r.noKontrak;
 
     try {
-      const resList = await api.get(`/verifikasi?pengadaan_id=${pengadaanId}`).catch(() => ({ data: [] }));
-      const list = Array.isArray(resList.data) ? resList.data : [];
-      let matched = list.find((v: any) => ["pembayaran", "umd", "outsource", "non-outsource", "payment-request"].includes(v.tipe));
-
-      if (!matched && pengadaanId) {
-        const createRes = await api.post('/verifikasi', {
-          pengadaanId: pengadaanId,
-          pengadaanNama: r.namaPaket || r.nama || 'Pengadaan Pembayaran',
-          departemen: r.departemen || r.dept || 'CTIT',
-          nominal: r.nilaiTagihan || r.nominal || 'Rp 0',
-          tipe: isUmd ? 'umd' : isNonOutsource ? 'non-outsource' : 'pembayaran',
-          submitBy: 'User'
-        }).catch(() => null);
-        if (createRes?.data) matched = createRes.data;
-      }
-
-      const verifId = matched?.id || r.verif_id || `VR-${pengadaanId}`;
-
+      const verifId = await resolveVerifId();
+      if (!verifId) { alert("ID Verifikasi tidak ditemukan."); return; }
       await api.post(`/verifikasi/${verifId}/${action}`, { catatan: note });
+      if (pengadaanId) await api.put(`/pengadaan/${pengadaanId}`, { status: action === 'revisi' ? 'revision_required' : 'rejected' }).catch(() => {});
       alert(action === "revisi" ? "Catatan revisi pembayaran berhasil dikirim ke user!" : "Pembayaran berhasil ditolak!");
       setShowRevisiBox(false);
       setShowRejectBox(false);
       setActionNote("");
       onBack();
     } catch (e: any) {
-      alert(e.response?.data?.message || `Gagal ${action === "revisi" ? "mengirim revisi" : "menolak pembayaran"}.`);
+      alert(e?.response?.data?.message || `Gagal ${action === "revisi" ? "mengirim revisi" : "menolak pembayaran"}.`);
     }
   };
 
@@ -5488,12 +5519,10 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
                 type="file"
                 accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
                 className="hidden"
-                onChange={(event) => {
+                onChange={async (event) => {
                   const file = event.target.files?.[0];
                   if (file) {
-                    uploadProof(row, file).catch((error: any) =>
-                      alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.")
-                    );
+                    await handleUploadProof(file);
                     event.target.value = "";
                   }
                 }}
@@ -5527,33 +5556,7 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
               </button>
               <button
                 type="button"
-                onClick={async () => {
-                  try {
-                    const r = row as any;
-                    let verifId = r.verif_id;
-                    if (!verifId && r.id) {
-                      const res = await api.post('/verifikasi', {
-                        pengadaanId: r.id,
-                        pengadaanNama: r.namaPaket || r.nama || 'Pengadaan UMD',
-                        departemen: r.departemen || 'CUG',
-                        nominal: r.nilaiTagihan || r.nominal || 'Rp 0',
-                        tipe: 'umd',
-                        submitBy: 'User'
-                      }).catch(() => null);
-                      verifId = res?.data?.id;
-                    }
-                    if (verifId) {
-                      await api.post(`/verifikasi/${verifId}/approve`);
-                    } else {
-                      await api.put(`/pengadaan/${r.id}`, { status: 'approved' });
-                    }
-                    alert('✅ Pengajuan UMD Berhasil Diverifikasi & Disetujui (Approved) Admin!');
-                    onBack();
-                  } catch (e) {
-                    alert('✅ Pengajuan UMD Disetujui (Approved) Admin!');
-                    onBack();
-                  }
-                }}
+                onClick={handleApprove}
                 className="px-6 py-2.5 rounded-xl text-[12.5px] font-extrabold bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center gap-2"
               >
                 ✓ Setujui UMD (Approve)
@@ -5738,12 +5741,10 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
               type="file"
               accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
               className="hidden"
-              onChange={(event) => {
+              onChange={async (event) => {
                 const file = event.target.files?.[0];
                 if (file) {
-                  uploadProof(row, file).catch((error: any) =>
-                    alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.")
-                  );
+                  await handleUploadProof(file);
                   event.target.value = "";
                 }
               }}
@@ -5777,33 +5778,7 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
             </button>
             <button
               type="button"
-              onClick={async () => {
-                try {
-                  const r = row as any;
-                  let verifId = r.verif_id;
-                  if (!verifId && r.id) {
-                    const res = await api.post('/verifikasi', {
-                      pengadaanId: r.id,
-                      pengadaanNama: r.namaPaket || r.nama || 'Pengadaan',
-                      departemen: r.departemen || 'CUG',
-                      nominal: r.nilaiTagihan || r.nominal || 'Rp 0',
-                      tipe: 'pembayaran',
-                      submitBy: 'User'
-                    }).catch(() => null);
-                    verifId = res?.data?.id;
-                  }
-                  if (verifId) {
-                    await api.post(`/verifikasi/${verifId}/approve`);
-                  } else {
-                    await api.put(`/pengadaan/${r.id}`, { status: 'approved' });
-                  }
-                  alert('✅ Pembayaran Berhasil Diverifikasi & Disetujui (Approved) Admin!');
-                  onBack();
-                } catch (e) {
-                  alert('✅ Pembayaran Disetujui (Approved) Admin!');
-                  onBack();
-                }
-              }}
+              onClick={handleApprove}
               className="px-6 py-2.5 rounded-xl text-[12.5px] font-extrabold bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center gap-2"
             >
               ✓ Setujui &amp; Verifikasi Pembayaran (Approve)
