@@ -127,18 +127,16 @@ class PengadaanController extends Controller
     public function updateFormData(Request $request, Pengadaan $pengadaan)
     {
         $user = $request->user();
-        if (!$user->is_admin && $pengadaan->created_by !== $user->id) {
+        if (!$user->is_admin && $pengadaan->created_by !== $user->id && $pengadaan->departemen !== $user->departemen) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (! $user->is_admin && ! in_array($pengadaan->status, ['draft', 'revision_required', 'rejected'], true)) {
-            return response()->json(['message' => 'Pengadaan tidak dapat diubah pada status saat ini.'], 422);
-        }
-        $pengadaan->form_data = $this->normalizeFormData($pengadaan->flow_type, $request->input('form_data', $request->all()));
+        $incomingFormData = $request->input('form_data', $request->all());
+        $pengadaan->form_data = $this->normalizeFormData($pengadaan->flow_type, $incomingFormData);
         $pengadaan->updated_by = $user->id;
         $pengadaan->save();
 
-        return response()->json(['message' => 'Form data updated']);
+        return response()->json(['message' => 'Form data updated', 'formData' => $pengadaan->form_data]);
     }
 
 public function submitStep(Request $request, Pengadaan $pengadaan)
