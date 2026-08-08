@@ -246,7 +246,7 @@ class VerifikasiController extends Controller
                 }
 
                 if (in_array($verifikasi->tipe, ['umd', 'outsource', 'non-outsource', 'payment-request', 'pembayaran'], true)) {
-                    Payment::where('pengadaan_id', $pengadaan->id)->where('payment_type', $verifikasi->tipe)->update(['status' => 'approved', 'processed_by' => $admin->id]);
+                    Payment::where('pengadaan_id', $pengadaan->id)->update(['status' => 'approved', 'processed_by' => $admin->id]);
                     $pengadaan->status = 'completed';
                     $pengadaan->current_step = 'completed';
                 }
@@ -292,6 +292,10 @@ class VerifikasiController extends Controller
                 $pengadaan->status = 'revision_required';
                 $pengadaan->updated_by = $admin->id;
                 $pengadaan->save();
+
+                if (in_array($verifikasi->tipe, ['umd', 'outsource', 'non-outsource', 'payment-request', 'pembayaran'], true)) {
+                    Payment::where('pengadaan_id', $pengadaan->id)->update(['status' => 'revision_required', 'admin_note' => $request->catatan, 'processed_by' => $admin->id]);
+                }
             }
         }
 
@@ -332,6 +336,10 @@ class VerifikasiController extends Controller
                 $pengadaan->status = 'rejected';
                 $pengadaan->updated_by = $admin->id;
                 $pengadaan->save();
+
+                if (in_array($verifikasi->tipe, ['umd', 'outsource', 'non-outsource', 'payment-request', 'pembayaran'], true)) {
+                    Payment::where('pengadaan_id', $pengadaan->id)->update(['status' => 'rejected', 'admin_note' => $request->catatan, 'processed_by' => $admin->id]);
+                }
             }
         }
 

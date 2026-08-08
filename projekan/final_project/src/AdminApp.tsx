@@ -4836,12 +4836,21 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
     });
 
   const uploadProof = async (row: any, file: File) => {
-    if (!row?.pengadaan_id) return;
+    const pengadaanId = row?.pengadaan_id || row?.pengadaanId || row?.id || row?.noPembayaran || row?.noKontrak;
+    if (!pengadaanId) {
+      alert("ID Pengadaan tidak ditemukan untuk data ini.");
+      return;
+    }
     const payload = new FormData();
     payload.append("file", file);
     payload.append("stage", "pelunasan-proof");
-    await api.post(`/pengadaan/${row.pengadaan_id}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
-    alert("Surat bukti pelunasan berhasil diunggah dan dapat diunduh User.");
+    try {
+      await api.post(`/pengadaan/${pengadaanId}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
+      alert("Surat bukti pelunasan berhasil diunggah dan dapat diunduh User.");
+    } catch (error: any) {
+      console.error("Gagal unggah bukti pelunasan:", error);
+      alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.");
+    }
   };
 
   const subDocLabels: Record<PembayaranDoc, string> = {

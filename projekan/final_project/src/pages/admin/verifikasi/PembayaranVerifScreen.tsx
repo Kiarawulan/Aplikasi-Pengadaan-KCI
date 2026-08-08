@@ -3,7 +3,7 @@ import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/shared/AdminModal";
-import { Plus, CheckCircle2, XCircle, FileWarning, Download, ChevronRight, Trash2 } from "lucide-react";
+import { Plus, CheckCircle2, XCircle, FileWarning, Download, ChevronRight, Trash2, Upload } from "lucide-react";
 import { useAuth } from "../../../store/authStore";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
 
@@ -302,6 +302,41 @@ function FinanceVerifModal({
               <p className="text-[11px] text-gray-400 text-center py-3 border border-dashed border-gray-200 rounded-xl">Belum ada syarat tambahan. Klik tombol + untuk menambah.</p>
             )}
           </div>
+
+          {/* Obvious Upload Surat Bukti Pelunasan Box */}
+          <div className="p-4 bg-indigo-50/70 border border-indigo-200 rounded-xl flex items-center justify-between shadow-2xs">
+            <div>
+              <p className="text-[12.5px] font-bold text-[#252271] flex items-center gap-1.5">
+                <Upload size={14} className="text-[#252271]" /> Unggah Surat Bukti Pelunasan
+              </p>
+              <p className="text-[11px] text-indigo-700 mt-0.5">Berkas bukti pelunasan ini akan dapat diunduh dan dilihat oleh pihak pemohon/user.</p>
+            </div>
+            <label className="px-4 py-2 bg-[#252271] text-white hover:bg-[#1a1860] rounded-xl text-[11.5px] font-bold cursor-pointer transition-all shadow-sm flex items-center gap-1.5 shrink-0">
+              <Upload size={14} /> Pilih &amp; Upload Bukti Pelunasan
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                className="hidden"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  const targetId = item.id || item.pengadaan_id || item.verif_id;
+                  if (file && targetId) {
+                    try {
+                      const payload = new FormData();
+                      payload.append("file", file);
+                      payload.append("stage", "pelunasan-proof");
+                      await api.post(`/pengadaan/${targetId}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
+                      alert("Surat bukti pelunasan berhasil diunggah dan dapat diunduh User.");
+                    } catch (error: any) {
+                      console.error(error);
+                      alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.");
+                    }
+                    event.target.value = "";
+                  }
+                }}
+              />
+            </label>
+          </div>
         </div>
 
         {/* Fixed Sticky Footer Actions */}
@@ -550,6 +585,41 @@ function UmdSubmissionModal({
           <div>
             <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">6. BUKTI PENGEMBALIAN DANA USER</p>
             <FileDetailRow label="Upload Bukti Transfer Pengembalian" fileName={umdData.fileBuktiTransfer || ""} />
+          </div>
+
+          {/* Obvious Upload Surat Bukti Pelunasan Box */}
+          <div className="mt-4 p-4 bg-indigo-50/70 border border-indigo-200 rounded-xl flex items-center justify-between shadow-2xs">
+            <div>
+              <p className="text-[12.5px] font-bold text-[#252271] flex items-center gap-1.5">
+                <Upload size={14} className="text-[#252271]" /> Unggah Surat Bukti Pelunasan
+              </p>
+              <p className="text-[11px] text-indigo-700 mt-0.5">Berkas bukti pelunasan ini akan dapat diunduh dan dilihat oleh pihak pemohon/user.</p>
+            </div>
+            <label className="px-4 py-2 bg-[#252271] text-white hover:bg-[#1a1860] rounded-xl text-[11.5px] font-bold cursor-pointer transition-all shadow-sm flex items-center gap-1.5 shrink-0">
+              <Upload size={14} /> Pilih &amp; Upload Bukti Pelunasan
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                className="hidden"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  const targetId = pengadaanId || item.id || item.verif_id;
+                  if (file && targetId) {
+                    try {
+                      const payload = new FormData();
+                      payload.append("file", file);
+                      payload.append("stage", "pelunasan-proof");
+                      await api.post(`/pengadaan/${targetId}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
+                      alert("Surat bukti pelunasan berhasil diunggah dan dapat diunduh User.");
+                    } catch (error: any) {
+                      console.error(error);
+                      alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.");
+                    }
+                    event.target.value = "";
+                  }
+                }}
+              />
+            </label>
           </div>
         </div>
 
