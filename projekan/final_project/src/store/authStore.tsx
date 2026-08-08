@@ -172,10 +172,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const hasPermission = (module: keyof RolePermissions, level: AccessLevel): boolean => {
     if (isSuperAdmin) return true;
     if (!currentRole || !currentRole.permissions) return false;
-    const userModules: (keyof RolePermissions)[] = [
-      "dashboard", "pengajuanDana", "pengadaan", "pengujian", "pembayaran", "templateDokumen",
-    ];
-    if (currentRole.roleType === "user" && userModules.includes(module)) return true;
     const perm = currentRole.permissions[module] || "no-access";
     if (level === "viewer") return perm === "viewer" || perm === "editor";
     if (level === "editor") return perm === "editor";

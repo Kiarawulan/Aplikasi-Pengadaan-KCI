@@ -159,13 +159,15 @@ export function rolePermissionsFromGroups(groups: PermGroup[], initial: RolePerm
   return next;
 }
 
-export function RedCheckbox({ checked, onClick }: { checked: boolean; onClick: () => void }) {
+export function RedCheckbox({ checked, onClick, disabled }: { checked: boolean; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={`size-[18px] rounded-[5px] shrink-0 flex items-center justify-center transition-all duration-150 cursor-pointer
-        ${checked ? "bg-[#cc0000]" : "bg-transparent border border-[#cc0000]"}`}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      className={`size-[18px] rounded-[5px] shrink-0 flex items-center justify-center transition-all duration-150 ${
+        disabled ? "opacity-30 cursor-not-allowed bg-gray-300 border-gray-400" : "cursor-pointer"
+      } ${checked ? "bg-[#cc0000]" : "bg-transparent border border-[#cc0000]"}`}
     >
       {checked && (
         <svg fill="none" height="10" viewBox="0 0 10 10" width="10">
@@ -176,12 +178,15 @@ export function RedCheckbox({ checked, onClick }: { checked: boolean; onClick: (
   );
 }
 
-export function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+export function Toggle({ on, onClick, disabled }: { on: boolean; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={`relative h-[22px] w-[40px] rounded-full shrink-0 transition-colors duration-200 cursor-pointer ${on ? "bg-[#252271]" : "bg-[#5d6596]"}`}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      className={`relative h-[22px] w-[40px] rounded-full shrink-0 transition-colors duration-200 ${
+        disabled ? "opacity-30 cursor-not-allowed bg-gray-300" : "cursor-pointer"
+      } ${on ? "bg-[#252271]" : "bg-[#5d6596]"}`}
     >
       <span
         className={`absolute top-[3px] size-[16px] rounded-full bg-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1)] transition-all duration-200
@@ -194,13 +199,21 @@ export function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
 interface PermissionMatrixProps {
   groups?: PermGroup[];
   onGroupsChange?: (groups: PermGroup[]) => void;
-  // Compatibility props if passed
   permissions?: RolePermissions;
   onChange?: (key: keyof RolePermissions, level: AccessLevel) => void;
   readonly?: boolean;
+  roleType?: "admin" | "user";
 }
 
-export function PermissionMatrix({ groups: externalGroups, onGroupsChange }: PermissionMatrixProps) {
+const ADMIN_ONLY_SUB_PERMS = new Set([
+  "pg-m-user", "pg-m-role", "pg-rup", "pg-sp3", "pg-pbj", "pg-contract", "pg-jamlak",
+  "pg-vendor", "pg-harga-satuan", "pg-bank", "pg-inklaring", "pg-adendum", "pg-evaluasi-vendor",
+  "pg-tkdn", "pg-kpi", "pg-mppl", "pg-hps", "pj-m-user", "pj-review-pengujian", "pj-assign-task",
+  "pj-checklist", "pj-dashboard-tc", "pj-generate-bahp", "pj-m-user-detail",
+  "byr-payment-approve", "byr-reports"
+]);
+
+export function PermissionMatrix({ groups: externalGroups, onGroupsChange, roleType }: PermissionMatrixProps) {
   const [internalGroups, setInternalGroups] = useState<PermGroup[]>(DEFAULT_HAK_AKSES_GROUPS);
 
   const groups = externalGroups || internalGroups;
@@ -213,6 +226,12 @@ export function PermissionMatrix({ groups: externalGroups, onGroupsChange }: Per
     }
   };
 
+  const isUserRole = roleType === "user";
+
+  function isSubDisabled(subId: string): boolean {
+    return isUserRole && ADMIN_ONLY_SUB_PERMS.has(subId);
+  }
+
   function toggleGroupCheck(gid: string) {
     setGroups((prev) =>
       prev.map((g) => {
@@ -223,7 +242,7 @@ export function PermissionMatrix({ groups: externalGroups, onGroupsChange }: Per
           checked: nowChecked,
           selectAllView: nowChecked,
           selectAllAction: nowChecked,
-          subPerms: g.subPerms.map((s) => ({ ...s, view: nowChecked, action: nowChecked })),
+          subPerms: g.subPerms.map((s) => isSubDisabled(s.id) ? { ...s, view: false, action: false } : { ...s, view: nowChecked, action: nowChecked }),
         };
       })
     );
@@ -238,12 +257,12 @@ export function PermissionMatrix({ groups: externalGroups, onGroupsChange }: Per
       prev.map((g) => {
         if (g.id !== gid) return g;
         const nowOn = col === "view" ? !g.selectAllView : !g.selectAllAction;
-        const subPerms = g.subPerms.map((s) => ({
+        const subPerms = g.subPerms.map((s) => isSubDisabled(s.id) ? { ...s, view: false, action: false } : {
           ...s,
           [col]: nowOn,
           ...(col === "action" && nowOn ? { view: true } : {}),
           ...(col === "view" && !nowOn ? { action: false } : {}),
-        }));
+        });
         const anyChecked = subPerms.some((s) => s.view || s.action);
         return {
           ...g,
@@ -256,6 +275,7 @@ export function PermissionMatrix({ groups: externalGroups, onGroupsChange }: Per
   }
 
   function toggleSubPerm(gid: string, sid: string, col: "view" | "action") {
+    if (isSubDisabled(sid)) return;
     setGroups((prev) =>
       prev.map((g) => {
         if (g.id !== gid) return g;
@@ -282,7 +302,14 @@ export function PermissionMatrix({ groups: externalGroups, onGroupsChange }: Per
     <div className="bg-white rounded-[24px] shadow-[0px_0px_10.9px_rgba(0,0,0,0.09)] overflow-hidden flex flex-col border border-gray-100">
       {/* Card Header */}
       <div className="bg-[#252271] px-[28px] py-[13px] flex items-center justify-between">
-        <span className="text-white text-[13px] font-bold">Hak Akses</span>
+        <div className="flex items-center gap-2">
+          <span className="text-white text-[13px] font-bold">Hak Akses</span>
+          {isUserRole && (
+            <span className="bg-amber-400 text-amber-950 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+              Mode Role User (Modul Admin Diterkunci)
+            </span>
+          )}
+        </div>
         <span className="text-[rgba(255,255,255,0.7)] text-[11px] font-semibold">{activeCount} izin aktif</span>
       </div>
 
@@ -339,24 +366,36 @@ export function PermissionMatrix({ groups: externalGroups, onGroupsChange }: Per
                 </div>
 
                 {/* Sub Perm Rows */}
-                {group.subPerms.map((sub, idx) => (
-                  <div
-                    key={sub.id}
-                    className="grid px-[28px] py-[11px] border-b border-[#efefef] last:border-0 items-center hover:bg-[#f0f2f5] transition-colors"
-                    style={{ gridTemplateColumns: "1fr 72px 72px", backgroundColor: idx % 2 === 1 ? "rgba(248,248,248,0.8)" : "white" }}
-                  >
-                    <div className="flex flex-col self-center pl-[56px] pr-[20px]">
-                      <span className="text-[#252271] text-[12.5px] font-bold leading-[17px]">{sub.name}</span>
-                      <span className="text-[#cc0000] text-[10.5px] leading-[15px] font-medium mt-0.5">{sub.desc}</span>
+                {group.subPerms.map((sub, idx) => {
+                  const disabled = isSubDisabled(sub.id);
+                  return (
+                    <div
+                      key={sub.id}
+                      className={`grid px-[28px] py-[11px] border-b border-[#efefef] last:border-0 items-center transition-colors ${
+                        disabled ? "opacity-50 bg-gray-100/80" : "hover:bg-[#f0f2f5]"
+                      }`}
+                      style={{ gridTemplateColumns: "1fr 72px 72px", backgroundColor: disabled ? "#f3f4f6" : idx % 2 === 1 ? "rgba(248,248,248,0.8)" : "white" }}
+                    >
+                      <div className="flex flex-col self-center pl-[56px] pr-[20px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[#252271] text-[12.5px] font-bold leading-[17px]">{sub.name}</span>
+                          {disabled && (
+                            <span className="text-[9.5px] font-extrabold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">
+                              Khusus Admin
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[#cc0000] text-[10.5px] leading-[15px] font-medium mt-0.5">{sub.desc}</span>
+                      </div>
+                      <div className="flex items-center justify-center self-center">
+                        <RedCheckbox checked={sub.view} disabled={disabled} onClick={() => toggleSubPerm(group.id, sub.id, "view")} />
+                      </div>
+                      <div className="flex items-center justify-center self-center">
+                        <RedCheckbox checked={sub.action} disabled={disabled} onClick={() => toggleSubPerm(group.id, sub.id, "action")} />
+                      </div>
                     </div>
-                    <div className="flex items-center justify-center self-center">
-                      <RedCheckbox checked={sub.view} onClick={() => toggleSubPerm(group.id, sub.id, "view")} />
-                    </div>
-                    <div className="flex items-center justify-center self-center">
-                      <RedCheckbox checked={sub.action} onClick={() => toggleSubPerm(group.id, sub.id, "action")} />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

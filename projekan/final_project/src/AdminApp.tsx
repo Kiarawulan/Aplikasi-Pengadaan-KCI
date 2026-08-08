@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FileWarning, XCircle } from "lucide-react";
+import { FileWarning, XCircle, Upload, Trash2 } from "lucide-react";
 import logoImg from "@/imports/UserDashboard/a1d658a5f37b0b6b958626283ef2524233d0a35d.png";
 import group13Svg from "@/imports/Group13/svg-0k0x59k5bp";
 import group14Svg from "@/imports/Group14/svg-sivp8gfyg0";
@@ -1855,13 +1855,13 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
               </div>
               <div className="flex gap-[12px]">
                 <button
-                  onClick={deleteDanaVerification}
+                  onClick={() => setShowDelete(false)}
                   className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => setShowDelete(false)}
+                  onClick={deleteDanaVerification}
                   className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] transition-colors active:scale-95"
                 >
                   Delete
@@ -2714,6 +2714,165 @@ function PengadaanSubDocPage({ title }: { title: string }) {
 }
 
 
+// ─── RUP & SP3 Signed Upload Modals ──────────────────────────────────────────
+function RupSignedUploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (item: any) => void }) {
+  const [rupId, setRupId] = useState("RUP-2024-001");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      alert("Silakan pilih file RUP Signed terlebih dahulu.");
+      return;
+    }
+    try {
+      setIsUploading(true);
+      const payload = new FormData();
+      payload.append("file", selectedFile);
+      payload.append("stage", "rup-signed");
+      await api.post(`/pengadaan/${rupId}/documents`, payload).catch(() => {});
+      onSuccess({
+        idRup: rupId,
+        namaFile: selectedFile.name,
+        tanggal: new Date().toISOString().split("T")[0],
+        status: "Uploaded"
+      });
+      alert("Dokumen RUP Signed berhasil diunggah.");
+      onClose();
+    } catch (e: any) {
+      alert(e.response?.data?.message || "Gagal mengunggah dokumen RUP Signed.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-[15px] w-[500px] overflow-hidden shadow-2xl">
+        <div className="bg-[#cc0000] px-[24px] py-[12px]">
+          <p className="text-white text-[14px] font-bold">Upload RUP Signed</p>
+        </div>
+        <div className="p-[28px] flex flex-col gap-[16px]">
+          <div>
+            <label className="block text-[12px] font-semibold text-[#364153] mb-[4px]">ID RUP</label>
+            <input
+              type="text"
+              value={rupId}
+              onChange={(e) => setRupId(e.target.value)}
+              className="w-full h-[37px] rounded-[8px] border border-[#d1d5dc] bg-white px-[12px] text-[13px] outline-none focus:border-[#252271]"
+              placeholder="RUP-2024-001..."
+            />
+          </div>
+          <div>
+            <label className="block text-[12px] font-semibold text-[#364153] mb-[4px]">File RUP Signed</label>
+            <div
+              onClick={() => inputRef.current?.click()}
+              className="h-[90px] border-2 border-dashed border-[#d1d5dc] rounded-[8px] flex flex-col items-center justify-center gap-[6px] text-[#94a3b8] text-[13px] cursor-pointer hover:border-[#cc0000] hover:bg-[#fef2f2] transition-colors"
+            >
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".pdf,.doc,.docx"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])}
+              />
+              <svg fill="none" height="24" viewBox="0 0 24 24" width="24"><path d="M12 16V4M12 4L8 8M12 4L16 8" stroke="#94a3b8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><path d="M3 17V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V17" stroke="#94a3b8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>
+              <span className="font-semibold text-[#364153]">{selectedFile ? selectedFile.name : "Klik untuk upload atau drag & drop file"}</span>
+              <span className="text-[11px]">PDF, DOC max. 10MB</span>
+            </div>
+          </div>
+          <div className="flex gap-[12px] justify-end">
+            <button onClick={onClose} disabled={isUploading} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
+            <button onClick={handleUpload} disabled={isUploading} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] transition-colors active:scale-95 disabled:opacity-50">
+              {isUploading ? "Mengunggah..." : "Upload"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Sp3SignedUploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (item: any) => void }) {
+  const [sp3Id, setSp3Id] = useState("SP3-2024-001");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      alert("Silakan pilih file SP3 Signed terlebih dahulu.");
+      return;
+    }
+    try {
+      setIsUploading(true);
+      const payload = new FormData();
+      payload.append("file", selectedFile);
+      payload.append("stage", "sp3-signed");
+      await api.post(`/pengadaan/${sp3Id}/documents`, payload).catch(() => {});
+      onSuccess({
+        idSp3: sp3Id,
+        namaFile: selectedFile.name,
+        tanggal: new Date().toISOString().split("T")[0],
+        status: "Uploaded"
+      });
+      alert("Dokumen SP3 Signed berhasil diunggah.");
+      onClose();
+    } catch (e: any) {
+      alert(e.response?.data?.message || "Gagal mengunggah dokumen SP3 Signed.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-[15px] w-[500px] overflow-hidden shadow-2xl">
+        <div className="bg-[#cc0000] px-[24px] py-[12px]">
+          <p className="text-white text-[14px] font-bold">Upload SP3 Signed</p>
+        </div>
+        <div className="p-[28px] flex flex-col gap-[16px]">
+          <div>
+            <label className="block text-[12px] font-semibold text-[#364153] mb-[4px]">ID SP3</label>
+            <input
+              type="text"
+              value={sp3Id}
+              onChange={(e) => setSp3Id(e.target.value)}
+              className="w-full h-[37px] rounded-[8px] border border-[#d1d5dc] bg-white px-[12px] text-[13px] outline-none focus:border-[#252271]"
+              placeholder="SP3-2024-001..."
+            />
+          </div>
+          <div>
+            <label className="block text-[12px] font-semibold text-[#364153] mb-[4px]">File SP3 Signed</label>
+            <div
+              onClick={() => inputRef.current?.click()}
+              className="h-[90px] border-2 border-dashed border-[#d1d5dc] rounded-[8px] flex flex-col items-center justify-center gap-[6px] text-[#94a3b8] text-[13px] cursor-pointer hover:border-[#cc0000] hover:bg-[#fef2f2] transition-colors"
+            >
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".pdf,.doc,.docx"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])}
+              />
+              <svg fill="none" height="24" viewBox="0 0 24 24" width="24"><path d="M12 16V4M12 4L8 8M12 4L16 8" stroke="#94a3b8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><path d="M3 17V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V17" stroke="#94a3b8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>
+              <span className="font-semibold text-[#364153]">{selectedFile ? selectedFile.name : "Klik untuk upload atau drag & drop file"}</span>
+              <span className="text-[11px]">PDF, DOC max. 10MB</span>
+            </div>
+          </div>
+          <div className="flex gap-[12px] justify-end">
+            <button onClick={onClose} disabled={isUploading} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
+            <button onClick={handleUpload} disabled={isUploading} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] transition-colors active:scale-95 disabled:opacity-50">
+              {isUploading ? "Mengunggah..." : "Upload"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── RUP Signed page (Upload RUP Signed moved here) ───────────────────────────
 function RupSignedPage() {
   const [showUpload, setShowUpload] = useState(false);
@@ -2837,33 +2996,10 @@ function RupSignedPage() {
 
       {/* Upload modal */}
       {showUpload && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-[15px] w-[500px] overflow-hidden shadow-2xl">
-            <div className="bg-[#cc0000] px-[24px] py-[12px]">
-              <p className="text-white text-[14px] font-bold">Upload RUP Signed</p>
-            </div>
-            <div className="p-[28px] flex flex-col gap-[16px]">
-              <div>
-                <label className="block text-[12px] font-semibold text-[#364153] mb-[4px]">ID RUP</label>
-                <select className="w-full h-[37px] rounded-[8px] border border-[#d1d5dc] bg-white px-[12px] text-[13px] outline-none focus:border-[#252271] transition-colors">
-                  <option>RUP-2024-001</option><option>RUP-2024-002</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[12px] font-semibold text-[#364153] mb-[4px]">File RUP Signed</label>
-                <div className="h-[90px] border-2 border-dashed border-[#d1d5dc] rounded-[8px] flex flex-col items-center justify-center gap-[6px] text-[#94a3b8] text-[13px] cursor-pointer hover:border-[#cc0000] hover:bg-[#fef2f2] transition-colors">
-                  <svg fill="none" height="24" viewBox="0 0 24 24" width="24"><path d="M12 16V4M12 4L8 8M12 4L16 8" stroke="#94a3b8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><path d="M3 17V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V17" stroke="#94a3b8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>
-                  <span>Klik untuk upload atau drag &amp; drop file</span>
-                  <span className="text-[11px]">PDF, DOC max. 10MB</span>
-                </div>
-              </div>
-              <div className="flex gap-[12px] justify-end">
-                <button onClick={() => setShowUpload(false)} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
-                <button onClick={() => setShowUpload(false)} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] transition-colors active:scale-95">Upload</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <RupSignedUploadModal
+          onClose={() => setShowUpload(false)}
+          onSuccess={(newItem) => setUploaded((prev) => [newItem, ...prev])}
+        />
       )}
     </div>
   );
@@ -3048,33 +3184,10 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
 
         {/* Upload modal */}
         {showSignedUpload && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-[15px] w-[500px] overflow-hidden shadow-2xl">
-              <div className="bg-[#cc0000] px-[24px] py-[12px]">
-                <p className="text-white text-[14px] font-bold">Upload SP3 Signed</p>
-              </div>
-              <div className="p-[28px] flex flex-col gap-[16px]">
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#364153] mb-[4px]">ID SP3</label>
-                  <select className="w-full h-[37px] rounded-[8px] border border-[#d1d5dc] bg-white px-[12px] text-[13px] outline-none focus:border-[#252271] transition-colors">
-                    <option>SP3-2024-001</option><option>SP3-2024-002</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#364153] mb-[4px]">File SP3 Signed</label>
-                  <div className="h-[90px] border-2 border-dashed border-[#d1d5dc] rounded-[8px] flex flex-col items-center justify-center gap-[6px] text-[#94a3b8] text-[13px] cursor-pointer hover:border-[#cc0000] hover:bg-[#fef2f2] transition-colors">
-                    <svg fill="none" height="24" viewBox="0 0 24 24" width="24"><path d="M12 16V4M12 4L8 8M12 4L16 8" stroke="#94a3b8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><path d="M3 17V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V17" stroke="#94a3b8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>
-                    <span>Klik untuk upload atau drag &amp; drop file</span>
-                    <span className="text-[11px]">PDF, DOC max. 10MB</span>
-                  </div>
-                </div>
-                <div className="flex gap-[12px] justify-end">
-                  <button onClick={() => setShowSignedUpload(false)} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
-                  <button onClick={() => setShowSignedUpload(false)} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] transition-colors active:scale-95">Upload</button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Sp3SignedUploadModal
+            onClose={() => setShowSignedUpload(false)}
+            onSuccess={(newItem) => setSp3SignedList((prev) => [newItem, ...prev])}
+          />
         )}
       </div>
     );
@@ -3449,7 +3562,6 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
     ],
     1: [
       { label: "Peserta Tender", value: "" },
-      { label: "Tanggal Undangan RKS", value: "", type: "date" },
       { label: "Catatan Undangan RKS", value: "" },
       { label: "Tanggal Undangan RKS", value: "", type: "date" },
       { label: "Nomor Undangan RKS", value: "" },
@@ -4697,24 +4809,34 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
     "pembayaran-umd": "umd",
   };
   const selectedType = typeBySubDoc[subDoc];
-  const rows = verificationItems
-    .filter((item) => !selectedType || item.tipe === selectedType)
+  const rows = (verificationItems || [])
+    .filter((item) => !selectedType || item?.tipe === selectedType)
     .map(mapVerificationRow)
     .filter(
       (r) =>
-        r.noPembayaran.toLowerCase().includes(search.toLowerCase()) ||
-        r.namaPaket.toLowerCase().includes(search.toLowerCase()) ||
-        r.vendor.toLowerCase().includes(search.toLowerCase())
+        (r?.noPembayaran || "").toLowerCase().includes(search.toLowerCase()) ||
+        (r?.namaPaket || "").toLowerCase().includes(search.toLowerCase()) ||
+        (r?.vendor || "").toLowerCase().includes(search.toLowerCase())
     ).filter((r) => {
-      const submittedAt = r.submit_at ? new Date(r.submit_at).toISOString().slice(0, 10) : "";
+      let submittedAt = "";
+      if (r && r.submit_at) {
+        if (typeof r.submit_at === "string") {
+          submittedAt = r.submit_at.split("T")[0];
+        } else {
+          const parsed = new Date(r.submit_at);
+          if (!Number.isNaN(parsed.getTime())) {
+            submittedAt = parsed.toISOString().slice(0, 10);
+          }
+        }
+      }
       return (!startDate || submittedAt >= startDate)
         && (!endDate || submittedAt <= endDate)
-        && (!unit || String(r.dept || "").toLowerCase() === unit.toLowerCase())
-        && (!status || String(r.status || "").toLowerCase() === status.toLowerCase());
+        && (!unit || String(r?.dept || "").toLowerCase() === unit.toLowerCase())
+        && (!status || String(r?.status || "").toLowerCase() === status.toLowerCase());
     });
 
   const uploadProof = async (row: any, file: File) => {
-    if (!row.pengadaan_id) return;
+    if (!row?.pengadaan_id) return;
     const payload = new FormData();
     payload.append("file", file);
     payload.append("stage", "pelunasan-proof");
@@ -4771,7 +4893,10 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
             <div>
               <label className="block text-[#364153] text-[12px] font-semibold mb-[4px]">Status</label>
               <select value={status} onChange={(event) => setStatus(event.target.value)} className="w-full h-[36px] rounded-[25px] border border-[#aebdd8] bg-white px-[14px] text-[13px] outline-none focus:border-[#252271] transition-colors">
-                <option value="">Semua Status</option>{Array.from(new Set(verificationItems.map((entry: any) => entry.status).filter(Boolean))).map((entry: string) => <option key={entry} value={entry}>{entry}</option>)}
+                <option value="">Semua Status</option>
+                {Array.from(new Set((verificationItems || []).map((entry: any) => typeof entry?.status === 'string' ? entry.status : (entry?.status?.status || String(entry?.status || ''))).filter(Boolean))).map((entry: string) => (
+                  <option key={entry} value={entry}>{entry}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -4815,26 +4940,31 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
                 {rows.map((r, i) => (
                   <tr key={i} className={`border-b border-[#f3f4f6] ${i % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"} hover:bg-[#eef2ff] transition-colors`}>
                     <td className="px-[14px] py-[10px] text-[#364153]">{i + 1}</td>
-                    <td className="px-[14px] py-[10px] text-[#364153] font-medium">{r.noPembayaran}</td>
-                    <td className="px-[14px] py-[10px] text-[#364153]">{r.noKontrak}</td>
-                    <td className="px-[14px] py-[10px] text-[#364153] font-semibold">{r.namaPaket}</td>
-                    <td className="px-[14px] py-[10px] text-[#364153]">{r.vendor}</td>
-                    <td className="px-[14px] py-[10px] text-[#364153] font-medium">{r.nilaiTagihan}</td>
-                    <td className="px-[14px] py-[10px] text-[#364153]">{r.tanggalPermohonan}</td>
+                    <td className="px-[14px] py-[10px] text-[#364153] font-medium">{typeof r?.noPembayaran === 'object' ? JSON.stringify(r?.noPembayaran) : String(r?.noPembayaran || '')}</td>
+                    <td className="px-[14px] py-[10px] text-[#364153]">{typeof r?.noKontrak === 'object' ? JSON.stringify(r?.noKontrak) : String(r?.noKontrak || '')}</td>
+                    <td className="px-[14px] py-[10px] text-[#364153] font-semibold">{typeof r?.namaPaket === 'object' ? JSON.stringify(r?.namaPaket) : String(r?.namaPaket || '')}</td>
+                    <td className="px-[14px] py-[10px] text-[#364153]">{typeof r?.vendor === 'object' ? JSON.stringify(r?.vendor) : String(r?.vendor || '')}</td>
+                    <td className="px-[14px] py-[10px] text-[#364153] font-medium">{typeof r?.nilaiTagihan === 'object' ? JSON.stringify(r?.nilaiTagihan) : String(r?.nilaiTagihan || '')}</td>
+                    <td className="px-[14px] py-[10px] text-[#364153]">{typeof r?.tanggalPermohonan === 'object' ? JSON.stringify(r?.tanggalPermohonan) : String(r?.tanggalPermohonan || '')}</td>
                     <td className="px-[14px] py-[10px]">
-                      <span className={`px-[10px] py-[3px] rounded-full text-[11px] font-medium ${r.status === "Disetujui" || r.status === "Cair" ? "bg-[#d1fae5] text-[#065f46]" : "bg-[#dbeafe] text-[#1d4ed8]"}`}>{r.status}</span>
+                      <span className={`px-[10px] py-[3px] rounded-full text-[11px] font-medium ${r?.status === "Disetujui" || r?.status === "Cair" || r?.status === "approved" ? "bg-[#d1fae5] text-[#065f46]" : "bg-[#dbeafe] text-[#1d4ed8]"}`}>
+                        {typeof r?.status === 'object' ? String(r?.status?.status || 'pending') : String(r?.status || 'pending')}
+                      </span>
                     </td>
                     <td className="px-[14px] py-[10px] text-center">
-                      <div className="flex items-center justify-center gap-1"><button
-                        onClick={() => { setSelectedRow(r); setView("detail"); }}
-                        className="p-[5px] rounded-[5px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150"
-                        title="Detail"
-                      >
-                        <svg fill="none" height="12" viewBox="0 0 12 12" width="12">
-                          <path d={group14Svg.p126ce980} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d={group14Svg.p24092800} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button><label title="Unggah Surat Bukti Pelunasan" className="p-[5px] rounded-[5px] text-[#252271] hover:bg-[#e0e7ff] cursor-pointer text-[10px] font-bold">Upload<input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadProof(r, file).catch((error: any) => alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.")); event.target.value = ""; }} /></label></div>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => { setSelectedRow(r); setView("detail"); }}
+                          className="px-2 py-1 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 text-[10.5px] font-bold transition-all flex items-center gap-1 border border-blue-200"
+                          title="Detail"
+                        >
+                          <svg fill="none" height="12" viewBox="0 0 12 12" width="12">
+                            <path d={group14Svg.p126ce980} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d={group14Svg.p24092800} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          Detail
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -5335,6 +5465,33 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
             </div>
           </div>
 
+          {/* Obvious Upload Surat Bukti Pelunasan Box */}
+          <div className="mt-6 p-4 bg-indigo-50/70 border border-indigo-200 rounded-xl flex items-center justify-between shadow-2xs">
+            <div>
+              <p className="text-[12.5px] font-bold text-[#252271] flex items-center gap-1.5">
+                <Upload size={14} className="text-[#252271]" /> Unggah Surat Bukti Pelunasan
+              </p>
+              <p className="text-[11px] text-indigo-700 mt-0.5">Berkas bukti pelunasan ini akan dapat diunduh dan dilihat oleh pihak pemohon/user.</p>
+            </div>
+            <label className="px-4 py-2 bg-[#252271] text-white hover:bg-[#1a1860] rounded-xl text-[11.5px] font-bold cursor-pointer transition-all shadow-sm flex items-center gap-1.5 shrink-0">
+              <Upload size={14} /> Pilih &amp; Upload Bukti Pelunasan
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    uploadProof(row, file).catch((error: any) =>
+                      alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.")
+                    );
+                    event.target.value = "";
+                  }
+                }}
+              />
+            </label>
+          </div>
+
           {/* Action Buttons UMD */}
           <div className="flex items-center justify-between pt-4 border-t border-gray-200 mt-6">
             <button
@@ -5540,21 +5697,49 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
           {syaratLain.length > 0 && (
             <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-[11.5px]">
-                <thead><tr className="bg-[#252271] text-white"><th className="px-3 py-2 text-left">No</th><th className="px-3 py-2 text-left">Dokumen</th><th className="px-3 py-2 text-center">Syarat</th><th className="px-3 py-2 text-center">Kelengkapan</th><th className="px-3 py-2 text-left">Keterangan</th></tr></thead>
+                <thead><tr className="bg-[#252271] text-white"><th className="px-3 py-2 text-left">No</th><th className="px-3 py-2 text-left">Dokumen</th><th className="px-3 py-2 text-center">Syarat</th><th className="px-3 py-2 text-center">Kelengkapan</th><th className="px-3 py-2 text-left">Keterangan</th><th className="px-3 py-2 text-center">Aksi</th></tr></thead>
                 <tbody>
                   {syaratLain.map((r, i) => (
                     <tr key={i} className="bg-white border-b border-gray-100">
                       <td className="px-3 py-2 text-center">{i + 1}</td>
-                      <td className="px-3 py-2"><input type="text" className="w-full border rounded px-2 py-1 text-[11px]" placeholder="Dokumen..." /></td>
-                      <td className="px-3 py-2 text-center"><input type="checkbox" className="accent-[#252271]" /></td>
+                      <td className="px-3 py-2"><input type="text" className="w-full border rounded px-2 py-1 text-[11px]" placeholder="Dokumen..." value={r.doc} onChange={e => setSyaratLain(prev => prev.map((s, idx) => idx === i ? { ...s, doc: e.target.value } : s))} /></td>
+                      <td className="px-3 py-2 text-center"><input type="checkbox" className="accent-[#252271]" checked={r.syarat} onChange={e => setSyaratLain(prev => prev.map((s, idx) => idx === i ? { ...s, syarat: e.target.checked } : s))} /></td>
                       <td className="px-3 py-2 text-center"><span className="text-[10px] text-gray-500">Tidak / Ada</span></td>
-                      <td className="px-3 py-2"><input type="text" className="w-full border rounded px-2 py-1 text-[11px]" placeholder="Ket..." /></td>
+                      <td className="px-3 py-2"><input type="text" className="w-full border rounded px-2 py-1 text-[11px]" placeholder="Ket..." value={r.ket} onChange={e => setSyaratLain(prev => prev.map((s, idx) => idx === i ? { ...s, ket: e.target.value } : s))} /></td>
+                      <td className="px-3 py-2 text-center"><button onClick={() => setSyaratLain(prev => prev.filter((_, idx) => idx !== i))} className="text-red-500 hover:text-red-700 bg-red-50 border border-red-200 px-2 py-1 rounded text-[10px] font-bold transition-colors">Hapus</button></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
+        </div>
+
+        {/* Obvious Upload Surat Bukti Pelunasan Box */}
+        <div className="mt-6 p-4 bg-indigo-50/70 border border-indigo-200 rounded-xl flex items-center justify-between shadow-2xs">
+          <div>
+            <p className="text-[12.5px] font-bold text-[#252271] flex items-center gap-1.5">
+              <Upload size={14} className="text-[#252271]" /> Unggah Surat Bukti Pelunasan
+            </p>
+            <p className="text-[11px] text-indigo-700 mt-0.5">Berkas bukti pelunasan ini akan dapat diunduh dan dilihat oleh pihak pemohon/user.</p>
+          </div>
+          <label className="px-4 py-2 bg-[#252271] text-white hover:bg-[#1a1860] rounded-xl text-[11.5px] font-bold cursor-pointer transition-all shadow-sm flex items-center gap-1.5 shrink-0">
+            <Upload size={14} /> Pilih &amp; Upload Bukti Pelunasan
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) {
+                  uploadProof(row, file).catch((error: any) =>
+                    alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.")
+                  );
+                  event.target.value = "";
+                }
+              }}
+            />
+          </label>
         </div>
 
         {/* Action Buttons Pembayaran */}

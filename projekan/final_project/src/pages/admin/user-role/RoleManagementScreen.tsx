@@ -23,6 +23,30 @@ function normalizePermissions(permissions?: Partial<RolePermissions>): RolePermi
   return { ...DEFAULT_PERMS, ...(permissions || {}) };
 }
 
+const DEFAULT_USER_PERMS: RolePermissions = {
+  pengajuanDana: "editor",
+  pengadaan: "editor",
+  pengujian: "editor",
+  pembayaran: "editor",
+  templateDokumen: "viewer",
+  dashboard: "viewer",
+  masterData: "no-access",
+  userManagement: "no-access",
+  roleManagement: "no-access",
+};
+
+const DEFAULT_ADMIN_PERMS: RolePermissions = {
+  pengajuanDana: "editor",
+  pengadaan: "editor",
+  pengujian: "editor",
+  pembayaran: "editor",
+  templateDokumen: "editor",
+  masterData: "editor",
+  userManagement: "editor",
+  roleManagement: "editor",
+  dashboard: "editor",
+};
+
 export function RoleManagementScreen() {
   const { hasPermission } = useAuth();
   const [roles, setRoles] = useState<AppRole[]>([]);
@@ -38,8 +62,20 @@ export function RoleManagementScreen() {
     roleType: "admin" as "admin" | "user",
     color: "#252271",
   });
-  const [addGroups, setAddGroups] = useState<PermGroup[]>(() => permissionGroupsFromRole(DEFAULT_PERMS));
-  const [editGroups, setEditGroups] = useState<PermGroup[]>(() => permissionGroupsFromRole(DEFAULT_PERMS));
+  const [addGroups, setAddGroups] = useState<PermGroup[]>(() => permissionGroupsFromRole(DEFAULT_ADMIN_PERMS));
+  const [editGroups, setEditGroups] = useState<PermGroup[]>(() => permissionGroupsFromRole(DEFAULT_ADMIN_PERMS));
+
+  const handleRoleTypeChangeAdd = (type: "admin" | "user") => {
+    setForm(p => ({ ...p, roleType: type }));
+    const preset = type === "user" ? DEFAULT_USER_PERMS : DEFAULT_ADMIN_PERMS;
+    setAddGroups(permissionGroupsFromRole(preset));
+  };
+
+  const handleRoleTypeChangeEdit = (type: "admin" | "user") => {
+    setShowEdit(p => p ? { ...p, roleType: type } : null);
+    const preset = type === "user" ? DEFAULT_USER_PERMS : DEFAULT_ADMIN_PERMS;
+    setEditGroups(permissionGroupsFromRole(preset));
+  };
 
   const fetchRoles = async () => {
     setLoading(true);
@@ -71,7 +107,7 @@ export function RoleManagementScreen() {
       fetchRoles();
       setShowAdd(false);
       setForm({ name: "", roleType: "admin", color: "#252271" });
-      setAddGroups(permissionGroupsFromRole(DEFAULT_PERMS));
+      setAddGroups(permissionGroupsFromRole(DEFAULT_ADMIN_PERMS));
     } catch (e: any) {
       alert(e.response?.data?.message || 'Gagal menyimpan role ke database.');
     }
@@ -223,7 +259,7 @@ export function RoleManagementScreen() {
               <ModalField label="User / Admin" required>
                 <ModalSelect
                   value={form.roleType}
-                  onChange={v => setForm(p => ({ ...p, roleType: v as "admin" | "user" }))}
+                  onChange={v => handleRoleTypeChangeAdd(v as "admin" | "user")}
                   options={[
                     { value: "admin", label: "Admin" },
                     { value: "user", label: "User" },
@@ -233,7 +269,7 @@ export function RoleManagementScreen() {
             </div>
 
             <div className="border-t border-gray-100 pt-3">
-              <PermissionMatrix groups={addGroups} onGroupsChange={setAddGroups} />
+              <PermissionMatrix groups={addGroups} onGroupsChange={setAddGroups} roleType={form.roleType} />
             </div>
           </div>
         </AdminModal>
@@ -250,7 +286,7 @@ export function RoleManagementScreen() {
               <ModalField label="User / Admin" required>
                 <ModalSelect
                   value={showEdit.roleType || "admin"}
-                  onChange={v => setShowEdit(p => p ? { ...p, roleType: v as "admin" | "user" } : null)}
+                  onChange={v => handleRoleTypeChangeEdit(v as "admin" | "user")}
                   options={[
                     { value: "admin", label: "Admin" },
                     { value: "user", label: "User" },
@@ -284,7 +320,7 @@ export function RoleManagementScreen() {
             </div>
 
             <div className="border-t border-gray-100 pt-3">
-              <PermissionMatrix groups={editGroups} onGroupsChange={setEditGroups} />
+              <PermissionMatrix groups={editGroups} onGroupsChange={setEditGroups} roleType={showEdit.roleType || "admin"} />
             </div>
           </div>
         </AdminModal>
