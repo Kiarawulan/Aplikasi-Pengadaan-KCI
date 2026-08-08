@@ -17,7 +17,7 @@ const CONTRACT_STEPS = [
 
 const PBJ_FIELDS = [
   ["Rencana Kerja", "Tanggal Rencana Kerja dan Syarat", "Metode Submit Dokumen", "Catatan"],
-  ["Peserta Tender", "Tanggal Undangan RKS", "Catatan Undangan RKS", "Tanggal Undangan RKS", "Nomor Undangan RKS"],
+  ["Peserta Tender", "Catatan Undangan RKS", "Tanggal Undangan RKS", "Nomor Undangan RKS"],
   ["Vendor Information"],
   ["No", "Peserta Tender", "Keterangan", "Tanggal BA Rapat Penjelasan (Aanwijzing & Addendum)", "Nomor BA Rapat Penjelasan (Aanwijzing & Addendum)", "Kehadiran (Ya/Tidak)"],
   ["Peserta Tender", "Tanggal Pembukaan Dokumen", "Nomor BA Pembukaan Dokumen Penawaran", "Catatan"],

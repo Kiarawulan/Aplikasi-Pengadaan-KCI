@@ -215,16 +215,23 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     return sIdx <= activeSubIdx || isSubDone(activeStep.id, activeStep.subSteps[sIdx]?.id ?? "");
   };
 
-  const upd = (field: string, val: string) => setAllFd(p => ({ ...p, [subId]: { ...(p[subId] ?? {}), [field]: val } }));
-  const fd = allFd[subId] ?? {};
-
-  const flashSave = (newCompletedSubs?: Set<string>) => {
+  const flashSave = (newCompletedSubs?: Set<string>, updatedFd?: Record<string, any>) => {
     setFlash(true);
     const subsToSave = newCompletedSubs || completedSubs;
-    const metaFd = { ...allFd, "__meta": { ...allFd["__meta"], "completedSubs": JSON.stringify(Array.from(subsToSave)) } };
-    api.put(`/pengadaan/${item.id}/form-data`, metaFd).catch(() => { });
+    const currentFd = updatedFd || allFd;
+    const metaFd = { ...currentFd, "__meta": { ...(currentFd["__meta"] || {}), "completedSubs": JSON.stringify(Array.from(subsToSave)) } };
+    api.put(`/pengadaan/${item.id}/form-data`, { form_data: metaFd }).catch(() => { });
     setTimeout(() => setFlash(false), 2000);
   };
+
+  const upd = (field: string, val: string) => {
+    setAllFd(p => {
+      const nextFd = { ...p, [subId]: { ...(p[subId] ?? {}), [field]: val } };
+      flashSave(undefined, nextFd);
+      return nextFd;
+    });
+  };
+  const fd = allFd[subId] ?? {};
 
   let isSubmitPoint = hasSubSteps ? activeSubIdx === activeStep.subSteps.length - 1 : true;
   if (activeStep.id === "pembayaran") {
@@ -262,7 +269,8 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       return; // Do not advance step yet!
     }
 
-    if (adminOnlySteps.includes(activeStep.id) && verifStatus !== "approved") return;
+    const isAdminStepApproved = verifStatus === "approved" || item.status?.toLowerCase() === "approved" || completedStepIds.has(activeStep.id);
+    if (adminOnlySteps.includes(activeStep.id) && !isAdminStepApproved) return;
 
     if (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian") {
       if (verifStatus === "not_submitted" || verifStatus === "revisi" || verifStatus === "rejected") {
@@ -417,12 +425,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   };
 
   const openEdit = () => {
-    if (activeStep.id === "pengajuan-dana") {
-      setShowEditPopup(true);
-      return;
-    }
-    // NPP diedit langsung dari formulir tahap pertama.
-    setActiveSubIdx(0);
+    setShowEditPopup(true);
   };
 
   const handleRevisionSubmit = async (newItem: any) => {
@@ -543,7 +546,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                 <button onClick={() => flashSave()} className="px-4 h-[30px] rounded border border-[#252271] text-[11.5px] text-[#252271] font-medium hover:bg-[#252271]/5">Simpan</button>
 
                 {!isLast ? (
-                  <button onClick={goNext} disabled={(["sp3", "pbj", "contract"].includes(activeStep.id) && verifStatus !== "approved") || (verifStatus === "pending" && isSubmitPoint) || (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian" && verifStatus !== "not_submitted" && verifStatus !== "approved")} className="px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-[#252271] hover:bg-[#1a1860] disabled:bg-gray-400 disabled:cursor-not-allowed">
+                  <button onClick={goNext} disabled={(["sp3", "pbj", "contract"].includes(activeStep.id) && verifStatus !== "approved" && item.status?.toLowerCase() !== "approved" && !completedStepIds.has(activeStep.id)) || (verifStatus === "pending" && isSubmitPoint) || (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian" && verifStatus !== "not_submitted" && verifStatus !== "approved")} className="px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-[#252271] hover:bg-[#1a1860] disabled:bg-gray-400 disabled:cursor-not-allowed">
                     {getNextLabel()}
                   </button>
                 ) : item.status === "Selesai" || completedStepIds.has("contract") ? (

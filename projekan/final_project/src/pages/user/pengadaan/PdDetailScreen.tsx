@@ -249,17 +249,23 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     return sIdx <= activeSubIdx || isSubSubmitted(activeStep.id, sub.id);
   };
 
-  const upd = (subId: string, field: string, val: string) =>
-    setAllFd(p => ({ ...p, [subId]: { ...(p[subId] ?? {}), [field]: val } }));
-  const fd = (subId: string): Record<string, string> => allFd[subId] ?? {};
-
-  const flashSave = (newSubmittedSubs?: Set<string>) => {
+  const flashSave = (newSubmittedSubs?: Set<string>, updatedFd?: Record<string, any>) => {
     setFlash(true);
     const subsToSave = newSubmittedSubs || submittedSubs;
-    const metaFd = { ...allFd, "__meta": { ...allFd["__meta"], "submittedSubs": JSON.stringify(Array.from(subsToSave)) } };
-    api.put(`/pengadaan/${item.id}/form-data`, metaFd).catch(() => { });
+    const currentFd = updatedFd || allFd;
+    const metaFd = { ...currentFd, "__meta": { ...(currentFd["__meta"] || {}), "submittedSubs": JSON.stringify(Array.from(subsToSave)) } };
+    api.put(`/pengadaan/${item.id}/form-data`, { form_data: metaFd }).catch(() => { });
     setTimeout(() => setFlash(false), 2000);
   };
+
+  const upd = (subId: string, field: string, val: string) => {
+    setAllFd(p => {
+      const nextFd = { ...p, [subId]: { ...(p[subId] ?? {}), [field]: val } };
+      flashSave(undefined, nextFd);
+      return nextFd;
+    });
+  };
+  const fd = (subId: string): Record<string, string> => allFd[subId] ?? {};
 
   const isDetailPd = activeSub.id === "detail-pd";
   const isCurrentSubmitted = isSubSubmitted(activeStep.id, activeSub.id)
@@ -439,7 +445,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     if (activeStep.id === "pembayaran" && activeSub.id === "payment-request") {
       const d = fd("payment-request");
       const u = (k: string) => (v: string) => upd("payment-request", k, v);
-      return <div className="space-y-3"><FileUploadInput label="Input File Payment Request" required value={d["filePaymentRequest"] || ""} onChange={u("filePaymentRequest")} /><FieldInput label="Keterangan" type="textarea" required value={d["keterangan"] || ""} onChange={u("keterangan")} /></div>;
+      return <div className="space-y-3"><FileUploadInput label="Input File Payment Request" required value={d["filePaymentRequest"] || ""} onChange={(val) => { u("filePaymentRequest")(val); flashSave(); }} pengadaanId={item.id} stage="payment-request" /><FieldInput label="Keterangan" type="textarea" required value={d["keterangan"] || ""} onChange={u("keterangan")} /></div>;
     }
     if (activeStep.id === "pembayaran" || activeSub.id === "pelunasan") {
       const d = fd("umdData") || fd("pembayaran") || fd("buat-pd") || {};
@@ -697,7 +703,27 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                     </button>
                   )}
 
-                  {verifState.status === "approved" ? (
+                  {activeStep.id === "pembayaran" ? (
+                    <button
+                      disabled={verifState.status !== "approved" && item.status?.toLowerCase() !== "approved" && item.status !== "Selesai"}
+                      onClick={async () => {
+                        if (verifState.status !== "approved" && item.status?.toLowerCase() !== "approved" && item.status !== "Selesai") return;
+                        flashSave();
+                        try {
+                          await api.put(`/pengadaan/${item.id}`, { status: "Selesai", currentStep: "selesai" });
+                        } catch {}
+                        onNavigate("dashboard");
+                      }}
+                      className={`flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] font-bold transition-all shadow-sm ${
+                        verifState.status === "approved" || item.status?.toLowerCase() === "approved" || item.status === "Selesai"
+                          ? "bg-[#059669] hover:bg-[#047857] text-white cursor-pointer"
+                          : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-60"
+                      }`}
+                      title={verifState.status !== "approved" && item.status?.toLowerCase() !== "approved" && item.status !== "Selesai" ? "Menunggu verifikasi pembayaran dari Admin" : "Selesaikan pembayaran dan kembali ke Dashboard"}
+                    >
+                      Pembayaran Selesai
+                    </button>
+                  ) : verifState.status === "approved" ? (
                     <button
                       onClick={goToUmdPayment}
                       className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-bold transition-all bg-[#252271] hover:bg-[#1a1860] shadow-sm"

@@ -7,7 +7,6 @@ import { Plus, CheckCircle2, XCircle, FileWarning, Download, ChevronRight, Trash
 import { useAuth } from "../../../store/authStore";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
 
-type ScreenProps = { activeSubItem: string; };
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
 // Data will be fetched from API
@@ -262,7 +261,7 @@ function FinanceVerifModal({
                       <th className="px-3 py-2 text-center font-semibold w-20">Syarat</th>
                       <th className="px-3 py-2 text-center font-semibold w-32">Kelengkapan</th>
                       <th className="px-3 py-2 text-left font-semibold">Keterangan</th>
-                      <th className="px-3 py-2 w-8"></th>
+                      <th className="px-3 py-2 text-center font-semibold w-16">Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -290,8 +289,8 @@ function FinanceVerifModal({
                           <input type="text" value={row.ket} onChange={e => setSyaratLain(prev => prev.map((s, idx) => idx === i ? { ...s, ket: e.target.value } : s))}
                             className="border border-gray-200 rounded-lg px-2 py-1 text-[11px] w-full focus:outline-none" placeholder="Keterangan..." />
                         </td>
-                        <td className="px-3 py-2">
-                          <button onClick={() => removeSyaratLain(i)} className="text-red-400 hover:text-red-600"><Trash2 size={13} /></button>
+                        <td className="px-3 py-2 text-center">
+                          <button onClick={() => removeSyaratLain(i)} className="inline-flex items-center gap-1 text-red-500 hover:text-red-700 bg-red-50 border border-red-200 px-2 py-1 rounded text-[10px] font-bold transition-colors" title="Hapus"><Trash2 size={11} /> Hapus</button>
                         </td>
                       </tr>
                     ))}
@@ -587,8 +586,10 @@ function UmdSubmissionModal({
   );
 }
 
+type ScreenProps = { activeSubItem?: string; };
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
-export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
+export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
   const { currentUser } = useAuth();
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -632,7 +633,7 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
           noRekening: fd.rekening || '-',
           bank: fd.bank || '-',
           departemen: v.departemen || peng?.departemen || '-',
-          tgl: v.submit_at ? v.submit_at.split('T')[0] : (peng?.tanggal || new Date().toISOString().split('T')[0]),
+          tgl: typeof v.submit_at === 'string' ? v.submit_at.split('T')[0] : (v.submit_at ? new Date(v.submit_at).toISOString().split('T')[0] : (peng?.tanggal || new Date().toISOString().split('T')[0])),
           tipe,
           status: v.status,
           formData: fd,
@@ -690,13 +691,25 @@ export function PembayaranVerifScreen({ activeSubItem }: ScreenProps) {
   const [form, setForm] = useState({ noSp3: "", noKontrak: "", nama: "", nominal: "", namaVendor: "", noRekening: "", bank: "Bank BNI", departemen: "CUG - LOGISTIC", tgl: "" });
 
   const getSubmenuInfo = () => {
-    switch (activeSubItem) {
-      case "pay-outsource": return { title: "Payment Approve - Outsource", subtitle: "Pembayaran - Outsource", tipe: "outsource", label: "Outsource" };
-      case "pay-non-outsource": return { title: "Payment Approve - Non Outsource", subtitle: "Pembayaran - Non Outsource", tipe: "non-outsource", label: "Non Outsource" };
-      case "pay-umd": return { title: "Payment Approve - UMD", subtitle: "Pembayaran - UMD", tipe: "umd", label: "UMD" };
-      case "pay-report-daily": return { title: "Report Harian Pembayaran", subtitle: "Pembayaran - Daily Report", tipe: "daily", label: "Daily" };
-      case "pay-report-weekly": return { title: "Report Mingguan Pembayaran", subtitle: "Pembayaran - Weekly Report", tipe: "weekly", label: "Weekly" };
-      default: return { title: "Pembayaran", subtitle: "Pembayaran", tipe: "", label: "" };
+    const key = (activeSubItem || "").toLowerCase();
+    switch (key) {
+      case "pay-outsource":
+      case "pembayaran-outsource":
+        return { title: "Payment Approve - Outsource", subtitle: "Pembayaran - Outsource", tipe: "outsource", label: "Outsource" };
+      case "pay-non-outsource":
+      case "pembayaran-non-outsource":
+        return { title: "Payment Approve - Non Outsource", subtitle: "Pembayaran - Non Outsource", tipe: "non-outsource", label: "Non Outsource" };
+      case "pay-umd":
+      case "pembayaran-umd":
+        return { title: "Payment Approve - UMD", subtitle: "Pembayaran - UMD", tipe: "umd", label: "UMD" };
+      case "pay-report-daily":
+      case "pembayaran-daily-reports":
+        return { title: "Report Harian Pembayaran", subtitle: "Pembayaran - Daily Report", tipe: "daily", label: "Daily" };
+      case "pay-report-weekly":
+      case "pembayaran-weekly-reports":
+        return { title: "Report Mingguan Pembayaran", subtitle: "Pembayaran - Weekly Report", tipe: "weekly", label: "Weekly" };
+      default:
+        return { title: "Pembayaran", subtitle: "Pembayaran", tipe: "", label: "" };
     }
   };
 

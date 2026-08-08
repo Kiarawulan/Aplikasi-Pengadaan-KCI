@@ -39,7 +39,13 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
           <div className="bg-white rounded-2xl p-8 max-w-md shadow-xl border border-slate-200">
             <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4 font-bold text-xl">⚠️</div>
             <h2 className="text-[#252271] text-lg font-extrabold mb-2">Terjadi Kesalahan Tampilan</h2>
-            <p className="text-xs text-slate-500 mb-6">Sistem mendeteksi kesalahan data. Silakan reset sesi untuk kembali ke tampilan utama.</p>
+            <p className="text-xs text-slate-500 mb-4">Sistem mendeteksi kesalahan data. Silakan reset sesi untuk kembali ke tampilan utama.</p>
+            {this.state.error && (
+              <div className="text-left bg-red-50 border border-red-200 p-3 rounded-lg mb-4 max-h-48 overflow-auto">
+                <p className="text-[11px] font-bold text-red-700">{this.state.error.name}: {this.state.error.message}</p>
+                <p className="text-[10px] text-red-500 font-mono mt-1 whitespace-pre-wrap">{this.state.error.stack}</p>
+              </div>
+            )}
             <button
               onClick={() => {
                 localStorage.removeItem("sipro_last_user_screen");
@@ -92,7 +98,8 @@ function UserApp() {
   const canOpenScreen = (target: Screen) => {
     if (target === "profile") return true;
     if (target === "dashboard") return hasPermission("dashboard", "viewer");
-    if (["rup-list", "daftar-pengadaan", "pd-detail", "pr-detail", "purchase-requisition"].includes(target)) return hasPermission("pengadaan", "viewer");
+    if (["rup-list", "daftar-pengadaan", "purchase-requisition"].includes(target)) return hasPermission("pengadaan", "viewer") || hasPermission("pengajuanDana", "viewer");
+    if (["pd-detail", "pr-detail"].includes(target)) return hasPermission("pengadaan", "viewer") || hasPermission("pengajuanDana", "viewer") || hasPermission("pembayaran", "viewer") || hasPermission("pengujian", "viewer");
     if (target === "daftar-pengujian") return hasPermission("pengujian", "viewer");
     if (["pembayaran-outsource", "pembayaran-non-outsource", "pembayaran-payment-request", "pembayaran-umd"].includes(target)) return hasPermission("pembayaran", "viewer");
     if (target === "template-dokumen") return hasPermission("templateDokumen", "viewer");
