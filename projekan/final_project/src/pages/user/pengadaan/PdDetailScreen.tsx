@@ -38,19 +38,6 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
   const steps = [...PD_MAIN_STEPS];
 
-  const goToUmdPayment = () => {
-    const pIdx = steps.findIndex(s => s.id === "pembayaran");
-    if (pIdx !== -1) {
-      setActiveStepIdx(pIdx);
-      setActiveSubIdx(0);
-    }
-    if (onSelectItem) {
-      onSelectItem(item, "pd-detail", "pembayaran-umd");
-    } else {
-      onNavigate("pembayaran-umd");
-    }
-  };
-
   let defaultStepIdx = 0;
   if (fromScreen && (fromScreen.includes("pembayaran") || fromScreen === "pembayaran-umd")) {
     const idx = steps.findIndex(s => s.id === "pembayaran");
@@ -650,20 +637,16 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       )}
 
       {verifState.status === "approved" && (
-        <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Check size={16} className="text-green-600 shrink-0" />
-            <div>
-              <p className="text-[12px] font-semibold text-green-800">✅ Disetujui Admin</p>
-              <p className="text-[11px] text-green-700">Pengajuan Park Document telah disetujui Admin. Selesai, silakan lanjut ke Pembayaran UMD.</p>
-            </div>
+        <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center gap-3">
+          <Check size={16} className="text-green-600 shrink-0" />
+          <div>
+            <p className="text-[12px] font-semibold text-green-800">✅ Disetujui Admin</p>
+            <p className="text-[11px] text-green-700">
+              {activeStep.id === "pembayaran"
+                ? "Pengajuan Pembayaran UMD telah disetujui Admin. Seluruh proses telah selesai."
+                : "Pengajuan Park Document telah disetujui Admin."}
+            </p>
           </div>
-          <button
-            onClick={goToUmdPayment}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#252271] text-white rounded-lg text-[11px] font-bold hover:bg-[#1a1860] transition-colors shrink-0 shadow-xs"
-          >
-            Lanjut ke Pembayaran UMD <ChevronRight size={12} />
-          </button>
         </div>
       )}
 
@@ -679,9 +662,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           steps={steps} activeStepIdx={activeStepIdx} activeSubIdx={activeSubIdx}
           completedStepIds={verifiedTrackerSteps} submittedSubs={isPengujianDetail && verifState.status !== "approved" ? new Set<string>() : submittedSubs}
           onSelectStep={(idx) => {
-            if (steps[idx]?.id === "pembayaran") {
-              goToUmdPayment();
-            } else if (canAccessStep(idx)) {
+            if (canAccessStep(idx)) {
               setActiveStepIdx(idx);
               setActiveSubIdx(0);
             }
@@ -733,13 +714,6 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                       title={verifState.status !== "approved" && item.status?.toLowerCase() !== "approved" && item.status !== "Selesai" ? "Menunggu verifikasi pembayaran dari Admin" : "Selesaikan pembayaran dan kembali ke Dashboard"}
                     >
                       Pembayaran Selesai
-                    </button>
-                  ) : verifState.status === "approved" ? (
-                    <button
-                      onClick={goToUmdPayment}
-                      className="flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-bold transition-all bg-[#252271] hover:bg-[#1a1860] shadow-sm"
-                    >
-                      Selesai, Lanjut ke Pembayaran UMD <ChevronRight size={12} />
                     </button>
                   ) : showLanjutBtn && (
                     <button

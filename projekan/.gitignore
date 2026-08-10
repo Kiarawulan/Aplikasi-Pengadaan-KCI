@@ -1,0 +1,11 @@
+# Environment & Dependencies
+node_modules/
+vendor/
+.env
+
+# Personal / Local data files
+*.docx
+*.py
+data_dictionary_definitions.json
+db_schema_dump.json
+dump_schema.php
