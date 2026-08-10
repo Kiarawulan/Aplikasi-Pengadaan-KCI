@@ -310,7 +310,18 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
                 <div className="bg-[#252271] text-white p-3.5 rounded-xl space-y-3 shadow-md">
                   <p className="text-[11px] font-bold uppercase tracking-wide">6. Input Bukti Pengembalian</p>
                   <div className="bg-white text-gray-800 p-3 rounded-lg">
-                    <FileUploadInput label="Upload Bukti Transfer Pengembalian" required value={f("fileBuktiTransfer")} onChange={u("fileBuktiTransfer")} />
+                    <FileUploadInput
+                      label="Upload Bukti Transfer Pengembalian"
+                      required
+                      value={f("fileBuktiTransfer") || f("filePengembalian") || f("fileBuktiPelunasan") || ""}
+                      onChange={(val) => {
+                        u("fileBuktiTransfer")(val);
+                        u("filePengembalian")(val);
+                        u("fileBuktiPelunasan")(val);
+                      }}
+                      pengadaanId={item?.id}
+                      stage="pelunasan-proof"
+                    />
                   </div>
                 </div>
 

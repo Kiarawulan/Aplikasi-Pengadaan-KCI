@@ -25,7 +25,46 @@ class UploadedDocumentController extends Controller
         $request->validate(['file' => 'required|file|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg|max:20480', 'stage' => 'nullable|string|max:80']);
         $file = $request->file('file');
         $path = $file->store("pengadaan/{$pengadaanModel->id}", 'public');
-        $document = UploadedDocument::create(['pengadaan_id' => $pengadaanModel->id, 'stage' => $request->stage, 'original_name' => $file->getClientOriginalName(), 'path' => $path, 'mime_type' => $file->getMimeType(), 'size' => $file->getSize(), 'uploaded_by' => $request->user()->id]);
+        $fileName = $file->getClientOriginalName();
+        $document = UploadedDocument::create(['pengadaan_id' => $pengadaanModel->id, 'stage' => $request->stage, 'original_name' => $fileName, 'path' => $path, 'mime_type' => $file->getMimeType(), 'size' => $file->getSize(), 'uploaded_by' => $request->user()->id]);
+
+        // Automatically sync form_data so User & Admin views update seamlessly
+        $formData = $pengadaanModel->form_data ?? [];
+        if (in_array($request->stage, ['pelunasan-proof', 'pengembalian-dana', 'bukti-pengembalian'], true)) {
+            if (!isset($formData['pengembalian-dana']) || !is_array($formData['pengembalian-dana'])) $formData['pengembalian-dana'] = [];
+            $formData['pengembalian-dana']['filePengembalian'] = $fileName;
+            $formData['pengembalian-dana']['fileBuktiTransfer'] = $fileName;
+            $formData['pengembalian-dana']['fileBuktiPelunasan'] = $fileName;
+
+            if (!isset($formData['umdData']) || !is_array($formData['umdData'])) $formData['umdData'] = [];
+            $formData['umdData']['fileBuktiTransfer'] = $fileName;
+            $formData['umdData']['fileBuktiPelunasan'] = $fileName;
+            $formData['umdData']['filePengembalian'] = $fileName;
+
+            if (!isset($formData['pelunasan']) || !is_array($formData['pelunasan'])) $formData['pelunasan'] = [];
+            $formData['pelunasan']['filePelunasan'] = $fileName;
+            $formData['pelunasan']['filePengembalian'] = $fileName;
+            $formData['pelunasan']['fileBuktiTransfer'] = $fileName;
+
+            $formData['fileBuktiTransfer'] = $fileName;
+            $formData['filePengembalian'] = $fileName;
+            $formData['fileBuktiPelunasan'] = $fileName;
+            $pengadaanModel->form_data = $formData;
+            $pengadaanModel->save();
+        } elseif ($request->stage === 'bahp-signed') {
+            if (!isset($formData['pengujian']) || !is_array($formData['pengujian'])) $formData['pengujian'] = [];
+            $formData['pengujian']['fileBahpSigned'] = $fileName;
+            $formData['pengujian']['fileBahp'] = $fileName;
+            $formData['fileBahp'] = $fileName;
+            $pengadaanModel->form_data = $formData;
+            $pengadaanModel->save();
+
+            if ($pengujian = Pengujian::where('pengadaan_id', $pengadaanModel->id)->first()) {
+                $pengujian->bahp_path = $path;
+                $pengujian->save();
+            }
+        }
+
         return response()->json(['success' => true, 'message' => 'Dokumen berhasil diunggah.', 'data' => $document], 201);
     }
 

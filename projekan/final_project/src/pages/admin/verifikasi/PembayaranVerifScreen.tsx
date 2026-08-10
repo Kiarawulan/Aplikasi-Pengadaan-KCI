@@ -326,7 +326,7 @@ function FinanceVerifModal({
                       payload.append("file", file);
                       payload.append("stage", "pelunasan-proof");
                       await api.post(`/pengadaan/${targetId}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
-                      alert("Surat bukti pelunasan berhasil diunggah dan dapat diunduh User.");
+                      alert(`✅ Surat bukti pelunasan (${file.name}) berhasil diunggah dan langsung masuk ke sisi User.`);
                     } catch (error: any) {
                       console.error(error);
                       alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.");
@@ -610,7 +610,8 @@ function UmdSubmissionModal({
                       payload.append("file", file);
                       payload.append("stage", "pelunasan-proof");
                       await api.post(`/pengadaan/${targetId}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
-                      alert("Surat bukti pelunasan berhasil diunggah dan dapat diunduh User.");
+                      alert(`✅ Surat bukti pelunasan (${file.name}) berhasil diunggah dan langsung masuk ke sisi User.`);
+                      fetchUploadedDocuments();
                     } catch (error: any) {
                       console.error(error);
                       alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.");

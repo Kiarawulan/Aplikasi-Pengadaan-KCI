@@ -4796,7 +4796,7 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
   const [status, setStatus] = useState("");
   const [view, setView] = useState<"list" | "detail">("list");
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
-  const { items: verificationItems } = useAdminVerificationQueue("outsource,non-outsource,umd,payment-request");
+  const { items: verificationItems, refresh: refreshVerification } = useAdminVerificationQueue("outsource,non-outsource,umd,payment-request,pembayaran");
 
   React.useEffect(() => {
     setView("list");
@@ -4807,6 +4807,7 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
     "pembayaran-outsource": "outsource",
     "pembayaran-non-outsource": "non-outsource",
     "pembayaran-umd": "umd",
+    "pembayaran-payment-request": "payment-request",
   };
   const selectedType = typeBySubDoc[subDoc];
   const rows = (verificationItems || [])
@@ -4847,6 +4848,7 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
     try {
       await api.post(`/pengadaan/${pengadaanId}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
       alert("Surat bukti pelunasan berhasil diunggah dan dapat diunduh User.");
+      refreshVerification();
     } catch (error: any) {
       console.error("Gagal unggah bukti pelunasan:", error);
       alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.");
@@ -4870,7 +4872,20 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
   const currentLabel = subDocLabels[subDoc] || "Pembayaran";
 
   if (view === "detail" && selectedRow) {
-    return <DetailPembayaranPage row={selectedRow} breadcrumbFrom={currentLabel} onBack={() => setView("list")} />;
+    return (
+      <DetailPembayaranPage
+        row={selectedRow}
+        breadcrumbFrom={currentLabel}
+        onBack={() => {
+          refreshVerification();
+          setView("list");
+          setSelectedRow(null);
+        }}
+        onSuccess={() => {
+          refreshVerification();
+        }}
+      />
+    );
   }
 
   return (
@@ -5282,10 +5297,19 @@ const PEMBAYARAN_ROWS: Record<PembayaranDoc, PembayaranRow[]> = {
 };
 
 
-function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: PembayaranRow; breadcrumbFrom: string; onBack: () => void }) {
+function DetailPembayaranPage({
+  row,
+  breadcrumbFrom,
+  onBack,
+  onSuccess
+}: {
+  row: PembayaranRow;
+  breadcrumbFrom: string;
+  onBack: () => void;
+  onSuccess?: () => void;
+}) {
   const isUmd = breadcrumbFrom.toLowerCase().includes("umd");
   const isNonOutsource = breadcrumbFrom.toLowerCase().includes("non-outsource");
-
 
   const SYARAT_LIST = isNonOutsource
     ? ["Surat permohonan pembayaran", "Invoice", "Kwitansi", "Faktur Pajak", "BAST", "BAHP", "GR", "BA Rekonsiliasi"]
@@ -5304,6 +5328,40 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
   const r = row as any;
   const pengadaanId = r.pengadaan_id || r.pengadaanId || r.id || r.noPembayaran || r.noKontrak || "";
   const existingVerifId = r.verif_id || r.verifId || "";
+
+  const fd = r.formData || r.form_data || {};
+  const umdFd = fd.umdData || fd['buat-pd'] || fd;
+
+  const [pelunasanFileName, setPelunasanFileName] = useState<string>(() => {
+    return (
+      fd['pengembalian-dana']?.filePengembalian ||
+      fd['pengembalian-dana']?.fileBuktiTransfer ||
+      umdFd.fileBuktiPelunasan ||
+      umdFd.fileBuktiTransfer ||
+      umdFd.filePengembalian ||
+      fd.fileBuktiPelunasan ||
+      fd.fileBuktiTransfer ||
+      fd.filePengembalian ||
+      fd.pelunasan?.filePelunasan ||
+      ""
+    );
+  });
+
+  const [proofDocId, setProofDocId] = useState<number | string | null>(null);
+
+  useEffect(() => {
+    if (!pengadaanId) return;
+    api.get(`/pengadaan/${pengadaanId}/documents`).then(res => {
+      const docs = res.data?.data || res.data || [];
+      const proofDoc = docs.find((d: any) =>
+        ['pelunasan-proof', 'pengembalian-dana', 'bukti-pengembalian'].includes(d.stage)
+      );
+      if (proofDoc) {
+        if (proofDoc.original_name) setPelunasanFileName(proofDoc.original_name);
+        if (proofDoc.id) setProofDocId(proofDoc.id);
+      }
+    }).catch(() => {});
+  }, [pengadaanId]);
 
   const resolveVerifId = async (): Promise<string> => {
     if (existingVerifId) return existingVerifId;
@@ -5325,23 +5383,55 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
 
   const handleUploadProof = async (file: File) => {
     if (!pengadaanId) { alert("ID Pengadaan tidak ditemukan."); return; }
+    setPelunasanFileName(file.name);
     const payload = new FormData();
     payload.append("file", file);
     payload.append("stage", "pelunasan-proof");
     try {
-      await api.post(`/pengadaan/${pengadaanId}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
-      alert("✅ Surat bukti pelunasan berhasil diunggah dan dapat diunduh User.");
+      const res = await api.post(`/pengadaan/${pengadaanId}/documents`, payload, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      const uploadedName = res.data?.data?.original_name || file.name;
+      setPelunasanFileName(uploadedName);
+      if (res.data?.data?.id) setProofDocId(res.data.data.id);
+      alert(`✅ Surat bukti pelunasan (${uploadedName}) berhasil diunggah dan langsung masuk ke sisi User.`);
+      if (onSuccess) onSuccess();
     } catch (error: any) {
       alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.");
+    }
+  };
+
+  const handleViewProof = async () => {
+    if (!pengadaanId) return;
+    try {
+      const res = await api.get(`/pengadaan/${pengadaanId}/documents`);
+      const docs = res.data?.data || res.data || [];
+      const proofDoc = docs.find((d: any) =>
+        ['pelunasan-proof', 'pengembalian-dana', 'bukti-pengembalian'].includes(d.stage)
+      );
+      if (proofDoc?.id) {
+        window.open(`/api/documents/${proofDoc.id}/download`, '_blank');
+      } else if (pelunasanFileName) {
+        alert(`Dokumen bukti pelunasan: ${pelunasanFileName} (Tersimpan di server)`);
+      } else {
+        alert("Belum ada dokumen bukti pelunasan yang diunggah.");
+      }
+    } catch {
+      alert(`Dokumen bukti pelunasan: ${pelunasanFileName || 'Belum diunggah'}`);
     }
   };
 
   const handleApprove = async () => {
     try {
       const verifId = await resolveVerifId();
-      if (verifId) await api.post(`/verifikasi/${verifId}/approve`);
-      if (pengadaanId) await api.put(`/pengadaan/${pengadaanId}`, { status: 'approved' }).catch(() => {});
+      if (verifId) {
+        await api.post(`/verifikasi/${verifId}/approve`);
+      }
+      if (pengadaanId) {
+        await api.put(`/pengadaan/${pengadaanId}`, { status: 'approved' }).catch(() => {});
+      }
       alert(isUmd ? '✅ Pengajuan UMD Berhasil Diverifikasi & Disetujui (Approved) Admin!' : '✅ Pembayaran Berhasil Diverifikasi & Disetujui (Approved) Admin!');
+      if (onSuccess) onSuccess();
       onBack();
     } catch (e: any) {
       alert(e?.response?.data?.message || 'Gagal menyetujui. Silakan coba lagi.');
@@ -5359,11 +5449,14 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
       const verifId = await resolveVerifId();
       if (!verifId) { alert("ID Verifikasi tidak ditemukan."); return; }
       await api.post(`/verifikasi/${verifId}/${action}`, { catatan: note });
-      if (pengadaanId) await api.put(`/pengadaan/${pengadaanId}`, { status: action === 'revisi' ? 'revision_required' : 'rejected' }).catch(() => {});
+      if (pengadaanId) {
+        await api.put(`/pengadaan/${pengadaanId}`, { status: action === 'revisi' ? 'revision_required' : 'rejected' }).catch(() => {});
+      }
       alert(action === "revisi" ? "Catatan revisi pembayaran berhasil dikirim ke user!" : "Pembayaran berhasil ditolak!");
       setShowRevisiBox(false);
       setShowRejectBox(false);
       setActionNote("");
+      if (onSuccess) onSuccess();
       onBack();
     } catch (e: any) {
       alert(e?.response?.data?.message || `Gagal ${action === "revisi" ? "mengirim revisi" : "menolak pembayaran"}.`);
@@ -5372,6 +5465,14 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
 
   const toggleSyarat = (i: number, field: "syarat" | "ada") => {
     setSyarat(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: !s[field] } : s));
+  };
+
+  const viewDoc = (name: string, label: string) => {
+    if (name) {
+      alert(`Membuka berkas ${label}: ${name}`);
+    } else {
+      alert(`Berkas ${label} belum diunggah.`);
+    }
   };
 
   if (isUmd) {
@@ -5415,12 +5516,12 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nomor PE *</label><select className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]"><option>— pilih —</option><option>PE-2024-001</option></select></div>
-            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nomor G63 *</label><input type="number" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" placeholder="0" /></div>
-            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Tanggal G63 *</label><input type="date" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" /></div>
-            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nominal G63 (Rp) *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" placeholder="0" /></div>
-            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Tanggal Cair *</label><input type="date" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" /></div>
-            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nomor VA *</label><select className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]"><option>— pilih —</option><option>VA-2024-001</option></select></div>
+            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nomor PE *</label><select className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]"><option>— pilih —</option><option>{umdFd.nomorPe || "PE-2024-001"}</option></select></div>
+            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nomor G63 *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={umdFd.nomorG63 || "G63-2024-089"} /></div>
+            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Tanggal G63 *</label><input type="date" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={umdFd.tanggalG63 || ""} /></div>
+            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nominal G63 (Rp) *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={umdFd.nominalG63 || row.nilaiTagihan || "0"} /></div>
+            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Tanggal Cair *</label><input type="date" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={umdFd.tanggalCair || ""} /></div>
+            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nomor VA *</label><select className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]"><option>— pilih —</option><option>{umdFd.nomorVa || "VA-2024-001"}</option></select></div>
           </div>
 
           <hr className="border-gray-100" />
@@ -5457,19 +5558,26 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
           <div>
             <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">INPUT DOKUMEN TUTUPAN</p>
             <div className="space-y-3">
-              {["Dokumen G63 TTD Lengkap", "Lembar G61", "Ceklis Pertanggungjawaban", "Surat Pernyataan Keaslian Dokumen", "Surat Pernyataan Kebenaran Barang/Jasa", "Nota atau Kwitansi Pertanggungjawaban"].map((label) => (
-                <div key={label} className="grid grid-cols-2 gap-3 items-center">
-                  <label className="text-[11.5px] font-medium text-gray-700">{label} * <span className="text-[10px] text-gray-400 font-normal">(Pdf Maks. 20Mb)</span></label>
+              {[
+                { label: "Dokumen G63 TTD Lengkap", val: umdFd.fileG63 || fd.fileG63 || "" },
+                { label: "Lembar G61", val: umdFd.fileLembarG61 || fd.fileLembarG61 || "" },
+                { label: "Ceklis Pertanggungjawaban", val: umdFd.fileCeklis || fd.fileCeklis || "" },
+                { label: "Surat Pernyataan Keaslian Dokumen", val: umdFd.fileSuratKeaslian || fd.fileSuratKeaslian || umdFd.fileSuratPernyataan || "" },
+                { label: "Surat Pernyataan Kebenaran Barang/Jasa", val: umdFd.fileSuratKebenaran || fd.fileSuratKebenaran || "" },
+                { label: "Nota atau Kwitansi Pertanggungjawaban", val: umdFd.fileNota || fd.fileNota || "" }
+              ].map((item) => (
+                <div key={item.label} className="grid grid-cols-2 gap-3 items-center">
+                  <label className="text-[11.5px] font-medium text-gray-700">{item.label} * <span className="text-[10px] text-gray-400 font-normal">(Pdf Maks. 20Mb)</span></label>
                   <div className="flex gap-2">
-                    <input type="text" value="" readOnly placeholder="Belum diunggah" className="flex-1 border border-gray-200 rounded-lg px-3 py-1 text-[11.5px] bg-white" />
-                    <button onClick={() => alert("Membuka file")} className="px-3 py-1 border border-gray-200 rounded-lg text-[11.5px] font-semibold hover:bg-gray-50">View</button>
+                    <input type="text" value={item.val} readOnly placeholder="Belum diunggah" className="flex-1 border border-gray-200 rounded-lg px-3 py-1 text-[11.5px] bg-white font-medium text-gray-700" />
+                    <button type="button" onClick={() => viewDoc(item.val, item.label)} className="px-3 py-1 border border-gray-200 rounded-lg text-[11.5px] font-semibold hover:bg-gray-50">View</button>
                   </div>
                 </div>
               ))}
             </div>
             <div className="grid grid-cols-2 gap-3 mt-3">
-              <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nominal G61 *</label><input type="number" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" placeholder="0" /></div>
-              <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Sisa UMDS *</label><input type="number" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" placeholder="0" /></div>
+              <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nominal G61 *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={umdFd.nominalG61 || row.nilaiTagihan || "0"} /></div>
+              <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Sisa UMDS *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={umdFd.sisaUmds || "0"} /></div>
             </div>
           </div>
 
@@ -5479,14 +5587,14 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
           <div>
             <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">INPUT CLOSING UMD</p>
             <div className="grid grid-cols-2 gap-3 mb-3">
-              <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nominal Pajak</label><input type="number" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" placeholder="0" /></div>
-              <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nominal Pengembalian</label><input type="number" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" placeholder="0" /></div>
+              <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nominal Pajak</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={umdFd.nominalPajak || "0"} /></div>
+              <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nominal Pengembalian</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={umdFd.nominalPengembalian || "0"} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3 items-center">
               <label className="text-[11.5px] font-medium text-gray-700">Upload Dokumen A9 Lengkap * <span className="text-[10px] text-gray-400 font-normal">(Pdf Maks. 20Mb)</span></label>
               <div className="flex gap-2">
-                <input type="text" value="" readOnly placeholder="Belum diunggah" className="flex-1 border border-gray-200 rounded-lg px-3 py-1 text-[11.5px] bg-white" />
-                <button onClick={() => alert("Membuka file")} className="px-3 py-1 border border-gray-200 rounded-lg text-[11.5px] font-semibold hover:bg-gray-50">View</button>
+                <input type="text" value={umdFd.fileA9 || fd.fileA9 || ""} readOnly placeholder="Belum diunggah" className="flex-1 border border-gray-200 rounded-lg px-3 py-1 text-[11.5px] bg-white font-medium text-gray-700" />
+                <button type="button" onClick={() => viewDoc(umdFd.fileA9 || fd.fileA9, "Dokumen A9 Lengkap")} className="px-3 py-1 border border-gray-200 rounded-lg text-[11.5px] font-semibold hover:bg-gray-50">View</button>
               </div>
             </div>
           </div>
@@ -5499,8 +5607,18 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
             <div className="p-4 bg-white grid grid-cols-2 gap-3 items-center">
               <label className="text-[11.5px] font-medium text-gray-700">Upload Bukti Transfer Pengembalian * <span className="text-[10px] text-gray-400 font-normal">(Pdf|Jpeg|Jpg|Png Maks. 20Mb)</span></label>
               <div className="flex gap-2">
-                <input type="text" value="" readOnly placeholder="Belum diunggah" className="flex-1 border border-gray-200 rounded-lg px-3 py-1 text-[11.5px] bg-white" />
-                <button onClick={() => alert("Membuka file")} className="px-3 py-1 border border-gray-200 rounded-lg text-[11.5px] font-semibold hover:bg-gray-50">View</button>
+                <input
+                  type="text"
+                  value={pelunasanFileName || ""}
+                  readOnly
+                  placeholder="Belum diunggah"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-1 text-[11.5px] bg-white font-medium text-gray-700"
+                />
+                {pelunasanFileName ? (
+                  <button type="button" onClick={handleViewProof} className="px-3 py-1 border border-indigo-300 text-indigo-700 rounded-lg text-[11.5px] font-semibold hover:bg-indigo-50">View</button>
+                ) : (
+                  <button type="button" onClick={() => alert("Belum ada file bukti pengembalian yang diunggah")} className="px-3 py-1 border border-gray-200 text-gray-400 rounded-lg text-[11.5px] font-semibold">View</button>
+                )}
               </div>
             </div>
           </div>
@@ -5511,23 +5629,40 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
               <p className="text-[12.5px] font-bold text-[#252271] flex items-center gap-1.5">
                 <Upload size={14} className="text-[#252271]" /> Unggah Surat Bukti Pelunasan
               </p>
-              <p className="text-[11px] text-indigo-700 mt-0.5">Berkas bukti pelunasan ini akan dapat diunduh dan dilihat oleh pihak pemohon/user.</p>
+              <p className="text-[11px] text-indigo-700 mt-0.5">
+                {pelunasanFileName ? (
+                  <span className="font-semibold text-green-700 flex items-center gap-1">✓ Berkas aktif: {pelunasanFileName} (Langsung sinkron ke sisi User)</span>
+                ) : (
+                  "Berkas bukti pelunasan ini akan dapat diunduh dan dilihat oleh pihak pemohon/user."
+                )}
+              </p>
             </div>
-            <label className="px-4 py-2 bg-[#252271] text-white hover:bg-[#1a1860] rounded-xl text-[11.5px] font-bold cursor-pointer transition-all shadow-sm flex items-center gap-1.5 shrink-0">
-              <Upload size={14} /> Pilih &amp; Upload Bukti Pelunasan
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                className="hidden"
-                onChange={async (event) => {
-                  const file = event.target.files?.[0];
-                  if (file) {
-                    await handleUploadProof(file);
-                    event.target.value = "";
-                  }
-                }}
-              />
-            </label>
+            <div className="flex items-center gap-2">
+              {pelunasanFileName && (
+                <button
+                  type="button"
+                  onClick={handleViewProof}
+                  className="px-3 py-2 bg-white border border-indigo-300 text-indigo-700 hover:bg-indigo-50 rounded-xl text-[11.5px] font-bold transition-all shadow-xs"
+                >
+                  Lihat Berkas
+                </button>
+              )}
+              <label className="px-4 py-2 bg-[#252271] text-white hover:bg-[#1a1860] rounded-xl text-[11.5px] font-bold cursor-pointer transition-all shadow-sm flex items-center gap-1.5 shrink-0">
+                <Upload size={14} /> {pelunasanFileName ? "Ganti & Upload Bukti Pelunasan" : "Pilih & Upload Bukti Pelunasan"}
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                  className="hidden"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      await handleUploadProof(file);
+                      event.target.value = "";
+                    }
+                  }}
+                />
+              </label>
+            </div>
           </div>
 
           {/* Action Buttons UMD */}
@@ -5733,23 +5868,40 @@ function DetailPembayaranPage({ row, breadcrumbFrom, onBack }: { row: Pembayaran
             <p className="text-[12.5px] font-bold text-[#252271] flex items-center gap-1.5">
               <Upload size={14} className="text-[#252271]" /> Unggah Surat Bukti Pelunasan
             </p>
-            <p className="text-[11px] text-indigo-700 mt-0.5">Berkas bukti pelunasan ini akan dapat diunduh dan dilihat oleh pihak pemohon/user.</p>
+            <p className="text-[11px] text-indigo-700 mt-0.5">
+              {pelunasanFileName ? (
+                <span className="font-semibold text-green-700 flex items-center gap-1">✓ Berkas aktif: {pelunasanFileName} (Langsung sinkron ke sisi User)</span>
+              ) : (
+                "Berkas bukti pelunasan ini akan dapat diunduh dan dilihat oleh pihak pemohon/user."
+              )}
+            </p>
           </div>
-          <label className="px-4 py-2 bg-[#252271] text-white hover:bg-[#1a1860] rounded-xl text-[11.5px] font-bold cursor-pointer transition-all shadow-sm flex items-center gap-1.5 shrink-0">
-            <Upload size={14} /> Pilih &amp; Upload Bukti Pelunasan
-            <input
-              type="file"
-              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-              className="hidden"
-              onChange={async (event) => {
-                const file = event.target.files?.[0];
-                if (file) {
-                  await handleUploadProof(file);
-                  event.target.value = "";
-                }
-              }}
-            />
-          </label>
+          <div className="flex items-center gap-2">
+            {pelunasanFileName && (
+              <button
+                type="button"
+                onClick={handleViewProof}
+                className="px-3 py-2 bg-white border border-indigo-300 text-indigo-700 hover:bg-indigo-50 rounded-xl text-[11.5px] font-bold transition-all shadow-xs"
+              >
+                Lihat Berkas
+              </button>
+            )}
+            <label className="px-4 py-2 bg-[#252271] text-white hover:bg-[#1a1860] rounded-xl text-[11.5px] font-bold cursor-pointer transition-all shadow-sm flex items-center gap-1.5 shrink-0">
+              <Upload size={14} /> {pelunasanFileName ? "Ganti & Upload Bukti Pelunasan" : "Pilih & Upload Bukti Pelunasan"}
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                className="hidden"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    await handleUploadProof(file);
+                    event.target.value = "";
+                  }
+                }}
+              />
+            </label>
+          </div>
         </div>
 
         {/* Action Buttons Pembayaran */}

@@ -366,7 +366,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           </div>
         </div>
         <div className="bg-[#fafafa] border border-[#ebebeb] rounded-lg p-4">
-          <SummaryRow label="File Pengembalian Dana" value={fd("pengembalian-dana")["filePengembalian"] || "—"} />
+          <SummaryRow label="File Pengembalian Dana" value={fd("pengembalian-dana")["filePengembalian"] || fd("pengembalian-dana")["fileBuktiTransfer"] || fd("umdData")["fileBuktiTransfer"] || fd("umdData")["fileBuktiPelunasan"] || fd("umdData")["filePengembalian"] || (item.formData as any)?.fileBuktiPelunasan || (item.formData as any)?.filePengembalian || "—"} />
           {fd("pengembalian-dana")["keterangan"] && <div className="mt-3"><SummaryRow label="Keterangan" value={fd("pengembalian-dana")["keterangan"]} /></div>}
         </div>
         <p className="text-[11px] text-[#6b6b6b] bg-[#f9f9f9] border border-[#e2e2e2] rounded p-3 leading-relaxed">
@@ -495,12 +495,12 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
               </div>
 
               <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-2xs space-y-3">
-                <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide border-b border-gray-100 pb-2">3. Closing & Bukti Transfer</p>
+                <p className="text-[11px] font-bold text-[#252271] uppercase tracking-wide border-b border-gray-100 pb-2">3. Closing &amp; Bukti Transfer</p>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                   <SummaryRow label="Nominal Pajak" value={d["nominalPajak"] || "Rp 0"} />
                   <SummaryRow label="Nominal Pengembalian" value={d["nominalPengembalian"] || "Rp 0"} />
                   <SummaryRow label="Dokumen A9 Lengkap" value={d["fileA9"] || "dokumen_a9.pdf"} />
-                  <SummaryRow label="Bukti Transfer Pengembalian" value={d["fileBuktiTransfer"] || "bukti_transfer.pdf"} />
+                  <SummaryRow label="Bukti Transfer Pengembalian" value={d["fileBuktiTransfer"] || d["filePengembalian"] || d["fileBuktiPelunasan"] || (item.formData as any)?.fileBuktiPelunasan || "bukti_transfer.pdf"} />
                 </div>
               </div>
             </div>
@@ -513,7 +513,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         <div className="space-y-6">
           {/* 2. DATA PE & G63 */}
           <div className="bg-[#fcfcfd] border border-[#e5e7eb] rounded-xl p-4 space-y-3 shadow-2xs">
-            <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide pb-2 border-b border-gray-200/60">1. DATA PE & G63</p>
+            <p className="text-[11.5px] font-bold text-[#252271] uppercase tracking-wide pb-2 border-b border-gray-200/60">1. DATA PE &amp; G63</p>
             <div className="grid grid-cols-2 gap-3">
               <FieldInput label="Nomor PE" placeholder="Contoh: PE-2024-001" required value={d["nomorPe"]} onChange={u("nomorPe")} />
               <FieldInput label="Nomor G63" placeholder="Contoh: G63-2024-089" required value={d["nomorG63"]} onChange={u("nomorG63")} />
@@ -565,7 +565,18 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           <div className="bg-[#252271] text-white p-4 rounded-xl space-y-3 shadow-md">
             <p className="text-[11.5px] font-bold uppercase tracking-wide">6. INPUT BUKTI PENGEMBALIAN DANA</p>
             <div className="bg-white text-gray-800 p-3.5 rounded-lg border border-gray-200">
-              <FileUploadInput label="Upload Bukti Transfer Pengembalian" required value={d["fileBuktiTransfer"]} onChange={u("fileBuktiTransfer")} />
+              <FileUploadInput
+                label="Upload Bukti Transfer Pengembalian"
+                required
+                value={d["fileBuktiTransfer"] || d["filePengembalian"] || d["fileBuktiPelunasan"] || ""}
+                onChange={(val) => {
+                  u("fileBuktiTransfer")(val);
+                  u("filePengembalian")(val);
+                  u("fileBuktiPelunasan")(val);
+                }}
+                pengadaanId={item.id}
+                stage="pelunasan-proof"
+              />
             </div>
           </div>
         </div>

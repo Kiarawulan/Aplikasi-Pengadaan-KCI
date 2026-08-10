@@ -21,16 +21,54 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const [paymentsResponse, pengadaanResponse] = await Promise.all([api.get('/payments'), api.get('/pengadaan')]);
-      const pengadaanById = new Map((pengadaanResponse.data || []).map((entry: PengadaanItem) => [entry.id, entry]));
-      const pembayaranItems = (paymentsResponse.data || [])
+      const [paymentsResponse, pengadaanResponse, verifResponse] = await Promise.all([
+        api.get('/payments').catch(() => ({ data: [] })),
+        api.get('/pengadaan').catch(() => ({ data: [] })),
+        api.get('/verifikasi').catch(() => ({ data: [] })),
+      ]);
+      const pengadaanList: PengadaanItem[] = pengadaanResponse.data || [];
+      const paymentList: any[] = paymentsResponse.data || [];
+      const verifList: any[] = verifResponse.data || [];
+
+      const pengadaanById = new Map(pengadaanList.map((entry) => [entry.id, entry]));
+
+      const mappedPayments = paymentList
         .filter((payment: any) => payment.payment_type === type)
         .map((payment: any) => {
           const pengadaan = pengadaanById.get(payment.pengadaan_id);
-          return pengadaan ? { ...pengadaan, status: payment.status, payment } : null;
+          const verif = verifList.find((v: any) => v.pengadaan_id === payment.pengadaan_id && (v.tipe === type || v.tipe === 'pembayaran'));
+          const finalStatus = verif?.status || payment.status || pengadaan?.status || "pending";
+          return pengadaan ? { ...pengadaan, status: finalStatus, payment } : null;
         })
         .filter(Boolean) as PengadaanItem[];
-      setItems(pembayaranItems);
+
+      const existingPengadaanIds = new Set(mappedPayments.map(p => p.id));
+      const extraItems = pengadaanList
+        .filter((peng: any) => {
+          if (existingPengadaanIds.has(peng.id)) return false;
+          if (type === "umd" && peng.flow_type === "pd" && (peng.current_step === "pembayaran" || peng.status === "approved" || peng.status === "completed")) return true;
+          if (type === "outsource" && peng.flow_type === "pr" && (peng.current_step === "pembayaran" || peng.status === "approved" || peng.status === "completed")) {
+            const fd = typeof peng.formData === "string" ? JSON.parse(peng.formData) : (peng.formData || {});
+            const j = (fd.pelunasan?.jenis || "").toLowerCase();
+            return !j.includes("non") && !j.includes("payment");
+          }
+          if (type === "non-outsource" && peng.flow_type === "pr" && (peng.current_step === "pembayaran" || peng.status === "approved" || peng.status === "completed")) {
+            const fd = typeof peng.formData === "string" ? JSON.parse(peng.formData) : (peng.formData || {});
+            return (fd.pelunasan?.jenis || "").toLowerCase().includes("non");
+          }
+          if (type === "payment-request" && (peng.current_step === "pembayaran" || peng.status === "approved" || peng.status === "completed")) {
+            const fd = typeof peng.formData === "string" ? JSON.parse(peng.formData) : (peng.formData || {});
+            return (fd.pelunasan?.jenis || "").toLowerCase().includes("payment");
+          }
+          return false;
+        })
+        .map((peng: any) => {
+          const verif = verifList.find((v: any) => v.pengadaan_id === peng.id && (v.tipe === type || v.tipe === 'pembayaran'));
+          const finalStatus = verif?.status || peng.status || "pending";
+          return { ...peng, status: finalStatus };
+        });
+
+      setItems([...mappedPayments, ...extraItems]);
     } catch (err) {
       console.error("Gagal mengambil data pembayaran:", err);
     } finally {

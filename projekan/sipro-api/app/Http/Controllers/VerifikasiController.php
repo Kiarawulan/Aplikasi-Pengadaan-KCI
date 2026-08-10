@@ -246,8 +246,25 @@ class VerifikasiController extends Controller
                 }
 
                 if (in_array($verifikasi->tipe, ['umd', 'outsource', 'non-outsource', 'payment-request', 'pembayaran'], true)) {
-                    Payment::where('pengadaan_id', $pengadaan->id)->update(['status' => 'approved', 'processed_by' => $admin->id]);
-                    $pengadaan->status = 'completed';
+                    $payType = in_array($verifikasi->tipe, ['umd', 'outsource', 'non-outsource', 'payment-request'], true)
+                        ? $verifikasi->tipe
+                        : ($pengadaan->flow_type === 'pd' ? 'umd' : 'outsource');
+
+                    $existingPayment = Payment::where('pengadaan_id', $pengadaan->id)->first();
+                    if ($existingPayment) {
+                        $existingPayment->status = 'approved';
+                        $existingPayment->processed_by = $admin->id;
+                        $existingPayment->save();
+                    } else {
+                        Payment::create([
+                            'id' => 'PAY-' . strtoupper(Str::random(10)),
+                            'pengadaan_id' => $pengadaan->id,
+                            'payment_type' => $payType,
+                            'status' => 'approved',
+                            'processed_by' => $admin->id,
+                        ]);
+                    }
+                    $pengadaan->status = 'approved';
                     $pengadaan->current_step = 'completed';
                 }
 
@@ -294,7 +311,26 @@ class VerifikasiController extends Controller
                 $pengadaan->save();
 
                 if (in_array($verifikasi->tipe, ['umd', 'outsource', 'non-outsource', 'payment-request', 'pembayaran'], true)) {
-                    Payment::where('pengadaan_id', $pengadaan->id)->update(['status' => 'revision_required', 'admin_note' => $request->catatan, 'processed_by' => $admin->id]);
+                    $payType = in_array($verifikasi->tipe, ['umd', 'outsource', 'non-outsource', 'payment-request'], true)
+                        ? $verifikasi->tipe
+                        : ($pengadaan->flow_type === 'pd' ? 'umd' : 'outsource');
+
+                    $existingPayment = Payment::where('pengadaan_id', $pengadaan->id)->first();
+                    if ($existingPayment) {
+                        $existingPayment->status = 'revision_required';
+                        $existingPayment->admin_note = $request->catatan;
+                        $existingPayment->processed_by = $admin->id;
+                        $existingPayment->save();
+                    } else {
+                        Payment::create([
+                            'id' => 'PAY-' . strtoupper(Str::random(10)),
+                            'pengadaan_id' => $pengadaan->id,
+                            'payment_type' => $payType,
+                            'status' => 'revision_required',
+                            'admin_note' => $request->catatan,
+                            'processed_by' => $admin->id,
+                        ]);
+                    }
                 }
             }
         }
@@ -338,7 +374,26 @@ class VerifikasiController extends Controller
                 $pengadaan->save();
 
                 if (in_array($verifikasi->tipe, ['umd', 'outsource', 'non-outsource', 'payment-request', 'pembayaran'], true)) {
-                    Payment::where('pengadaan_id', $pengadaan->id)->update(['status' => 'rejected', 'admin_note' => $request->catatan, 'processed_by' => $admin->id]);
+                    $payType = in_array($verifikasi->tipe, ['umd', 'outsource', 'non-outsource', 'payment-request'], true)
+                        ? $verifikasi->tipe
+                        : ($pengadaan->flow_type === 'pd' ? 'umd' : 'outsource');
+
+                    $existingPayment = Payment::where('pengadaan_id', $pengadaan->id)->first();
+                    if ($existingPayment) {
+                        $existingPayment->status = 'rejected';
+                        $existingPayment->admin_note = $request->catatan;
+                        $existingPayment->processed_by = $admin->id;
+                        $existingPayment->save();
+                    } else {
+                        Payment::create([
+                            'id' => 'PAY-' . strtoupper(Str::random(10)),
+                            'pengadaan_id' => $pengadaan->id,
+                            'payment_type' => $payType,
+                            'status' => 'rejected',
+                            'admin_note' => $request->catatan,
+                            'processed_by' => $admin->id,
+                        ]);
+                    }
                 }
             }
         }
