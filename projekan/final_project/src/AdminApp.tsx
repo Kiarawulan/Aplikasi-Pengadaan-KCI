@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FileWarning, XCircle, Upload, Trash2 } from "lucide-react";
+import { CheckCircle2, Edit3, FileWarning, XCircle, Upload, Trash2 } from "lucide-react";
 import logoImg from "@/imports/UserDashboard/a1d658a5f37b0b6b958626283ef2524233d0a35d.png";
 import group13Svg from "@/imports/Group13/svg-0k0x59k5bp";
 import group14Svg from "@/imports/Group14/svg-sivp8gfyg0";
@@ -10,6 +10,7 @@ import { AdminDashboardScreen } from "./pages/admin/dashboard/AdminDashboardScre
 import { TemplateDokumenAdminScreen } from "./pages/admin/template-dokumen/TemplateDokumenAdminScreen";
 import { MasterDataScreen } from "./pages/admin/master-data/MasterDataScreen";
 import { PermissionMatrix } from "./components/admin/shared/PermissionMatrix";
+import { AdminUploadBar } from "./components/admin/shared/AdminUploadBar";
 import { Sp3DetailView } from "./components/admin/verifikasi/Sp3DetailView";
 import { RupDetailView } from "./components/admin/verifikasi/RupDetailView";
 import { TambahRupModal } from "./components/admin/verifikasi/TambahRupModal";
@@ -20,6 +21,7 @@ import { getRupList, updateRup, updateVerifRecord } from "./store/dataStore";
 import { PengadaanVerifScreen } from "./pages/admin/verifikasi/PengadaanVerifScreen";
 import { PengujianVerifScreen } from "./pages/admin/verifikasi/PengujianVerifScreen";
 import { PembayaranVerifScreen } from "./pages/admin/verifikasi/PembayaranVerifScreen";
+import featureUnavailableImage from "./assets/feature-unavailable.png";
 import { DIVISI_LIST } from "./constants/divisi";
 
 // ─── SVG path data (inlined from Figma exports) ───────────────────────────────
@@ -1334,7 +1336,7 @@ type ParkDocRow = {
 };
 
 function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => void }) {
-  const [docStatus, setDocStatus] = useState<"Menunggu Verifikasi" | "Sudah Diverifikasi" | "Perlu Revisi">(
+  const [docStatus, setDocStatus] = useState<"Menunggu Verifikasi" | "Sudah Diverifikasi" | "Perlu Revisi" | "Ditolak">(
     row.status === "Closed" ? "Sudah Diverifikasi" : "Menunggu Verifikasi"
   );
   const [showRevisionBox, setShowRevisionBox] = useState(false);
@@ -1406,6 +1408,29 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
     }
   };
 
+  const handleTolak = async () => {
+    const catatan = window.prompt("Tuliskan alasan penolakan Pengajuan Dana:");
+    if (catatan === null) return;
+    if (!catatan.trim()) {
+      alert("Harap isi alasan penolakan terlebih dahulu.");
+      return;
+    }
+    try {
+      if (!row.verif_id) {
+        alert("Gagal: ID verifikasi tidak ditemukan.");
+        return;
+      }
+      await api.post(`/verifikasi/${row.verif_id}/reject`, { catatan });
+      updateVerifRecord(row.verif_id, { status: "rejected", catatanAdmin: catatan });
+      setDocStatus("Ditolak");
+      alert("Pengajuan Dana berhasil ditolak.");
+      onBack();
+    } catch (e) {
+      console.error(e);
+      alert("Gagal menolak Pengajuan Dana.");
+    }
+  };
+
   return (
     <div className="flex-1 min-h-0 overflow-auto bg-[#f8fafc]">
       <div className="px-[44px] py-[20px]">
@@ -1430,7 +1455,7 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
             <span
               className={`text-[11.5px] font-bold px-[12px] py-[5px] rounded-full border ${docStatus === "Sudah Diverifikasi"
                   ? "bg-[#f0fdf4] text-[#15803d] border-[#bbf7d0]"
-                  : docStatus === "Perlu Revisi"
+                  : docStatus === "Perlu Revisi" || docStatus === "Ditolak"
                     ? "bg-[#fef2f2] text-[#cc0000] border-[#fecaca]"
                     : "bg-amber-50 text-amber-800 border-amber-200"
                 }`}
@@ -1440,19 +1465,26 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
 
             <button
               onClick={() => setShowRevisionBox(!showRevisionBox)}
-              className="h-[38px] px-[16px] bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 rounded-[10px] text-[12.5px] font-semibold flex items-center gap-[6px] transition-all cursor-pointer"
+              className="h-[30px] px-3 bg-white text-[#8f0505] hover:bg-red-50 border border-[#8f0505] rounded-[9px] text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer"
             >
-              <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d={ICONS.edit} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" /></svg>
+              <span className="size-[15px] rounded-full border border-current flex items-center justify-center"><Edit3 size={8} /></span>
               Revisi
+            </button>
+
+            <button
+              onClick={handleTolak}
+              className="h-[30px] px-3 rounded-[9px] bg-gradient-to-r from-[#a50000] to-[#e00000] text-white hover:brightness-110 text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <XCircle size={13} /> Tolak
             </button>
 
             <button
               disabled={docStatus === "Sudah Diverifikasi"}
               onClick={handleVerifikasi}
-              className={`h-[38px] px-[18px] rounded-[10px] text-[12.5px] font-bold flex items-center gap-[6px] transition-all shadow-md ${docStatus === "Sudah Diverifikasi" ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#16a34a] to-[#15803d] text-white hover:brightness-110 active:scale-95 cursor-pointer"}`}
+              className={`h-[30px] px-3 rounded-[9px] text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-sm ${docStatus === "Sudah Diverifikasi" ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] text-white hover:brightness-110 active:scale-95 cursor-pointer"}`}
             >
-              <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d="M3 7.5L5.5 10L11 4.5" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" /></svg>
-              {docStatus === "Sudah Diverifikasi" ? "Sudah Diverifikasi" : "Verifikasi & Setujui"}
+              <CheckCircle2 size={13} />
+              {docStatus === "Sudah Diverifikasi" ? "Sudah Diverifikasi" : "Verifikasi"}
             </button>
           </div>
         </div>
@@ -2719,7 +2751,6 @@ function RupSignedUploadModal({ onClose, onSuccess }: { onClose: () => void; onS
   const [rupId, setRupId] = useState("RUP-2024-001");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async () => {
     if (!selectedFile) {
@@ -2764,24 +2795,15 @@ function RupSignedUploadModal({ onClose, onSuccess }: { onClose: () => void; onS
               placeholder="RUP-2024-001..."
             />
           </div>
-          <div>
-            <label className="block text-[12px] font-semibold text-[#364153] mb-[4px]">File RUP Signed</label>
-            <div
-              onClick={() => inputRef.current?.click()}
-              className="h-[90px] border-2 border-dashed border-[#d1d5dc] rounded-[8px] flex flex-col items-center justify-center gap-[6px] text-[#94a3b8] text-[13px] cursor-pointer hover:border-[#cc0000] hover:bg-[#fef2f2] transition-colors"
-            >
-              <input
-                ref={inputRef}
-                type="file"
-                accept=".pdf,.doc,.docx"
-                className="hidden"
-                onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])}
-              />
-              <svg fill="none" height="24" viewBox="0 0 24 24" width="24"><path d="M12 16V4M12 4L8 8M12 4L16 8" stroke="#94a3b8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><path d="M3 17V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V17" stroke="#94a3b8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>
-              <span className="font-semibold text-[#364153]">{selectedFile ? selectedFile.name : "Klik untuk upload atau drag & drop file"}</span>
-              <span className="text-[11px]">PDF, DOC max. 10MB</span>
-            </div>
-          </div>
+          <AdminUploadBar
+            title="Unggah RUP Signed"
+            description="Pilih dokumen RUP Signed berformat PDF atau DOC."
+            buttonText="Pilih File RUP Signed"
+            selectedFileName={selectedFile?.name}
+            accept=".pdf,.doc,.docx"
+            disabled={isUploading}
+            onFileSelected={setSelectedFile}
+          />
           <div className="flex gap-[12px] justify-end">
             <button onClick={onClose} disabled={isUploading} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
             <button onClick={handleUpload} disabled={isUploading} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] transition-colors active:scale-95 disabled:opacity-50">
@@ -2798,7 +2820,6 @@ function Sp3SignedUploadModal({ onClose, onSuccess }: { onClose: () => void; onS
   const [sp3Id, setSp3Id] = useState("SP3-2024-001");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async () => {
     if (!selectedFile) {
@@ -2843,24 +2864,15 @@ function Sp3SignedUploadModal({ onClose, onSuccess }: { onClose: () => void; onS
               placeholder="SP3-2024-001..."
             />
           </div>
-          <div>
-            <label className="block text-[12px] font-semibold text-[#364153] mb-[4px]">File SP3 Signed</label>
-            <div
-              onClick={() => inputRef.current?.click()}
-              className="h-[90px] border-2 border-dashed border-[#d1d5dc] rounded-[8px] flex flex-col items-center justify-center gap-[6px] text-[#94a3b8] text-[13px] cursor-pointer hover:border-[#cc0000] hover:bg-[#fef2f2] transition-colors"
-            >
-              <input
-                ref={inputRef}
-                type="file"
-                accept=".pdf,.doc,.docx"
-                className="hidden"
-                onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])}
-              />
-              <svg fill="none" height="24" viewBox="0 0 24 24" width="24"><path d="M12 16V4M12 4L8 8M12 4L16 8" stroke="#94a3b8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><path d="M3 17V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V17" stroke="#94a3b8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>
-              <span className="font-semibold text-[#364153]">{selectedFile ? selectedFile.name : "Klik untuk upload atau drag & drop file"}</span>
-              <span className="text-[11px]">PDF, DOC max. 10MB</span>
-            </div>
-          </div>
+          <AdminUploadBar
+            title="Unggah SP3 Signed"
+            description="Pilih dokumen SP3 Signed berformat PDF atau DOC."
+            buttonText="Pilih File SP3 Signed"
+            selectedFileName={selectedFile?.name}
+            accept=".pdf,.doc,.docx"
+            disabled={isUploading}
+            onFileSelected={setSelectedFile}
+          />
           <div className="flex gap-[12px] justify-end">
             <button onClick={onClose} disabled={isUploading} className="px-[24px] py-[8px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[13px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
             <button onClick={handleUpload} disabled={isUploading} className="px-[24px] py-[8px] rounded-[8px] bg-[#cc0000] text-white text-[13px] font-medium hover:bg-[#b91c1c] transition-colors active:scale-95 disabled:opacity-50">
@@ -3208,7 +3220,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
               </p>
               <div className="flex items-center gap-[10px]">
                 <span className={`inline-flex items-center border text-[10.5px] font-medium px-[8px] py-[2.75px] rounded-full ${isSp3Verified ? "bg-slate-100 border-slate-300 text-slate-500" : "bg-[#f0f9ff] border-[#0069a8] text-[#0069a8]"}`}>{isSp3Verified ? "Sudah Diverifikasi" : selectedRow.status || "Submitted SP3"}</span>
-                <button disabled={isSp3Verified} onClick={() => submitAction("approve")} className={`h-[36px] px-[20px] text-[13px] font-bold rounded-[8px] transition-all shadow-sm ${isSp3Verified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700 active:scale-95"}`}>{isSp3Verified ? "✓ Sudah Diverifikasi" : "Verifikasi & Setujui"}</button>
+                <button disabled={isSp3Verified} onClick={() => submitAction("approve")} className={`h-[30px] px-3 text-[11px] font-bold rounded-[9px] transition-all shadow-sm ${isSp3Verified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] text-white hover:brightness-110 active:scale-95"}`}><CheckCircle2 size={12} className="inline mr-1" />{isSp3Verified ? "Sudah Diverifikasi" : "Verifikasi"}</button>
               </div>
             </div>
           </div>
@@ -3217,13 +3229,17 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
             <Sp3DetailView item={selectedRow} showActions={false} />
           </div>
 
-          <div className="flex gap-[10px] justify-end">
-            <label className="h-[36px] px-[16px] border border-[#252271] text-[#252271] text-[13px] font-bold rounded-[8px] hover:bg-[#eef2ff] active:scale-95 transition-all duration-150 flex items-center cursor-pointer">
-              {uploadingSp3 ? "Mengunggah..." : "Unggah Surat SP3 Signed"}
-              <input type="file" accept=".pdf,.doc,.docx" className="hidden" disabled={uploadingSp3} onChange={uploadSp3File} />
-            </label>
-            <button onClick={() => { setActionNote(""); setShowReject(true); }} className="h-[36px] px-[16px] border border-red-300 bg-red-50 text-red-600 text-[13px] font-bold rounded-[8px] hover:bg-red-100 active:scale-95 transition-all duration-150">Tolak</button>
-            <button onClick={() => { setActionNote(""); setShowRevisi(true); }} className="h-[36px] px-[16px] border border-amber-400 bg-amber-50 text-amber-700 text-[13px] font-bold rounded-[8px] hover:bg-amber-100 active:scale-95 transition-all duration-150">Revisi</button>
+          <AdminUploadBar
+            title="Unggah Surat SP3 Signed"
+            description="Surat SP3 Signed akan disimpan sebagai dokumen pengadaan."
+            buttonText={uploadingSp3 ? "Mengunggah..." : "Pilih & Upload SP3 Signed"}
+            accept=".pdf,.doc,.docx"
+            disabled={uploadingSp3}
+            onFileSelected={(file) => uploadSp3File({ target: { files: [file], value: "" } } as any)}
+          />
+          <div className="flex items-center gap-2 justify-end mt-3">
+            <button onClick={() => { setActionNote(""); setShowRevisi(true); }} className="h-[30px] px-3 rounded-[9px] border border-[#8f0505] bg-white text-[#8f0505] text-[11px] font-bold flex items-center gap-1.5"><Edit3 size={12} /> Revisi</button>
+            <button onClick={() => { setActionNote(""); setShowReject(true); }} className="h-[30px] px-3 rounded-[9px] bg-gradient-to-r from-[#a50000] to-[#e00000] text-white text-[11px] font-bold flex items-center gap-1.5"><XCircle size={12} /> Tolak</button>
           </div>
         </div>
 
@@ -3904,15 +3920,17 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
 
           {/* Lampiran Dokumen Section */}
           <div className="mt-[24px] pt-[18px] border-t border-[#f1f5f9]">
-            <div className="flex items-center justify-between mb-[12px]">
+            <div className="mb-[12px]">
               <p className="text-[#252271] text-[12px] font-bold tracking-[0.3px]">Dokumen Lampiran Step Ini</p>
-              <div className="flex flex-wrap justify-end gap-[6px]">
+              <div className="mt-3 space-y-2">
                 {(PBJ_UPLOAD_LABELS[activeStep] || ["Lampiran"]).map((documentType) => (
-                  <label key={documentType} className="bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#252271] text-[11.5px] font-semibold px-[12px] py-[5px] rounded-[8px] flex items-center gap-[6px] cursor-pointer transition-colors border border-[#cbd5e1]">
-                    <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M6 2.5V9.5M2.5 6H9.5" stroke="#252271" strokeLinecap="round" strokeWidth="1.5" /></svg>
-                    Unggah {documentType}
-                    <input type="file" className="hidden" onChange={(event) => handleUploadFile(event, documentType)} />
-                  </label>
+                  <AdminUploadBar
+                    key={documentType}
+                    title={`Unggah ${documentType}`}
+                    description="Lampiran ini akan tersimpan pada step PBJ yang sedang aktif."
+                    buttonText={`Pilih & Upload ${documentType}`}
+                    onFileSelected={(file) => handleUploadFile({ target: { files: [file], value: "" } } as any, documentType)}
+                  />
                 ))}
               </div>
             </div>
@@ -4478,15 +4496,17 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
 
           {/* Lampiran Dokumen Section */}
           <div className="mt-[24px] pt-[18px] border-t border-[#f1f5f9]">
-            <div className="flex items-center justify-between mb-[12px]">
+            <div className="mb-[12px]">
               <p className="text-[#252271] text-[12px] font-bold tracking-[0.3px]">Dokumen Lampiran Step Ini</p>
-              <div className="flex flex-wrap justify-end gap-[6px]">
+              <div className="mt-3 space-y-2">
                 {(CONTRACT_UPLOAD_LABELS[activeStep] || ["Lampiran"]).map((documentType) => (
-                  <label key={documentType} className="bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#252271] text-[11.5px] font-semibold px-[12px] py-[5px] rounded-[8px] flex items-center gap-[6px] cursor-pointer transition-colors border border-[#cbd5e1]">
-                    <svg fill="none" height="12" viewBox="0 0 12 12" width="12"><path d="M6 2.5V9.5M2.5 6H9.5" stroke="#252271" strokeLinecap="round" strokeWidth="1.5" /></svg>
-                    Unggah {documentType}
-                    <input type="file" className="hidden" onChange={(event) => handleUploadFile(event, documentType)} />
-                  </label>
+                  <AdminUploadBar
+                    key={documentType}
+                    title={`Unggah ${documentType}`}
+                    description="Lampiran ini akan tersimpan pada step kontrak yang sedang aktif."
+                    buttonText={`Pilih & Upload ${documentType}`}
+                    onFileSelected={(file) => handleUploadFile({ target: { files: [file], value: "" } } as any, documentType)}
+                  />
                 ))}
               </div>
             </div>
@@ -4782,7 +4802,17 @@ function DetailPengujianPage({ item, isKontrak, onBack, onProcess, onUploadBahp 
         onReject={(note) => { if (onProcess) onProcess("reject", note).catch((error: any) => alert(error?.response?.data?.message || "Pengujian gagal ditolak.")); }}
         onRevisi={(note) => { if (onProcess) onProcess("revisi", note).catch((error: any) => alert(error?.response?.data?.message || "Catatan revisi gagal dikirim.")); }}
       />
-      {!isKontrak && onUploadBahp && <div className="px-6 pb-6 -mt-4 bg-[#f8fafc]"><label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#252271] text-white text-[12px] font-bold cursor-pointer hover:bg-[#1a1860]">Unggah Surat BAHP Signed<input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) onUploadBahp(file).catch((error: any) => alert(error?.response?.data?.message || "Surat BAHP gagal diunggah.")); event.target.value = ""; }} /></label></div>}
+      {!isKontrak && onUploadBahp && (
+        <div className="px-6 pb-6 -mt-4 bg-[#f8fafc]">
+          <AdminUploadBar
+            title="Unggah Surat BAHP Signed"
+            description="Surat BAHP Signed akan tersimpan dan terhubung dengan data pengujian."
+            buttonText="Pilih & Upload BAHP Signed"
+            accept=".pdf,.doc,.docx"
+            onFileSelected={(file) => onUploadBahp(file).catch((error: any) => alert(error?.response?.data?.message || "Surat BAHP gagal diunggah."))}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -5326,6 +5356,7 @@ function DetailPembayaranPage({
 
   // Resolve pengadaanId and verifId once from the row object
   const r = row as any;
+  const isPaymentVerified = ["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(r.status || "").toLowerCase());
   const pengadaanId = r.pengadaan_id || r.pengadaanId || r.id || r.noPembayaran || r.noKontrak || "";
   const existingVerifId = r.verif_id || r.verifId || "";
 
@@ -5475,6 +5506,20 @@ function DetailPembayaranPage({
     }
   };
 
+  const paymentActionButtons = (
+    <div className="flex items-center gap-2">
+      <button type="button" onClick={() => { setActionNote(""); setShowRejectBox(false); setShowRevisiBox(!showRevisiBox); }} className="h-[30px] px-3 rounded-[9px] border border-[#8f0505] bg-white text-[#8f0505] hover:bg-red-50 text-[11px] font-bold flex items-center gap-1.5">
+        <span className="size-[15px] rounded-full border border-current flex items-center justify-center"><Edit3 size={8} /></span> Revisi
+      </button>
+      <button type="button" onClick={() => { setActionNote(""); setShowRevisiBox(false); setShowRejectBox(!showRejectBox); }} className="h-[30px] px-3 rounded-[9px] bg-gradient-to-r from-[#a50000] to-[#e00000] text-white text-[11px] font-bold flex items-center gap-1.5">
+        <XCircle size={12} /> Tolak
+      </button>
+      <button type="button" disabled={isPaymentVerified} onClick={handleApprove} className={`h-[30px] px-3 rounded-[9px] text-[11px] font-bold flex items-center gap-1.5 ${isPaymentVerified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] text-white hover:brightness-110"}`}>
+        <CheckCircle2 size={12} /> {isPaymentVerified ? "Sudah Diverifikasi" : "Verifikasi"}
+      </button>
+    </div>
+  );
+
   if (isUmd) {
     return (
       <div className="flex-1 min-h-0 overflow-auto bg-[#f8fafc] p-[30px]">
@@ -5483,13 +5528,14 @@ function DetailPembayaranPage({
           <div className="flex items-center justify-between border-b border-gray-100 pb-4">
             <div>
               <h1 className="text-[#252271] text-[28px] font-extrabold leading-normal">Verification</h1>
-              <p className="text-[13px] text-gray-500 font-medium">
+              <p onClick={onBack} className="text-[13px] text-gray-500 font-medium cursor-pointer hover:text-[#252271] transition-colors" title="Kembali ke daftar pembayaran">
                 Pembayaran &gt; {breadcrumbFrom} &gt; <span className="font-bold text-[#252271]">Detail</span>
               </p>
             </div>
-            <button onClick={onBack} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-[12px] font-semibold">
-              ← Kembali
-            </button>
+            <div className="flex items-center gap-3">
+              {paymentActionButtons}
+              <button onClick={onBack} className="px-3 h-[30px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[9px] text-[11px] font-semibold">← Kembali</button>
+            </div>
           </div>
 
           {/* Submission Form */}
@@ -5665,8 +5711,8 @@ function DetailPembayaranPage({
             </div>
           </div>
 
-          {/* Action Buttons UMD */}
-          <div className="flex items-center justify-between pt-4 border-t border-gray-200 mt-6">
+          {/* Actions are rendered in the header for consistency. */}
+          <div className="hidden">
             <button
               type="button"
               onClick={onBack}
@@ -5678,23 +5724,24 @@ function DetailPembayaranPage({
               <button
                 type="button"
                 onClick={() => { setActionNote(""); setShowRejectBox(false); setShowRevisiBox(!showRevisiBox); }}
-                className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition-colors cursor-pointer"
+                className="h-[30px] px-3 rounded-[9px] border border-[#8f0505] bg-white text-[#8f0505] hover:bg-red-50 text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                Minta Revisi
+                <span className="size-[15px] rounded-full border border-current flex items-center justify-center"><Edit3 size={8} /></span> Revisi
               </button>
               <button
                 type="button"
                 onClick={() => { setActionNote(""); setShowRevisiBox(false); setShowRejectBox(!showRejectBox); }}
-                className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors cursor-pointer"
+                className="h-[30px] px-3 rounded-[9px] bg-gradient-to-r from-[#a50000] to-[#e00000] text-white hover:brightness-110 text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer"
               >
-                Tolak UMD
+                <XCircle size={12} /> Tolak
               </button>
               <button
                 type="button"
+                disabled={isPaymentVerified}
                 onClick={handleApprove}
-                className="px-6 py-2.5 rounded-xl text-[12.5px] font-extrabold bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center gap-2"
+                className={`h-[30px] px-3 rounded-[9px] text-[11px] font-bold shadow-sm transition-all flex items-center gap-1.5 ${isPaymentVerified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] hover:brightness-110 text-white active:scale-95 cursor-pointer"}`}
               >
-                ✓ Setujui UMD (Approve)
+                <CheckCircle2 size={12} /> {isPaymentVerified ? "Sudah Diverifikasi" : "Verifikasi"}
               </button>
             </div>
           </div>
@@ -5762,13 +5809,14 @@ function DetailPembayaranPage({
         <div className="flex items-center justify-between border-b border-gray-100 pb-4">
           <div>
             <h1 className="text-[#252271] text-[28px] font-extrabold leading-normal">Verification</h1>
-            <p className="text-[13px] text-gray-500 font-medium">
+            <p onClick={onBack} className="text-[13px] text-gray-500 font-medium cursor-pointer hover:text-[#252271] transition-colors" title="Kembali ke daftar pembayaran">
               Pembayaran &gt; {breadcrumbFrom} &gt; <span className="font-bold text-[#252271]">Detail</span>
             </p>
           </div>
-          <button onClick={onBack} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-[12px] font-semibold">
-            ← Kembali
-          </button>
+          <div className="flex items-center gap-3">
+            {paymentActionButtons}
+            <button onClick={onBack} className="px-3 h-[30px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[9px] text-[11px] font-semibold">← Kembali</button>
+          </div>
         </div>
 
         {/* Finance Verification Form */}
@@ -5904,8 +5952,8 @@ function DetailPembayaranPage({
           </div>
         </div>
 
-        {/* Action Buttons Pembayaran */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-200 mt-6">
+        {/* Actions are rendered in the header for consistency. */}
+        <div className="hidden">
           <button
             type="button"
             onClick={onBack}
@@ -5917,23 +5965,24 @@ function DetailPembayaranPage({
             <button
               type="button"
               onClick={() => { setActionNote(""); setShowRejectBox(false); setShowRevisiBox(!showRevisiBox); }}
-              className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition-colors cursor-pointer"
+              className="h-[30px] px-3 rounded-[9px] border border-[#8f0505] bg-white text-[#8f0505] hover:bg-red-50 text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              Minta Revisi
+              <span className="size-[15px] rounded-full border border-current flex items-center justify-center"><Edit3 size={8} /></span> Revisi
             </button>
             <button
               type="button"
               onClick={() => { setActionNote(""); setShowRevisiBox(false); setShowRejectBox(!showRejectBox); }}
-              className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors cursor-pointer"
+              className="h-[30px] px-3 rounded-[9px] bg-gradient-to-r from-[#a50000] to-[#e00000] text-white hover:brightness-110 text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer"
             >
-              Tolak Pembayaran
+              <XCircle size={12} /> Tolak
             </button>
             <button
               type="button"
+              disabled={isPaymentVerified}
               onClick={handleApprove}
-              className="px-6 py-2.5 rounded-xl text-[12.5px] font-extrabold bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center gap-2"
+              className={`h-[30px] px-3 rounded-[9px] text-[11px] font-bold shadow-sm transition-all flex items-center gap-1.5 ${isPaymentVerified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] hover:brightness-110 text-white active:scale-95 cursor-pointer"}`}
             >
-              ✓ Setujui &amp; Verifikasi Pembayaran (Approve)
+              <CheckCircle2 size={12} /> {isPaymentVerified ? "Sudah Diverifikasi" : "Verifikasi"}
             </button>
           </div>
         </div>
@@ -6143,13 +6192,7 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
 
   // Route other items to placeholder or NPP
   if (subDoc !== "npp") {
-    const labels: Record<string, string> = {
-      "jaminan-pelaksanaan": "Jaminan Pelaksanaan", "warehouse": "Warehouse",
-      "vendor-management": "Vendor Management", "harga-satuan": "Harga Satuan",
-      "adendum-kontrak": "Adendum Kontrak", "evaluasi-vendor": "Evaluasi Vendor",
-      "tkdn": "TKDN", "monitoring-kpi": "Monitoring KPI", "monitoring-mppl": "Monitoring MPPL",
-    };
-    return <PengadaanSubDocPage title={labels[subDoc] ?? subDoc} />;
+    return <FeatureUnavailablePage />;
   }
 
   const docLabel = "NPP";
@@ -6499,10 +6542,23 @@ function AccessDeniedMessage() {
   );
 }
 
+function FeatureUnavailablePage() {
+  return (
+    <div className="flex-1 min-h-0 overflow-auto bg-white flex items-start justify-center px-6 py-8">
+      <img
+        src={featureUnavailableImage}
+        alt="Fitur belum tersedia"
+        className="w-full max-w-[451px] h-auto"
+      />
+    </div>
+  );
+}
+
 // ─── Root App ──────────────────────────────────────────────────────────────────
 export function AdminApp() {
   const { hasPermission, currentRole } = useAuth();
   const [page, setPage] = useState<Page>("dashboard");
+  const [previousPage, setPreviousPage] = useState<Page>("dashboard");
   const [modal, setModal] = useState<Modal>(null);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [verifCategory, setVerifCategory] = useState<VerifCategory>("pengajuan-dana");
@@ -6546,6 +6602,7 @@ export function AdminApp() {
 
   function handleNavigate(p: Page) {
     if (!canOpenPage(p)) return;
+    if (p !== page) setPreviousPage(page);
     setPage(p);
     setModal(null);
   }
@@ -6583,6 +6640,30 @@ export function AdminApp() {
 
       {/* Main content */}
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        {page !== "dashboard" && (
+          <div className="h-9 shrink-0 px-5 border-b border-slate-100 bg-white flex items-center text-[11.5px] text-slate-400">
+            <button
+              type="button"
+              onClick={() => handleNavigate(canOpenPage(previousPage) ? previousPage : "dashboard")}
+              className="inline-flex items-center gap-1.5 hover:text-[#252271] transition-colors font-medium"
+              title="Kembali ke halaman sebelumnya"
+            >
+              <span className="text-[15px]">‹</span>
+              Admin
+            </button>
+            <span className="mx-2">›</span>
+            <span className="font-bold text-[#252271]">
+              {{
+                "manajemen-user": "Manajemen User",
+                "manajemen-role": "Manajemen Role",
+                "tambah-role": "Tambah Role",
+                "verifikasi": "Verifikasi",
+                "template-dokumen": "Template Dokumen",
+                "master-data": "Master Data",
+              }[page]}
+            </span>
+          </div>
+        )}
         {page === "dashboard" && (hasPermission("dashboard", "viewer") ? <AdminDashboardScreen /> : <AccessDeniedMessage />)}
         {page === "manajemen-user" && (hasPermission("userManagement", "viewer") ? <UserManagementScreen /> : <AccessDeniedMessage />)}
         {page === "manajemen-role" && (hasPermission("roleManagement", "viewer") ? <RoleManagementScreen /> : <AccessDeniedMessage />)}

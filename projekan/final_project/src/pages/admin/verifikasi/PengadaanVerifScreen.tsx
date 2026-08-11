@@ -779,7 +779,9 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                     Batal
                   </button>
                   <button
+                    disabled={["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(showDetail.item.status || "").toLowerCase())}
                     onClick={async () => {
+                      if (["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(showDetail.item.status || "").toLowerCase())) return;
                       if (!revisionNote.trim()) { alert("Harap isi catatan revisi."); return; }
                       if (showDetail.item.verif_id) {
                         try {
@@ -820,9 +822,9 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
               <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
                 <button
                   onClick={() => setShowRevisionBox(!showRevisionBox)}
-                  className="bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 px-3.5 py-2 rounded-xl text-[11.5px] font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                  className="h-[30px] bg-white text-[#8f0505] border border-[#8f0505] hover:bg-red-50 px-3 rounded-[9px] text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all"
                 >
-                  <FileWarning size={13} />
+                  <span className="size-[15px] rounded-full border border-current flex items-center justify-center"><FileWarning size={8} /></span>
                   Revisi
                 </button>
 
@@ -838,10 +840,10 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                       alert(`${showDetail.type.toUpperCase()} berhasil diverifikasi & disetujui!`);
                       setShowDetail(null);
                     }}
-                    className="bg-gradient-to-r from-[#16a34a] to-[#15803d] text-white px-4 py-2 rounded-xl text-[11.5px] font-bold hover:brightness-110 flex items-center gap-1.5 shadow-sm cursor-pointer transition-all"
+                    className={`h-[30px] px-3 rounded-[9px] text-[11px] font-bold flex items-center gap-1.5 shadow-sm transition-all ${["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(showDetail.item.status || "").toLowerCase()) ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] text-white hover:brightness-110 cursor-pointer"}`}
                   >
                     <CheckCircle2 size={13} />
-                    Verifikasi &amp; Setujui
+                    {["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(showDetail.item.status || "").toLowerCase()) ? "Sudah Diverifikasi" : "Verifikasi"}
                   </button>
                 </div>
               </div>

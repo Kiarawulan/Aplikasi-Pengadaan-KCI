@@ -52,6 +52,7 @@ export const NppDetailView: React.FC<NppDetailViewProps> = ({
       onRevisi={onRevisi}
       onReject={onReject}
       showActions={showActions}
+      adminActions
     />
   );
 };

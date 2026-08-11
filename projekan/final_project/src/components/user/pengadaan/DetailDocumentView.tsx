@@ -35,6 +35,7 @@ export interface DetailDocumentViewProps {
   onRevisi?: (note?: string) => void;
   onReject?: (note?: string) => void;
   showActions?: boolean;
+  adminActions?: boolean;
   extraTabs?: React.ReactNode;
   pengadaanId?: string;
 }
@@ -52,6 +53,7 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
   onRevisi,
   onReject,
   showActions = true,
+  adminActions = false,
   extraTabs,
   pengadaanId,
 }) => {
@@ -59,6 +61,7 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
   const [revisionNote, setRevisionNote] = useState("");
   const [showRejectBox, setShowRejectBox] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
+  const isVerified = ["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(status).toLowerCase());
 
   const actualTracking: DetailDocumentTracking[] = tracking;
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
@@ -133,9 +136,11 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
             <button
               type="button"
               onClick={() => { setShowRevisionBox(!showRevisionBox); setShowRejectBox(false); }}
-              className="px-3 py-1 rounded-lg border border-amber-500 bg-amber-50/60 text-[#d97706] hover:bg-amber-100 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+              className={adminActions
+                ? "h-[30px] px-3 rounded-[9px] border border-[#8f0505] bg-white text-[#8f0505] hover:bg-red-50 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                : "px-3 py-1 rounded-lg border border-amber-500 bg-amber-50/60 text-[#d97706] hover:bg-amber-100 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"}
             >
-              <Edit3 size={12} />
+              {adminActions ? <span className="size-[15px] rounded-full border border-current flex items-center justify-center"><Edit3 size={8} /></span> : <Edit3 size={12} />}
               Revisi
             </button>
 
@@ -144,7 +149,9 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
               <button
                 type="button"
                 onClick={() => { setShowRejectBox(!showRejectBox); setShowRevisionBox(false); }}
-                className="px-3 py-1 rounded-lg border border-red-300 bg-red-50 text-[#dc2626] hover:bg-red-100 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                className={adminActions
+                  ? "h-[30px] px-3 rounded-[9px] bg-gradient-to-r from-[#a50000] to-[#e00000] text-white hover:brightness-110 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  : "px-3 py-1 rounded-lg border border-red-300 bg-red-50 text-[#dc2626] hover:bg-red-100 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"}
               >
                 <X size={12} />
                 Tolak
@@ -154,11 +161,14 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
             {/* Approve Button */}
             <button
               type="button"
-              onClick={onApprove}
-              className="px-3.5 py-1 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-[11px] font-bold flex items-center gap-1 shadow-sm transition-all cursor-pointer active:scale-95"
+              disabled={isVerified}
+              onClick={() => !isVerified && onApprove?.()}
+              className={adminActions
+                ? `h-[30px] px-3 rounded-[9px] text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all ${isVerified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] hover:brightness-110 text-white cursor-pointer active:scale-95"}`
+                : `px-3.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-sm transition-all ${isVerified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-[#16a34a] hover:bg-[#15803d] text-white cursor-pointer active:scale-95"}`}
             >
               <Check size={13} />
-              Verifikasi &amp; Setujui
+              {isVerified ? "Sudah Diverifikasi" : adminActions ? "Verifikasi" : "Verifikasi & Setujui"}
             </button>
           </div>
         )}

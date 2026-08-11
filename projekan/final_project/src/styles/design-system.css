@@ -70,3 +70,119 @@ main > *:nth-child(4) { animation-delay: 120ms; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+/* Global typography consistency for every user/admin surface. */
+html,
+body,
+#root,
+button,
+input,
+select,
+textarea,
+table,
+th,
+td,
+label,
+svg text {
+  font-family: "Inter", Arial, sans-serif !important;
+}
+
+/* CRUD controls follow the compact icon-button pattern used in the user menu. */
+button[title="Lihat"],
+button[title="View"],
+button[title="Detail"],
+button[title="Buka Detail"],
+button[title="Lihat Detail"] {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #eff6ff !important;
+  color: #2563eb !important;
+  border: 0 !important;
+}
+
+button[title^="Lihat "] {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #eff6ff !important;
+  color: #2563eb !important;
+  border: 0 !important;
+}
+
+button[title="Edit"],
+button[title="Ubah"],
+button[title="Edit PR"],
+button[title="Edit & Kirim Revisi"] {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #fffbeb !important;
+  color: #d97706 !important;
+  border: 0 !important;
+}
+
+button[title^="Edit "] {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #fffbeb !important;
+  color: #d97706 !important;
+  border: 0 !important;
+}
+
+button[title="Hapus"],
+button[title="Delete"] {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #fef2f2 !important;
+  color: #ef4444 !important;
+  border: 0 !important;
+}
+
+button[title^="Hapus "] {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #fef2f2 !important;
+  color: #ef4444 !important;
+  border: 0 !important;
+}
+
+button[title="Lihat"]:hover,
+button[title="View"]:hover,
+button[title="Detail"]:hover,
+button[title="Buka Detail"]:hover,
+button[title="Lihat Detail"]:hover { background: #dbeafe !important; }
+
+button[title="Edit"]:hover,
+button[title="Ubah"]:hover,
+button[title="Edit PR"]:hover,
+button[title="Edit & Kirim Revisi"]:hover { background: #fef3c7 !important; }
+
+button[title="Hapus"]:hover,
+button[title="Delete"]:hover { background: #fee2e2 !important; }

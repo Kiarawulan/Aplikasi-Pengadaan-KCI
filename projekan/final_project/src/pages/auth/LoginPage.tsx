@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/store/authStore";
-
-
 import logoImg from "@/imports/UserDashboard/a1d658a5f37b0b6b958626283ef2524233d0a35d.png";
+import trainImg from "@/assets/kereta.svg";
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -13,12 +12,15 @@ export function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
+      const result = await login(email, password);
+      if (!result.success) {
+        setError(result.error || "Email atau password salah.");
+      }
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || "Email atau password salah");
     } finally {
@@ -27,91 +29,94 @@ export function LoginPage() {
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
-      style={{
-        background: "linear-gradient(135deg, #1b1959 0%, #252271 50%, #4a1525 100%)",
-        fontFamily: "'Inter', sans-serif",
-      }}
-    >
-      {/* Ambient background decoration */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#e6251c]/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-[#252271]/40 rounded-full blur-3xl pointer-events-none" />
-
-      {/* Centered Login Card */}
-      <div className="w-full max-w-[420px] bg-white p-8 rounded-2xl shadow-xl border border-gray-100/80 relative z-10">
-        {/* Brand Header / Logo */}
-        <div className="flex items-center justify-center gap-3 mb-6">
-
-          <div>
-            <img src={logoImg} alt="Logo KCI" className="h-[76px] w-auto object-contain transition-transform duration-200 hover:scale-105" />
+    <div className="min-h-screen bg-white flex overflow-hidden font-['Inter',sans-serif]">
+      <section className="w-full lg:w-[40%] min-h-screen flex items-center justify-center px-8 sm:px-14 lg:px-[4.6vw]">
+        <div className="w-full max-w-[406px]">
+          <div className="mb-11">
+            <h1 className="text-[#252271] font-extrabold text-[36px] leading-[42px] tracking-[-1.2px]">Selamat Datang</h1>
+            <p className="text-[#7d8494] text-[14px] mt-0.5">Login akun anda untuk melanjutkan</p>
           </div>
-        </div>
 
-
-        <div className="text-center mb-6">
-          <h1 className="text-[#252271] font-black text-[24px] leading-tight mb-1">Selamat Datang</h1>
-          <p className="text-gray-400 text-[13px]">Masuk ke akun Anda untuk melanjutkan</p>
-        </div>
-
-        <div className="mb-5 rounded-xl border border-[#252271]/10 bg-[#252271]/5 p-3 text-center">
-          <p className="text-[11px] font-semibold text-[#252271]">Kalau mau ngetes</p>
-          <p className="mt-1 text-[10.5px] text-[#252271]/60">admin@sipro.com     /admin123</p>
-          <p className="mt-1 text-[10.5px] text-[#252271]/60">it@sipro.com     /it123</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-[12px] font-semibold text-gray-700 mb-1.5">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="email@perusahaan.com"
-              required
-              className="w-full h-11 px-4 rounded-xl border borderz-gray-200 bg-white text-[13px] text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition-all"
-              style={{ "--tw-ring-color": "#e6251c40" } as React.CSSProperties}
-            />
-          </div>
-          <div>
-            <label className="block text-[12px] font-semibold text-gray-700 mb-1.5">Password</label>
-            <div className="relative">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[12px] font-semibold text-[#252271] mb-1.5">Email</label>
               <input
-                type={showPw ? "text" : "password"}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
+                type="email"
+                value={email}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  if (error) setError("");
+                }}
+                placeholder="email@perusahaan.com"
                 required
-                className="w-full h-11 px-4 pr-11 rounded-xl border border-gray-200 bg-white text-[13px] text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition-all"
+                className="w-full h-[46px] px-4 rounded-[15px] border border-[#d0d4dc] bg-white text-[13px] text-gray-800 placeholder-[#c4c7ce] focus:outline-none focus:border-[#252271] transition-colors"
               />
-              <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
             </div>
-          </div>
 
-          {error && (
-            <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-[12px] text-red-600 text-center">
-              {error}
+            <div>
+              <label className="block text-[12px] font-semibold text-[#252271] mb-1.5">Password</label>
+              <div className="relative">
+                <input
+                  type={showPw ? "text" : "password"}
+                  value={password}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    if (error) setError("");
+                  }}
+                  placeholder="••••••"
+                  required
+                  className="w-full h-[46px] px-4 pr-11 rounded-[15px] border border-[#d0d4dc] bg-white text-[13px] text-gray-800 placeholder-[#b9bdc5] focus:outline-none focus:border-[#252271] transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((visible) => !visible)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#aeb3bd] hover:text-[#252271]"
+                  aria-label={showPw ? "Sembunyikan password" : "Tampilkan password"}
+                >
+                  {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full h-11 rounded-xl text-white font-semibold text-[13px] transition-all disabled:opacity-60 flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.99]"
-            style={{ background: "linear-gradient(75deg, #e6251c, #ff7676)" }}
-          >
-            {loading ? (
-              <>
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Memverifikasi...
-              </>
-            ) : "Masuk →"}
-          </button>
-        </form>
+            {error && (
+              <div role="alert" aria-live="assertive" className="flex items-start gap-2 rounded-[10px] bg-red-50 border border-red-200 px-3 py-2.5 text-[12px] text-red-700">
+                <AlertCircle size={16} className="mt-px shrink-0" aria-hidden="true" />
+                <span>{error}</span>
+              </div>
+            )}
 
-      </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-[46px] !mt-10 rounded-[14px] text-white font-bold text-[14px] transition-all disabled:opacity-60 flex items-center justify-center gap-2 shadow-sm hover:brightness-110 active:scale-[0.99]"
+              style={{ background: "linear-gradient(90deg, #a90000 0%, #ea0000 100%)" }}
+            >
+              {loading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Memverifikasi...
+                </>
+              ) : "Masuk"}
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section className="hidden lg:block relative w-[60%] h-[calc(100vh-28px)] my-[14px] mr-[16px] rounded-[28px] overflow-hidden bg-gradient-to-br from-[#2b287d] via-[#17145e] to-[#09064f]">
+        <img src={logoImg} alt="KAI Commuter" className="absolute z-10 top-8 left-12 w-[190px] h-auto object-contain" />
+
+        <img
+          src={trainImg}
+          alt=""
+          aria-hidden="true"
+          className="absolute right-[-32%] top-[-8%] w-[100%] h-[120%] object-contain object-top opacity-10"
+        />
+
+        <div className="absolute z-10 left-12 bottom-12 max-w-[360px] text-white">
+          <h2 className="text-[36px] leading-[44px] font-extrabold tracking-[-1.2px]">Aplikasi Pengadaan<br />Kereta Commuter<br />Indonesia</h2>
+          <p className="mt-7 text-[12px] text-white/70">Copyright © 2026 PT. Kereta Commuter Indonesia.</p>
+        </div>
+      </section>
     </div>
   );
 }

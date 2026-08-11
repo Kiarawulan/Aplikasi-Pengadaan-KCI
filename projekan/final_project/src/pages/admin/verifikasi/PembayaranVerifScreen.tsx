@@ -50,6 +50,7 @@ function FinanceVerifModal({
   const docsList = tipe === "non-outsource"
     ? SYARAT_DOCS.filter(d => d !== "SPP PPT 3 Bulan")
     : SYARAT_DOCS;
+  const isFinanceVerified = ["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(item.status || "").toLowerCase());
 
   const [syarat, setSyarat] = useState(docsList.map(d => ({ doc: d, syarat: false, ada: false, ket: "" })));
   const [syaratLain, setSyaratLain] = useState<{ doc: string; syarat: boolean; ada: boolean; ket: string }[]>([]);
@@ -348,21 +349,22 @@ function FinanceVerifModal({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { onClose(); onAction("revisi", item); }}
-                className="px-3.5 py-2 rounded-xl text-[12px] font-semibold bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-1.5 shadow-sm cursor-pointer"
+                className="h-[30px] px-3 rounded-[9px] border border-[#8f0505] bg-white text-[#8f0505] hover:bg-red-50 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
               >
-                <FileWarning size={14} /> Minta Revisi
+                <span className="size-[15px] rounded-full border border-current flex items-center justify-center"><FileWarning size={8} /></span> Revisi
               </button>
               <button
                 onClick={() => { onClose(); onAction("reject", item); }}
-                className="px-3.5 py-2 rounded-xl text-[12px] font-semibold bg-red-600 text-white hover:bg-red-700 flex items-center gap-1.5 shadow-sm cursor-pointer"
+                className="h-[30px] px-3 rounded-[9px] bg-gradient-to-r from-[#a50000] to-[#e00000] text-white hover:brightness-110 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
               >
-                <XCircle size={14} /> Tolak Pembayaran
+                <XCircle size={12} /> Tolak
               </button>
               <button
-                onClick={() => { onClose(); onAction("approve", item); }}
-                className="px-5 py-2 rounded-xl text-[12px] font-bold bg-[#16a34a] hover:bg-[#15803d] text-white flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
+                disabled={isFinanceVerified}
+                onClick={() => { if (!isFinanceVerified) { onClose(); onAction("approve", item); } }}
+                className={`h-[30px] px-3 rounded-[9px] text-[11px] font-bold flex items-center gap-1.5 shadow-sm ${isFinanceVerified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] hover:brightness-110 text-white active:scale-95 cursor-pointer"}`}
               >
-                <CheckCircle2 size={15} /> Setujui &amp; Verifikasi (Approve)
+                <CheckCircle2 size={12} /> {isFinanceVerified ? "Sudah Diverifikasi" : "Verifikasi"}
               </button>
             </div>
           )}
@@ -436,6 +438,7 @@ function UmdSubmissionModal({
   );
 
   const status = item.status || "pending";
+  const isUmdVerified = ["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(status).toLowerCase());
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -633,21 +636,22 @@ function UmdSubmissionModal({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { onClose(); onAction("revisi", item); }}
-                className="px-3.5 py-2 rounded-xl text-[12px] font-semibold bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-1.5 shadow-sm cursor-pointer"
+                className="h-[30px] px-3 rounded-[9px] border border-[#8f0505] bg-white text-[#8f0505] hover:bg-red-50 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
               >
-                <FileWarning size={14} /> Minta Revisi
+                <span className="size-[15px] rounded-full border border-current flex items-center justify-center"><FileWarning size={8} /></span> Revisi
               </button>
               <button
                 onClick={() => { onClose(); onAction("reject", item); }}
-                className="px-3.5 py-2 rounded-xl text-[12px] font-semibold bg-red-600 text-white hover:bg-red-700 flex items-center gap-1.5 shadow-sm cursor-pointer"
+                className="h-[30px] px-3 rounded-[9px] bg-gradient-to-r from-[#a50000] to-[#e00000] text-white hover:brightness-110 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
               >
-                <XCircle size={14} /> Tolak UMD
+                <XCircle size={12} /> Tolak
               </button>
               <button
-                onClick={() => { onClose(); onAction("approve", item); }}
-                className="px-5 py-2 rounded-xl text-[12px] font-bold bg-[#16a34a] hover:bg-[#15803d] text-white flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
+                disabled={isUmdVerified}
+                onClick={() => { if (!isUmdVerified) { onClose(); onAction("approve", item); } }}
+                className={`h-[30px] px-3 rounded-[9px] text-[11px] font-bold flex items-center gap-1.5 shadow-sm ${isUmdVerified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] hover:brightness-110 text-white active:scale-95 cursor-pointer"}`}
               >
-                <CheckCircle2 size={15} /> Setujui UMD (Approve)
+                <CheckCircle2 size={12} /> {isUmdVerified ? "Sudah Diverifikasi" : "Verifikasi"}
               </button>
             </div>
           )}

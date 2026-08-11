@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Check, Edit3, X, FileText, Download } from 'lucide-react';
+import { ArrowLeft, Edit3, FileText, Download } from 'lucide-react';
 
 export interface DetailDocumentField {
   label: string;
@@ -80,20 +80,14 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
 
         {/* Header Right Action Buttons & Status Badge */}
         {showActions && (
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Status Badge */}
-            <span className="px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-[#b45309] text-[11.5px] font-semibold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              {status}
-            </span>
-
+          <div className="flex flex-wrap items-center gap-3">
             {/* Revisi Button */}
             <button
               type="button"
               onClick={() => setShowRevisionBox(!showRevisionBox)}
-              className="px-3.5 py-1.5 rounded-lg border border-amber-500 bg-amber-50/60 text-[#d97706] hover:bg-amber-100 text-[12px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="h-[30px] px-3 rounded-[9px] border border-[#8f0505] bg-white text-[#8f0505] hover:bg-red-50 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
-              <Edit3 size={14} />
+              <span className="size-[15px] rounded-full border border-current flex items-center justify-center"><Edit3 size={8} /></span>
               Revisi
             </button>
 
@@ -102,9 +96,9 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
               <button
                 type="button"
                 onClick={onReject}
-                className="px-3.5 py-1.5 rounded-lg border border-red-300 bg-red-50 text-[#dc2626] hover:bg-red-100 text-[12px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="h-[30px] px-3 rounded-[9px] bg-gradient-to-r from-[#a50000] to-[#e00000] text-white hover:brightness-110 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
-                <X size={14} />
+                <span className="text-[14px] leading-none">×</span>
                 Tolak
               </button>
             )}
@@ -114,11 +108,17 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
               type="button"
               disabled={isVerified}
               onClick={onApprove}
-              className={`px-4 py-1.5 rounded-lg text-[12px] font-bold flex items-center gap-1.5 shadow-sm transition-all ${isVerified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-[#16a34a] hover:bg-[#15803d] text-white cursor-pointer active:scale-95"}`}
+              className={`h-[30px] px-3 rounded-[9px] text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all ${isVerified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] hover:brightness-110 text-white cursor-pointer active:scale-95"}`}
             >
-              <Check size={15} />
-              {isVerified ? "Sudah Diverifikasi" : "Verifikasi & Setujui"}
+              <span>✓</span>
+              {isVerified ? "Sudah Diverifikasi" : "Verifikasi"}
             </button>
+
+            {/* Status Badge */}
+            <span className="px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-[#b45309] text-[11.5px] font-semibold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              {status}
+            </span>
           </div>
         )}
       </div>

@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
 import { FileText } from "lucide-react";
 import { api } from "@/services/api";
+import { AdminUploadBar } from "@/components/admin/shared/AdminUploadBar";
 
-export function FileUploadInput({ label, required = false, value, onChange, pengadaanId, stage }: {
-  label: string; required?: boolean; value: string; onChange: (v: string) => void; pengadaanId?: string; stage?: string;
+export function FileUploadInput({ label, required = false, value, onChange, pengadaanId, stage, adminStyle = false }: {
+  label: string; required?: boolean; value: string; onChange: (v: string) => void; pengadaanId?: string; stage?: string; adminStyle?: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -28,6 +29,19 @@ export function FileUploadInput({ label, required = false, value, onChange, peng
       setUploading(false);
     }
   };
+
+  if (adminStyle) {
+    return (
+      <AdminUploadBar
+        title={label}
+        description="Berkas yang diunggah admin akan tersimpan pada dokumen pengadaan ini."
+        buttonText={uploading ? "Mengunggah..." : value ? "Ganti & Upload Berkas" : "Pilih & Upload Berkas"}
+        selectedFileName={value}
+        disabled={uploading}
+        onFileSelected={upload}
+      />
+    );
+  }
 
   return (
     <div data-required={required} data-label={label} data-value={value || ""} tabIndex={required ? -1 : undefined}>

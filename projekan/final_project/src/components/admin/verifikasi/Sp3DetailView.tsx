@@ -257,6 +257,7 @@ export const Sp3DetailView: React.FC<Sp3DetailViewProps> = ({
       onRevisi={onRevisi}
       onReject={onReject}
       showActions={showActions}
+      adminActions
     />
   );
 };

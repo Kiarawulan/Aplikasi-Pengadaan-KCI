@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, ChevronDown, Check, X, AlertCircle, Eye, Pencil, Trash2, Plus, Download, Filter } from "lucide-react";
+import { Search, ChevronDown, Check, X, AlertCircle, Eye, Pencil, Trash2, Plus, Download, Filter, CheckCircle2, XCircle } from "lucide-react";
 import type { VerifStatus } from "../../types";
 
 interface Column<T> {
@@ -270,21 +270,24 @@ export function VerifTable<T extends { id: string }>({
                             <Trash2 size={11} className="text-red-500" />
                           </button>
                         )}
-                        {showVerifActions && onApprove && (
-                          <button onClick={() => onApprove(row)} className="flex items-center gap-1 px-2 h-6 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors text-[10.5px] font-medium">
-                            <Check size={10} /> Setujui
-                          </button>
-                        )}
                         {showVerifActions && onRevisi && (
-                          <button onClick={() => onRevisi(row)} className="flex items-center gap-1 px-2 h-6 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors text-[10.5px] font-medium">
-                            <AlertCircle size={10} /> Revisi
+                          <button onClick={() => onRevisi(row)} className="flex items-center gap-1.5 px-2 h-[26px] rounded-[8px] border border-[#8f0505] bg-white text-[#8f0505] hover:bg-red-50 transition-colors text-[10.5px] font-bold">
+                            <span className="size-[14px] rounded-full border border-current flex items-center justify-center"><Pencil size={8} /></span> Revisi
                           </button>
                         )}
                         {showVerifActions && onReject && (
-                          <button onClick={() => onReject(row)} className="flex items-center gap-1 px-2 h-6 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-[10.5px] font-medium">
-                            <X size={10} /> Tolak
+                          <button onClick={() => onReject(row)} className="flex items-center gap-1.5 px-2 h-[26px] rounded-[8px] bg-gradient-to-r from-[#a50000] to-[#e00000] text-white hover:brightness-110 transition-all text-[10.5px] font-bold">
+                            <XCircle size={13} /> Tolak
                           </button>
                         )}
+                        {showVerifActions && onApprove && (() => {
+                          const verified = ["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String((row as any)?.status || "").toLowerCase());
+                          return (
+                          <button disabled={verified} onClick={() => !verified && onApprove(row)} className={`flex items-center gap-1.5 px-2 h-[26px] rounded-[8px] transition-all text-[10.5px] font-bold ${verified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] text-white hover:brightness-110"}`}>
+                            <CheckCircle2 size={13} /> Verifikasi
+                          </button>
+                          );
+                        })()}
                       </div>
                     </td>
                   )}

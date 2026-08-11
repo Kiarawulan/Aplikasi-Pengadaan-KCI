@@ -356,18 +356,19 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
                     stage="bahp-signed"
                     value={bahpFileName}
                     onChange={(v) => setBahpFileName(v)}
+                    adminStyle
                   />
                 </div>
 
                 <div className="pt-3 border-t border-gray-100 flex gap-2 justify-end">
-                  <button onClick={() => setConfirmDialog({ type: "verifikasi", text: "Verifikasi Pengujian Disetujui?", show: true })} className="bg-green-600 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1">
-                    <CheckCircle2 size={12} /> Verifikasi
+                  <button disabled={["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(showReviewDetail.status || "").toLowerCase())} onClick={() => setConfirmDialog({ type: "verifikasi", text: "Verifikasi Pengujian Disetujui?", show: true })} className={`h-[30px] text-[11px] font-bold px-3 rounded-[9px] flex items-center gap-1.5 ${["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(showReviewDetail.status || "").toLowerCase()) ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] text-white"}`}>
+                    <CheckCircle2 size={12} /> {["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(showReviewDetail.status || "").toLowerCase()) ? "Sudah Diverifikasi" : "Verifikasi"}
                   </button>
-                  <button onClick={() => setConfirmDialog({ type: "kelengkapan", text: "Tambah Catatan Kelengkapan?", show: true })} className="bg-purple-600 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1">
-                    <FileWarning size={12} /> Request Catatan
+                  <button onClick={() => setConfirmDialog({ type: "kelengkapan", text: "Tambah Catatan Kelengkapan?", show: true })} className="h-[30px] bg-white border border-[#8f0505] text-[#8f0505] text-[11px] font-bold px-3 rounded-[9px] flex items-center gap-1.5">
+                    <span className="size-[15px] rounded-full border border-current flex items-center justify-center"><FileWarning size={8} /></span> Revisi
                   </button>
-                  <button onClick={() => setConfirmDialog({ type: "reject", text: "Tolak Pengujian?", show: true })} className="bg-red-600 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1">
-                    <XCircle size={12} /> Reject
+                  <button onClick={() => setConfirmDialog({ type: "reject", text: "Tolak Pengujian?", show: true })} className="h-[30px] bg-gradient-to-r from-[#a50000] to-[#e00000] text-white text-[11px] font-bold px-3 rounded-[9px] flex items-center gap-1.5">
+                    <XCircle size={12} /> Tolak
                   </button>
                 </div>
               </div>

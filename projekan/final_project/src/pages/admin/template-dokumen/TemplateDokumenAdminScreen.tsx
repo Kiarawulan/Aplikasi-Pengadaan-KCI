@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Upload, Download, FileText, Trash2, Edit3, Eye, Plus, Search, X } from "lucide-react";
 import { AdminTopBar } from "@/components/admin/layout/AdminTopBar";
+import { AdminUploadBar } from "@/components/admin/shared/AdminUploadBar";
 import { useAuth } from "@/store/authStore";
 import { api } from "@/services/api";
 
@@ -145,7 +146,7 @@ function TemplateModal({ title, initial, onSave, onClose }: {
           {/* Upload area */}
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-[#252271]/50 hover:bg-gray-50/50 transition-all cursor-pointer group"
+            className="hidden"
           >
             {selectedFile ? (
               <div className="flex items-center justify-between bg-blue-50/80 border border-blue-200/80 rounded-xl p-3 text-left">
@@ -177,6 +178,15 @@ function TemplateModal({ title, initial, onSave, onClose }: {
               </>
             )}
           </div>
+
+          <AdminUploadBar
+            title="Unggah File Template"
+            description="File template dapat berupa DOCX, PDF, XLSX, atau PPTX dengan ukuran maksimal 10MB."
+            buttonText="Pilih File Template"
+            selectedFileName={selectedFile?.name}
+            accept=".docx,.pdf,.xlsx,.pptx,.doc,.xls,.ppt"
+            onFileSelected={(file) => handleFileChange({ target: { files: [file] } } as any)}
+          />
 
           {/* Judul */}
           <div>

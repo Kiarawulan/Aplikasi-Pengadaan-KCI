@@ -104,6 +104,7 @@ export const PengujianDetailView: React.FC<PengujianDetailViewProps> = ({
           stage="bahp-signed"
           value={bahpFile}
           onChange={(v) => setBahpFile(v)}
+          adminStyle
         />
       </div>
     </div>
@@ -170,6 +171,7 @@ export const PengujianDetailView: React.FC<PengujianDetailViewProps> = ({
       onRevisi={onRevisi}
       onReject={onReject}
       showActions={showActions}
+      adminActions
     />
   );
 };

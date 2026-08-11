@@ -56,6 +56,7 @@ export const RupDetailView: React.FC<RupDetailViewProps> = ({
         onRevisi={onRevisi}
         onReject={onReject}
         showActions={showActions}
+        adminActions
       />
     </div>
   );

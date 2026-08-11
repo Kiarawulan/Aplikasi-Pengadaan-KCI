@@ -171,6 +171,21 @@ function UserApp() {
         <Sidebar screen={screen} backScreen={backScreen} onNavigate={handleNavigate} collapsed={sidebarCollapsed} onToggleCollapse={handleToggleCollapse} />
       </div>
       <div className="flex-1 overflow-y-auto">
+        {screen !== "dashboard" && (
+          <div className="h-9 px-5 border-b border-slate-100 bg-white flex items-center text-[11.5px] text-slate-400 sticky top-0 z-30">
+            <button
+              type="button"
+              onClick={() => handleNavigate(screen === "pd-detail" || screen === "pr-detail" ? backScreen : "dashboard")}
+              className="inline-flex items-center gap-1.5 hover:text-[#252271] transition-colors font-medium"
+              title="Kembali ke halaman sebelumnya"
+            >
+              <span className="text-[15px]">‹</span>
+              User
+            </button>
+            <span className="mx-2">›</span>
+            <span className="font-bold text-[#252271]">{screen.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())}</span>
+          </div>
+        )}
         <div className="w-full px-4 sm:px-6 py-5 transition-all duration-200">
           {screen === "dashboard" && <DashboardScreen />}
           {screen === "rup-list" && <RupListScreen />}
