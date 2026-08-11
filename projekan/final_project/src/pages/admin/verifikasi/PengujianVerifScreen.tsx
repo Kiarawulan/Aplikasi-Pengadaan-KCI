@@ -6,6 +6,7 @@ import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "
 import { FileUploadInput } from "../../../components/common/FileUploadInput";
 import { Plus, CheckCircle2, XCircle, FileWarning, Eye, BarChart3, TrendingUp, ShieldCheck } from "lucide-react";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
+import { useMasterVendors } from "../../../hooks/useMasterVendors";
 
 type ScreenProps = {
   activeSubItem: string;
@@ -18,6 +19,7 @@ const INITIAL_REQUEST_PENGUJIAN: any[] = [];
 const INITIAL_REVIEW_PENGUJIAN: any[] = [];
 
 export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
+  const { vendorOptions } = useMasterVendors();
   const [loading, setLoading] = useState(false);
   const [kontrakList, setKontrakList] = useState<any[]>([]);
   const [kontrakListOver, setKontrakListOver] = useState<any[]>([]);
@@ -229,7 +231,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
                     <ModalInput type="number" value={formKontrak.nominal} onChange={v => setFormKontrak(p => ({ ...p, nominal: v }))} placeholder="Nominal..." />
                   </ModalField>
                   <ModalField label="Vendor Name" required>
-                    <ModalInput value={formKontrak.vendor} onChange={v => setFormKontrak(p => ({ ...p, vendor: v }))} placeholder="Nama vendor..." />
+                    <ModalSelect value={formKontrak.vendor} onChange={v => setFormKontrak(p => ({ ...p, vendor: v }))} options={vendorOptions} placeholder="Pilih vendor dari Master Data" />
                   </ModalField>
                 </div>
                 <div className="grid grid-cols-2 gap-3">

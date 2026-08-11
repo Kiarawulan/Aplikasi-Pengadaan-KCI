@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import type { AppUser, AppRole, AuthContextType, RolePermissions, AccessLevel } from "../types";
 import { api } from "../services/api";
+import { getFigmaCaptureConfig } from "../figmaCapture";
 
 // Default roles for the existing UI fallback.
 export const DEFAULT_ROLES: AppRole[] = [
@@ -90,7 +91,24 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const captureConfig = getFigmaCaptureConfig();
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
+    if (captureConfig?.role) {
+      const isAdminCapture = captureConfig.role === "admin";
+      return {
+        id: isAdminCapture ? "figma-admin" : "figma-user",
+        username: isAdminCapture ? "figma.admin" : "figma.user",
+        email: isAdminCapture ? "admin@sipro.com" : "user@kci.id",
+        name: isAdminCapture ? "Administrator KCI" : "Pengguna KCI",
+        password: "",
+        roleId: isAdminCapture ? "role-admin" : "role-figma-user",
+        departemen: "CTIT",
+        isActive: true,
+        isAdmin: isAdminCapture,
+        accountType: isAdminCapture ? "admin" : "user",
+        createdAt: "2026-01-01",
+      };
+    }
     try {
       const saved = localStorage.getItem(LS_CURRENT);
       if (saved) return JSON.parse(saved);
@@ -98,7 +116,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   });
 
-  const [apiRole, setApiRole] = useState<AppRole | null>(null);
+  const [apiRole, setApiRole] = useState<AppRole | null>(() => captureConfig?.role ? {
+    id: captureConfig.role === "admin" ? "role-admin" : "role-figma-user",
+    name: captureConfig.role === "admin" ? "Super Admin" : "Figma User",
+    description: "Role khusus paket HTML Figma",
+    isSystem: true,
+    roleType: captureConfig.role,
+    color: "#252271",
+    createdAt: "2026-01-01",
+    permissions: {
+      pengajuanDana: "editor", pengadaan: "editor", pengujian: "editor",
+      pembayaran: "editor", templateDokumen: "editor", masterData: "editor",
+      userManagement: "editor", roleManagement: "editor", dashboard: "editor",
+    },
+  } : null);
 
   const currentRole: AppRole | null = apiRole;
 
@@ -179,6 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    if (captureConfig?.role) return;
     const fetchUser = async () => {
       const token = localStorage.getItem(LS_TOKEN);
       if (!token) return;

@@ -3,13 +3,15 @@ import { AlertCircle, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/store/authStore";
 import logoImg from "@/imports/UserDashboard/a1d658a5f37b0b6b958626283ef2524233d0a35d.png";
 import trainImg from "@/assets/kereta.svg";
+import { getFigmaCaptureConfig } from "@/figmaCapture";
 
 export function LoginPage() {
+  const captureConfig = getFigmaCaptureConfig();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(captureConfig?.loginError || "");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {

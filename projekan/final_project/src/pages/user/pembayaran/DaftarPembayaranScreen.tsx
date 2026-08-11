@@ -210,7 +210,7 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
                             key={s.id}
                             title={s.label}
                             className={`w-3 h-3 rounded-full ${(item.completedSteps || []).includes(s.id)
-                                ? "bg-[#e6251c]"
+                                ? "bg-[#4ACE22]"
                                 : item.currentStep === s.id
                                   ? "bg-[#252271]"
                                   : "bg-gray-100 border border-gray-200"

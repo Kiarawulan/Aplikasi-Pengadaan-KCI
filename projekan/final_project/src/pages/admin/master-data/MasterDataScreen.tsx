@@ -3,6 +3,7 @@ import { AdminTopBar } from "@/components/admin/layout/AdminTopBar";
 import { Plus, Search, Edit3, Trash2, X, Database, Building2, Briefcase, Users, MapPin, Banknote, Tag, FileStack, CalendarDays, Percent, CreditCard, FlaskConical, PenTool, Activity } from "lucide-react";
 import { api } from "@/services/api";
 import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
+import { getFigmaCaptureConfig } from "@/figmaCapture";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -345,7 +346,7 @@ function MasterModal({ title, fields, initial, onSave, onClose }: {
 }) {
   const [form, setForm] = useState<Record<string, any>>(() => {
     const init: Record<string, any> = {};
-    fields.forEach(f => { init[f.key] = initial?.[f.key] || ""; });
+    fields.forEach(f => { init[f.key] = initial?.[f.key] ?? f.options?.[0] ?? ""; });
     return init;
   });
 
@@ -368,7 +369,7 @@ function MasterModal({ title, fields, initial, onSave, onClose }: {
               </label>
               {f.options ? (
                 <select
-                  value={form[f.key] || f.options[0]}
+                  value={form[f.key]}
                   onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                   className="w-full h-10 rounded-xl border border-gray-200 px-4 text-[12.5px] text-gray-800 outline-none focus:border-[#252271] cursor-pointer"
                 >
@@ -422,7 +423,7 @@ function ConfirmDeleteModal({ onConfirm, onClose }: { onConfirm: () => void; onC
 
 // ─── Master Data Screen ────────────────────────────────────────────────────────
 export function MasterDataScreen() {
-  const [activeTab, setActiveTab] = useState<TabId>("vendor");
+  const [activeTab, setActiveTab] = useState<TabId>((getFigmaCaptureConfig()?.masterTab as TabId) || "vendor");
   const [allData, setAllData] = useState<Record<TabId, MasterItem[]>>(MOCK_DATA);
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);

@@ -5,6 +5,7 @@ import { AdminUploadBar } from "@/components/admin/shared/AdminUploadBar";
 import { useAuth } from "@/store/authStore";
 import { api } from "@/services/api";
 import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
+import { getFigmaCaptureConfig } from "@/figmaCapture";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -384,7 +385,7 @@ function ConfirmDeleteModal({ onConfirm, onClose }: { onConfirm: () => void; onC
 export function TemplateDokumenAdminScreen() {
   const { currentUser } = useAuth();
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [activeTab, setActiveTab] = useState<KategoriUtama>("Pengadaan");
+  const [activeTab, setActiveTab] = useState<KategoriUtama>(getFigmaCaptureConfig()?.templateTab || "Pengadaan");
   const [search, setSearch] = useState("");
   const [subFilter, setSubFilter] = useState("Semua");
   const [showAdd, setShowAdd] = useState(false);

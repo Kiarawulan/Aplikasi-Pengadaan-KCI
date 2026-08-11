@@ -8,6 +8,7 @@ import {
   CheckCircle2, Clock, XCircle, AlertTriangle, ArrowRight, Building2
 } from "lucide-react";
 import { DIVISI_LIST } from "@/constants/divisi";
+import { getFigmaCaptureConfig } from "@/figmaCapture";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -780,7 +781,7 @@ function PembayaranDashboard() {
 // ═══════════════════════════════════════════════════════════════════════════════
 export function AdminDashboardScreen() {
   const { currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<DashboardTab>("pengajuan-dana");
+  const [activeTab, setActiveTab] = useState<DashboardTab>(getFigmaCaptureConfig()?.dashboardTab || "pengajuan-dana");
 
   return (
     <div className="flex-1 min-h-0 overflow-auto bg-[#f8fafc] select-none">

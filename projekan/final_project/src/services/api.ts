@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { getFigmaCaptureConfig } from '../figmaCapture';
+import { getFigmaMockResponse } from '../figmaMockApi';
 
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
@@ -12,6 +14,15 @@ export const api = axios.create({
 
 // Request interceptor to attach Bearer token and handle FormData Content-Type
 api.interceptors.request.use((config) => {
+  if (getFigmaCaptureConfig()) {
+    config.adapter = async () => ({
+      data: getFigmaMockResponse(config.url || ''),
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config,
+    });
+  }
   const token = localStorage.getItem('sipro_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

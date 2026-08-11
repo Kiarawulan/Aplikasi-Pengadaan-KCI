@@ -147,7 +147,7 @@ export function PurchaseRequestionScreen({ onSelectItem }: {
                             title={s.label}
                             className={`w-3 h-3 rounded-full ${
                               (item.completedSteps || []).includes(s.id)
-                                ? "bg-[#e6251c]"
+                                ? "bg-[#4ACE22]"
                                 : item.currentStep === s.id
                                 ? "bg-[#252271]"
                                 : "bg-gray-100 border border-gray-200"
@@ -182,9 +182,15 @@ export function PurchaseRequestionScreen({ onSelectItem }: {
         <PembelianBaruPopup
           title={editingItem ? "Edit Pengadaan" : "Pengadaan Baru"}
           submitLabel={editingItem ? "Simpan Perubahan" : "Buat Pengadaan →"}
-          initialData={editingItem?.formData}
+          initialData={editingItem ? {
+            ...(editingItem.formData || {}),
+            nama: editingItem.nama,
+            divisi: editingItem.departemen,
+            nominal: editingItem.nominal,
+          } : undefined}
           existingItems={items}
           editingId={editingItem?.id}
+          requireChanges={Boolean(editingItem)}
           onClose={() => { setShowPopup(false); setEditingItem(null); }}
           onSubmit={handleCreate}
         />

@@ -751,6 +751,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           }}
           initialStep="pengajuan-dana"
           requiresRup={false}
+          requireChanges
           onClose={() => setShowEditPopup(false)}
           onSubmit={handleRevisionSubmit}
         />

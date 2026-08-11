@@ -6,6 +6,7 @@ import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "
 import { Plus, CheckCircle2, XCircle, FileWarning, Download, ChevronRight, Trash2, Upload } from "lucide-react";
 import { useAuth } from "../../../store/authStore";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
+import { useMasterVendors } from "../../../hooks/useMasterVendors";
 
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
@@ -47,6 +48,7 @@ function FinanceVerifModal({
   onClose: () => void;
   onAction?: (type: "approve" | "revisi" | "reject", item: any) => void;
 }) {
+  const { vendorOptions } = useMasterVendors();
   const docsList = tipe === "non-outsource"
     ? SYARAT_DOCS.filter(d => d !== "SPP PPT 3 Bulan")
     : SYARAT_DOCS;
@@ -126,7 +128,7 @@ function FinanceVerifModal({
             </div>
             <div className="grid grid-cols-2 gap-3 mt-3">
               <ModalField label="Nama Vendor" required>
-                <ModalInput value={form.namaVendor} onChange={v => setForm(p => ({ ...p, namaVendor: v }))} />
+                <ModalSelect value={form.namaVendor} onChange={v => setForm(p => ({ ...p, namaVendor: v }))} options={vendorOptions} placeholder="Pilih vendor dari Master Data" />
               </ModalField>
               <ModalField label="No Kontrak / SPK / SPB" required>
                 <ModalInput value={form.noKontrak} onChange={v => setForm(p => ({ ...p, noKontrak: v }))} />
@@ -665,6 +667,7 @@ type ScreenProps = { activeSubItem?: string; };
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
+  const { vendorOptions } = useMasterVendors();
   const { currentUser } = useAuth();
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -956,7 +959,7 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
               <ModalField label="Tanggal Pembayaran" required><ModalInput type="date" value={form.tgl} onChange={v => setForm(p => ({ ...p, tgl: v }))} /></ModalField>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <ModalField label="Nama Vendor" required><ModalInput value={form.namaVendor} onChange={v => setForm(p => ({ ...p, namaVendor: v }))} placeholder="PT Vendor..." /></ModalField>
+              <ModalField label="Nama Vendor" required><ModalSelect value={form.namaVendor} onChange={v => setForm(p => ({ ...p, namaVendor: v }))} options={vendorOptions} placeholder="Pilih vendor dari Master Data" /></ModalField>
               <ModalField label="Bank"><ModalSelect value={form.bank} onChange={v => setForm(p => ({ ...p, bank: v }))} options={BANK_OPTS} /></ModalField>
             </div>
             <div className="grid grid-cols-2 gap-3">

@@ -16,6 +16,7 @@ import {
   DaftarPengujianScreen,
   DaftarPembayaranScreen,
 } from "./pages/user";
+import { getFigmaCaptureConfig } from "./figmaCapture";
 
 // ─── Error Boundary Component ──────────────────────────────────────────────────
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
@@ -68,7 +69,9 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 // ─── User App (fully synchronized via Laravel MySQL API) ──────────────────────
 function UserApp() {
   const { hasPermission, currentRole } = useAuth();
+  const captureConfig = getFigmaCaptureConfig();
   const [selectedItem, setSelectedItem] = useState<PengadaanItem | null>(() => {
+    if (captureConfig?.selectedItem) return captureConfig.selectedItem;
     try {
       const saved = localStorage.getItem("sipro_last_selected_item");
       if (!saved) return null;
@@ -80,6 +83,7 @@ function UserApp() {
   });
 
   const [screen, setScreen] = useState<Screen>(() => {
+    if (captureConfig?.userScreen) return captureConfig.userScreen;
     const savedScreen = (localStorage.getItem("sipro_last_user_screen") as Screen) || "dashboard";
     const savedItem = localStorage.getItem("sipro_last_selected_item");
     if ((savedScreen === "pd-detail" || savedScreen === "pr-detail") && !savedItem) {
@@ -89,6 +93,7 @@ function UserApp() {
   });
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof captureConfig?.sidebarCollapsed === "boolean") return captureConfig.sidebarCollapsed;
     return localStorage.getItem("sipro_user_sidebar_collapsed") === "true";
   });
   const [backScreen, setBackScreen] = useState<Screen>(() => {

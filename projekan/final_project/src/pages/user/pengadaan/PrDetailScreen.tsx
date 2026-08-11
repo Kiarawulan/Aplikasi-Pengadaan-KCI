@@ -696,6 +696,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             detailPermohonan: allFd["buat-pr"]?.detailPermohonan || item.formData?.detailPermohonan || "",
           }}
           initialStep="pengajuan-dana"
+          requireChanges
           onClose={() => setShowEditPopup(false)}
           onSubmit={handleRevisionSubmit}
         />

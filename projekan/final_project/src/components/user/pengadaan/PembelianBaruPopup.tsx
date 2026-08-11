@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import type { ParkStep, PengadaanItem, RupItem } from "@/types";
 import { getRupList } from "@/store/dataStore";
@@ -7,10 +7,10 @@ import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { useAuth } from "@/store/authStore";
 import { DIVISI_LIST } from "@/constants/divisi";
 
-export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Pengadaan Baru", submitLabel = "Submit", initialStep = "npp" as ParkStep, initialData, isViewOnly, requiresRup = true, existingItems = [], editingId }: {
+export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Pengadaan Baru", submitLabel = "Submit", initialStep = "npp" as ParkStep, initialData, isViewOnly, requiresRup = true, requireChanges = false, existingItems = [], editingId }: {
   onClose: () => void; onSubmit: (item: any) => void | Promise<void>;
   title?: string; submitLabel?: string; initialStep?: ParkStep;
-  initialData?: any; isViewOnly?: boolean; requiresRup?: boolean;
+  initialData?: any; isViewOnly?: boolean; requiresRup?: boolean; requireChanges?: boolean;
   existingItems?: PengadaanItem[]; editingId?: string | null;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,6 +83,7 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
     kurs: initialData?.kurs || "IDR",
     detailPermohonan: initialData?.detailPermohonan || ""
   });
+  const initialFormRef = useRef(form);
 
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -182,6 +183,29 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
         variant: "warning",
       });
       return;
+    }
+
+    if (requireChanges) {
+      const initialForm = initialFormRef.current;
+      const hasChanges = (Object.keys(form) as (keyof typeof form)[]).some((key) => {
+        if (key === "rupIds") {
+          const currentIds = [...form.rupIds].sort();
+          const initialIds = [...initialForm.rupIds].sort();
+          return JSON.stringify(currentIds) !== JSON.stringify(initialIds);
+        }
+        return String(form[key] ?? "").trim() !== String(initialForm[key] ?? "").trim();
+      });
+
+      if (!hasChanges) {
+        setWarning({
+          isOpen: true,
+          title: "Belum Ada Perubahan",
+          message: "Ubah minimal satu data sebelum mengirim revisi.",
+          detail: "Form revisi tidak dapat dikirim karena seluruh data masih sama dengan data sebelumnya.",
+          variant: "warning",
+        });
+        return;
+      }
     }
 
     // 1. Validasi Judul Pengadaan tidak boleh double

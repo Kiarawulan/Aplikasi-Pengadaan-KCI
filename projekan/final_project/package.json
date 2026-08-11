@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "export:figma": "npm run build && node scripts/export-figma-html.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

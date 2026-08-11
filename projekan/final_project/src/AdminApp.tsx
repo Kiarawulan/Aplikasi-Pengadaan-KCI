@@ -23,6 +23,8 @@ import { PengujianVerifScreen } from "./pages/admin/verifikasi/PengujianVerifScr
 import { PembayaranVerifScreen } from "./pages/admin/verifikasi/PembayaranVerifScreen";
 import featureUnavailableImage from "./assets/feature-unavailable.png";
 import { DIVISI_LIST } from "./constants/divisi";
+import { useMasterVendors } from "./hooks/useMasterVendors";
+import { getFigmaCaptureConfig } from "./figmaCapture";
 
 // ─── SVG path data (inlined from Figma exports) ───────────────────────────────
 const ICONS = {
@@ -3548,6 +3550,7 @@ function DocFilterBar({ onSearch, search, onFilter }: { search: string; onSearch
 
 // ─── Proses PBJ Detail ────────────────────────────────────────────────────────
 function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSaveStep, onUpload }: { row: any; breadcrumbFrom: string; onBack: () => void; onComplete?: () => Promise<void>; onRevisi?: (catatan: string) => Promise<void>; onSaveStep?: (progress: any) => Promise<void>; onUpload?: (file: File, step: string) => Promise<void> }) {
+  const { vendors } = useMasterVendors();
   const rawProgress = row.formData?.admin_progress || {};
   const shiftLegacySteps = (record: Record<number, any> = {}) => Object.fromEntries(Object.entries(record).map(([key, value]) => [Number(key) >= 7 ? Number(key) + 1 : Number(key), value]));
   const savedProgress = rawProgress.schemaVersion === 2 ? rawProgress : {
@@ -3671,6 +3674,17 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
 
   const updateVendorRow = (index: number, key: "vendorName" | "picName" | "vendorAddress" | "phoneNumber" | "emailCorporate" | "attendance" | "description" | "kknDate" | "offerPrice" | "negotiatedPrice" | "kknNote", value: string) => {
     setVendorRows((previous) => previous.map((vendor, vendorIndex) => vendorIndex === index ? { ...vendor, [key]: value } : vendor));
+  };
+  const selectMasterVendor = (index: number, vendorName: string) => {
+    const masterVendor = vendors.find((vendor) => vendor.nama === vendorName);
+    setVendorRows((previous) => previous.map((vendor, vendorIndex) => vendorIndex === index ? {
+      ...vendor,
+      vendorName,
+      picName: masterVendor?.kontakPerson || "",
+      vendorAddress: masterVendor?.alamat || "",
+      phoneNumber: masterVendor?.telepon || "",
+      emailCorporate: masterVendor?.email || "",
+    } : vendor));
   };
 
   const addVendorRow = () => setVendorRows((previous) => [...previous, {
@@ -3840,7 +3854,7 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
                       ["Vendor Name", "vendorName"], ["Phone Number", "phoneNumber"],
                       ["PIC Name", "picName"], ["Email Corporate", "emailCorporate"],
                       ["Vendor Address", "vendorAddress"],
-                    ] as const).map(([label, key]) => <div key={key} className="grid grid-cols-1 sm:grid-cols-[130px_minmax(0,1fr)] items-center gap-x-[12px] gap-y-[4px]"><span className="text-[11px] font-semibold text-[#64748b]">{label}:</span>{isEditing ? <input value={vendor[key]} onChange={(event) => updateVendorRow(vendorIndex, key, event.target.value)} className="min-w-0 h-[32px] border-b border-[#cbd5e1] bg-transparent px-[4px] text-[12px] outline-none focus:border-[#252271]" /> : <span className="min-w-0 break-words text-[12px] font-medium text-[#334155]">{vendor[key] || "Belum diisi"}</span>}</div>)}
+                    ] as const).map(([label, key]) => <div key={key} className="grid grid-cols-1 sm:grid-cols-[130px_minmax(0,1fr)] items-center gap-x-[12px] gap-y-[4px]"><span className="text-[11px] font-semibold text-[#64748b]">{label}:</span>{isEditing ? key === "vendorName" ? <select value={vendor.vendorName} onChange={(event) => selectMasterVendor(vendorIndex, event.target.value)} className="min-w-0 h-[32px] border-b border-[#cbd5e1] bg-transparent px-[4px] text-[12px] outline-none focus:border-[#252271]"><option value="">Pilih vendor dari Master Data</option>{vendors.map((option) => <option key={option.id} value={option.nama}>{option.nama}</option>)}</select> : <input value={vendor[key]} onChange={(event) => updateVendorRow(vendorIndex, key, event.target.value)} className="min-w-0 h-[32px] border-b border-[#cbd5e1] bg-transparent px-[4px] text-[12px] outline-none focus:border-[#252271]" /> : <span className="min-w-0 break-words text-[12px] font-medium text-[#334155]">{vendor[key] || "Belum diisi"}</span>}</div>)}
                   </div>
                 </div>
               ))}
@@ -5338,6 +5352,7 @@ function DetailPembayaranPage({
   onBack: () => void;
   onSuccess?: () => void;
 }) {
+  const { vendorOptions } = useMasterVendors();
   const isUmd = breadcrumbFrom.toLowerCase().includes("umd");
   const isNonOutsource = breadcrumbFrom.toLowerCase().includes("non-outsource");
 
@@ -5837,7 +5852,7 @@ function DetailPembayaranPage({
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 mt-3">
-            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nama Vendor *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={row.vendor} /></div>
+            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nama Vendor *</label><select className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={row.vendor}><option value="">Pilih vendor dari Master Data</option>{row.vendor && !vendorOptions.some((option) => option.value === row.vendor) && <option value={row.vendor}>{row.vendor}</option>}{vendorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
             <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">No Kontrak / SPK / SPB *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={row.noKontrak} /></div>
             <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Judul Kontrak / SPK / SPB / Retensi *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={row.namaPaket} /></div>
             <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">MPPL *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" placeholder="MPPL-2024-001" /></div>
@@ -6557,15 +6572,16 @@ function FeatureUnavailablePage() {
 // ─── Root App ──────────────────────────────────────────────────────────────────
 export function AdminApp() {
   const { hasPermission, currentRole } = useAuth();
-  const [page, setPage] = useState<Page>("dashboard");
+  const captureConfig = getFigmaCaptureConfig();
+  const [page, setPage] = useState<Page>((captureConfig?.adminPage as Page) || "dashboard");
   const [previousPage, setPreviousPage] = useState<Page>("dashboard");
   const [modal, setModal] = useState<Modal>(null);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-  const [verifCategory, setVerifCategory] = useState<VerifCategory>("pengajuan-dana");
-  const [verifDoc, setVerifDoc] = useState<VerifDoc>("park-document");
-  const [pengadaanDoc, setPengadaanDoc] = useState<PengadaanDoc>("rup-task-approval");
-  const [pengujianDoc, setPengujianDoc] = useState<PengujianDoc>("kontrak-list-500");
-  const [pembayaranDoc, setPembayaranDoc] = useState<PembayaranDoc>("pembayaran-contract-release");
+  const [verifCategory, setVerifCategory] = useState<VerifCategory>((captureConfig?.verifCategory as VerifCategory) || "pengajuan-dana");
+  const [verifDoc, setVerifDoc] = useState<VerifDoc>((captureConfig?.verifDoc as VerifDoc) || "park-document");
+  const [pengadaanDoc, setPengadaanDoc] = useState<PengadaanDoc>((captureConfig?.pengadaanDoc as PengadaanDoc) || "rup-task-approval");
+  const [pengujianDoc, setPengujianDoc] = useState<PengujianDoc>((captureConfig?.pengujianDoc as PengujianDoc) || "kontrak-list-500");
+  const [pembayaranDoc, setPembayaranDoc] = useState<PembayaranDoc>((captureConfig?.pembayaranDoc as PembayaranDoc) || "pembayaran-contract-release");
 
   const isVerifPage = page === "verifikasi";
 

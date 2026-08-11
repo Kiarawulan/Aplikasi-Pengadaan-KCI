@@ -176,11 +176,17 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
         <PembelianBaruPopup
           title={editingItem ? "Edit Park Document" : "Park Document Baru"}
           submitLabel={editingItem ? "Simpan Perubahan" : "Buat Park Document →"}
-          initialData={editingItem?.formData}
+          initialData={editingItem ? {
+            ...(editingItem.formData || {}),
+            nama: editingItem.nama,
+            divisi: editingItem.departemen,
+            nominal: editingItem.nominal,
+          } : undefined}
           initialStep={editingItem ? "pengajuan-dana" : "pengajuan-dana"}
           requiresRup={false}
           existingItems={items}
           editingId={editingItem?.id}
+          requireChanges={Boolean(editingItem)}
           onClose={() => { setShowPopup(false); setEditingItem(null); }}
           onSubmit={handleCreate}
         />

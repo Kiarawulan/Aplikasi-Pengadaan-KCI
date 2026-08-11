@@ -6,6 +6,7 @@ import { SummaryRow } from "../common/SummaryRow";
 import { ApprovedBadge } from "../common/ApprovedBadge";
 import { getPengujianList } from "../../store/dataStore";
 import { Sp3DetailView } from "./Sp3DetailView";
+import { useMasterVendors } from "../../hooks/useMasterVendors";
 
 export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
   step: ParkStep; subStepId: string;
@@ -13,6 +14,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
   status?: string;
   item?: any;
 }) {
+  const { vendorOptions } = useMasterVendors();
   const f = (k: string) => {
     if (allFd[subStepId]?.[k]) return allFd[subStepId][k];
     if (k === 'kurs') return allFd['kurs'] || item?.formData?.kurs || "";
@@ -30,7 +32,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
       <div className="mb-3"><p className="text-[11.5px] font-medium text-[#0a0a0a] mb-1">Realisasi</p><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-[13px] h-[13px] rounded-[2px] border border-[#767676] bg-white shrink-0 cursor-pointer" checked={f("realisasi") === "true"} onChange={(e) => u("realisasi")(e.target.checked ? "true" : "false")} /><p className="text-[11.5px]">Tandai sebagai realisasi</p></label></div>
       <div className="grid grid-cols-2 gap-x-[12px] gap-y-[12px]">
         <FieldInput label="Metode" type="select" required value={f("metode")} onChange={u("metode")} />
-        <FieldInput label="Vendor Name" placeholder="Nama vendor..." required value={f("vendor")} onChange={u("vendor")} />
+        <FieldInput label="Vendor Name" type="select" options={vendorOptions.map((option) => option.value)} required value={f("vendor")} onChange={u("vendor")} />
         <FieldInput label="Nilai PR" placeholder="0" type="number" required value={f("nilaiPr")} onChange={u("nilaiPr")} />
         <FieldInput label="COA" placeholder="Kode akun..." required value={f("coa")} onChange={u("coa")} />
         <FieldInput label="Jenis Barang" type="select" required value={f("jenisBarang")} onChange={u("jenisBarang")} />
@@ -287,8 +289,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
                <p className="text-[11.5px] font-medium text-gray-700 mb-2">Pelunasan (Nota dan sebagainya) dari C-Fits</p>
                <button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><Download size={13} /> Download Pelunasan</button>
             </div>
-            <FieldInput label="Keterangan" type="textarea" required value={f("keterangan")} onChange={u("keterangan")} />
-            
+
             <div className="flex items-center gap-2">
               <p className="text-[11.5px] font-medium text-[#0a0a0a]">Status:</p>
               <StatusDisplay />
