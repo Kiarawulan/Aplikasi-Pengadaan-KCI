@@ -356,54 +356,58 @@ export function RupListScreen() {
         <TambahRupModal
           onClose={() => { setShowModal(false); setEditingId(null); }}
           initialData={form}
+          existingRups={items}
+          editingId={editingId}
           onSubmit={async (formData) => {
             const formattedNilai = formData.nilaiSebelumPajak
               ? (formData.nilaiSebelumPajak.startsWith("Rp") ? formData.nilaiSebelumPajak : `Rp ${formData.nilaiSebelumPajak}`)
               : "Rp 0";
 
             try {
-            if (editingId) {
-              const updatedData: Partial<RupItem> = {
-                ...formData,
-                nama: formData.namaPaket || form.judul,
-                jenis: formData.jenisPengadaan || "Barang",
-                nilai: formattedNilai,
-                status: "pending",
-                catatanAdmin: "",
-                details: formData,
-              };
-              await api.put(`/rup/${editingId}`, {
-                nama: formData.namaPaket || form.judul,
-                jenis: formData.jenisPengadaan || "Barang",
-                nilai: formattedNilai,
-                status: "pending",
-                catatan_admin: "",
-                details: formData,
-              });
-            } else {
-              const id = generateId("RUP");
-              const newRup: RupItem = {
-                ...formData,
-                id,
-                nama: formData.namaPaket || "Pengadaan RUP Baru",
-                jenis: formData.jenisPengadaan || "Barang",
-                metode: formData.metode || "Penunjukan Langsung",
-                nilai: formattedNilai,
-                status: "pending",
-                progress: "0/14",
-                departemen: currentUser?.departemen || "Umum",
-                createdBy: currentUser?.name || currentUser?.id || "User",
-                createdAt: new Date().toISOString().split("T")[0],
-                details: formData,
-              };
-              await api.post('/rup', newRup);
+              if (editingId) {
+                const updatedData: Partial<RupItem> = {
+                  ...formData,
+                  nama: formData.namaPaket || form.judul,
+                  jenis: formData.jenisPengadaan || "Barang",
+                  nilai: formattedNilai,
+                  status: "pending",
+                  catatanAdmin: "",
+                  details: formData,
+                };
+                await api.put(`/rup/${editingId}`, {
+                  nama: formData.namaPaket || form.judul,
+                  jenis: formData.jenisPengadaan || "Barang",
+                  nilai: formattedNilai,
+                  status: "pending",
+                  catatan_admin: "",
+                  details: formData,
+                });
+              } else {
+                const id = generateId("RUP");
+                const newRup: RupItem = {
+                  ...formData,
+                  id,
+                  nama: formData.namaPaket || "Pengadaan RUP Baru",
+                  jenis: formData.jenisPengadaan || "Barang",
+                  metode: formData.metode || "Penunjukan Langsung",
+                  nilai: formattedNilai,
+                  status: "pending",
+                  progress: "0/14",
+                  departemen: currentUser?.departemen || "Umum",
+                  createdBy: currentUser?.name || currentUser?.id || "User",
+                  createdAt: new Date().toISOString().split("T")[0],
+                  details: formData,
+                };
+                await api.post('/rup', newRup);
+              }
+              await fetchRup();
+              setShowModal(false);
+              setEditingId(null);
+            } catch (error: any) {
+              const message = error.response?.data?.message || "Gagal menyimpan RUP.";
+              alert(message);
             }
-            await fetchRup();
-            setShowModal(false);
-            setEditingId(null);
-          } catch (error: any) {
-            alert(error.response?.data?.message || "Gagal menyimpan RUP.");
-          }}}
+          }}
         />
       )}
     </div>

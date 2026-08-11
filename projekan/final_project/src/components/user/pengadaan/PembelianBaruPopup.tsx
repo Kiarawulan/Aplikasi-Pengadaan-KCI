@@ -3,23 +3,46 @@ import { X } from "lucide-react";
 import type { ParkStep, PengadaanItem, RupItem } from "@/types";
 import { getRupList } from "@/store/dataStore";
 import { api } from "@/services/api";
-
-
+import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { useAuth } from "@/store/authStore";
 import { DIVISI_LIST } from "@/constants/divisi";
 
-export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Pengadaan Baru", submitLabel = "Submit", initialStep = "npp" as ParkStep, initialData, isViewOnly, requiresRup = true }: {
+export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Pengadaan Baru", submitLabel = "Submit", initialStep = "npp" as ParkStep, initialData, isViewOnly, requiresRup = true, existingItems = [], editingId }: {
   onClose: () => void; onSubmit: (item: any) => void | Promise<void>;
   title?: string; submitLabel?: string; initialStep?: ParkStep;
   initialData?: any; isViewOnly?: boolean; requiresRup?: boolean;
+  existingItems?: PengadaanItem[]; editingId?: string | null;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { currentUser } = useAuth();
   const today = new Date().toISOString().split("T")[0];
   const [rupList, setRupList] = useState<RupItem[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [fetchedItems, setFetchedItems] = useState<PengadaanItem[]>([]);
+
+  const [warning, setWarning] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    detail?: string;
+    variant: WarningVariant;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "warning",
+  });
   
   useEffect(() => {
+    // Fetch all pengadaan to check duplicates across PR & PD
+    api.get("/pengadaan")
+      .then((res) => {
+        if (Array.isArray(res.data)) {
+          setFetchedItems(res.data);
+        }
+      })
+      .catch(() => {});
+
     if (!requiresRup) {
       setRupList([]);
       return;
@@ -152,7 +175,44 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
     if (requiresRup && form.rupIds.length === 0) errs.rupIds = true;
     if (Object.keys(errs).length) {
       setErrors(errs);
-      alert("Data belum lengkap. Mohon lengkapi semua field bertanda bintang (*).");
+      setWarning({
+        isOpen: true,
+        title: "Data Belum Lengkap",
+        message: "Mohon lengkapi semua field bertanda bintang (*) sebelum melanjutkan.",
+        variant: "warning",
+      });
+      return;
+    }
+
+    // 1. Validasi Judul Pengadaan tidak boleh double
+    const trimmedTitle = form.judulPermohonan.trim();
+    const currentId = editingId || initialData?.id || initialData?.pengadaanId;
+    const allItems = [...existingItems, ...fetchedItems];
+    const isDuplicate = allItems.some((item) => {
+      if (currentId && item.id === currentId) return false;
+      const itemTitle = (item.nama || item.formData?.judulPermohonan || '').trim().toLowerCase();
+      return itemTitle === trimmedTitle.toLowerCase();
+    });
+
+    if (isDuplicate) {
+      setWarning({
+        isOpen: true,
+        title: "Judul Pengadaan Sudah Digunakan",
+        message: `Judul pengadaan "${trimmedTitle}" sudah terdaftar dalam sistem. Tidak diperbolehkan membuat pengadaan dengan judul yang sama.`,
+        variant: "duplicate",
+      });
+      return;
+    }
+
+    // 2. Validasi nominal tidak boleh 0
+    const rawNominal = parseInt(form.nominalPermohonan.replace(/[^0-9]/g, ''), 10) || 0;
+    if (rawNominal <= 0) {
+      setWarning({
+        isOpen: true,
+        title: "Nominal Pengadaan Tidak Valid",
+        message: "Nominal permohonan pengadaan tidak boleh Rp 0 atau kosong.",
+        variant: "warning",
+      });
       return;
     }
 
@@ -301,6 +361,15 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
           )}
         </div>
       </div>
+
+      <WarningModal
+        isOpen={warning.isOpen}
+        onClose={() => setWarning((prev) => ({ ...prev, isOpen: false }))}
+        title={warning.title}
+        message={warning.message}
+        detail={warning.detail}
+        variant={warning.variant}
+      />
     </div>
   );
 }

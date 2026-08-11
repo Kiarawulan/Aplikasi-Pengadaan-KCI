@@ -183,6 +183,8 @@ export function PurchaseRequestionScreen({ onSelectItem }: {
           title={editingItem ? "Edit Pengadaan" : "Pengadaan Baru"}
           submitLabel={editingItem ? "Simpan Perubahan" : "Buat Pengadaan →"}
           initialData={editingItem?.formData}
+          existingItems={items}
+          editingId={editingItem?.id}
           onClose={() => { setShowPopup(false); setEditingItem(null); }}
           onSubmit={handleCreate}
         />

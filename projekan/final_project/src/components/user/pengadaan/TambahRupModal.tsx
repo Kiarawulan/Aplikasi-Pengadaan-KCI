@@ -1,17 +1,35 @@
 import React, { useState } from 'react';
 import { X, FileText, DollarSign, Calendar, Building2 } from 'lucide-react';
+import { WarningModal, WarningVariant } from '@/components/common/WarningModal';
 
 interface TambahRupModalProps {
   onClose: () => void;
   onSubmit: (formData: any) => void;
   initialData?: any;
+  existingRups?: any[];
+  editingId?: string | null;
 }
 
 export const TambahRupModal: React.FC<TambahRupModalProps> = ({
   onClose,
   onSubmit,
   initialData,
+  existingRups = [],
+  editingId,
 }) => {
+  const [warning, setWarning] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    detail?: string;
+    variant: WarningVariant;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'warning',
+  });
+
   const formatRupiah = (val: string) => {
     if (!val) return '';
     const digits = val.replace(/\D/g, '');
@@ -75,6 +93,72 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const trimmedTitle = (form.namaPaket || '').trim();
+    if (!trimmedTitle) {
+      setWarning({
+        isOpen: true,
+        title: 'Nama Paket Wajib Diisi',
+        message: 'Mohon masukkan nama paket pengadaan RUP sebelum melanjutkan.',
+        variant: 'warning',
+      });
+      return;
+    }
+
+    // 1. Validasi Judul RUP tidak boleh double
+    const currentId = editingId || initialData?.id;
+    const isDuplicate = existingRups.some((r) => {
+      if (currentId && r.id === currentId) return false;
+      const rTitle = (r.nama || r.namaPaket || r.judul || r.details?.namaPaket || '').trim().toLowerCase();
+      return rTitle === trimmedTitle.toLowerCase();
+    });
+
+    if (isDuplicate) {
+      setWarning({
+        isOpen: true,
+        title: 'Judul RUP Sudah Digunakan',
+        message: `Judul/Nama paket RUP "${trimmedTitle}" sudah ada dalam daftar. Tidak diperbolehkan membuat RUP dengan judul yang sama.`,
+        variant: 'duplicate',
+      });
+      return;
+    }
+
+    // 2. Validasi Nominal 0 Rupiah tidak boleh terinput
+    const rawNilai = parseInt((form.nilaiSebelumPajak || '').replace(/\D/g, ''), 10) || 0;
+    if (rawNilai <= 0) {
+      setWarning({
+        isOpen: true,
+        title: 'Nominal Anggaran Tidak Boleh Rp 0',
+        message: 'Nominal anggaran paket pengadaan RUP tidak boleh Rp 0 atau kosong. Mohon masukkan nominal anggaran pengadaan yang valid lebih dari Rp 0.',
+        variant: 'warning',
+      });
+      return;
+    }
+
+    // 3. Validasi Kesesuaian Skala RUP (> 500 Juta vs < 500 Juta)
+    const isScaleLebih = form.pilihanRup.includes('Lebih') || form.pilihanRup.includes('>');
+    const isScaleKurang = form.pilihanRup.includes('Kurang') || form.pilihanRup.includes('<');
+
+    if (isScaleLebih && rawNilai <= 500_000_000) {
+      setWarning({
+        isOpen: true,
+        title: 'Kategori Skala RUP Tidak Sesuai',
+        message: `Anda memilih kategori skala 'Lebih 500 Juta', namun anggaran yang dimasukkan adalah Rp ${rawNilai.toLocaleString('id-ID')} (kurang dari atau sama dengan Rp 500.000.000). Silakan sesuaikan kategori skala atau nominal anggaran.`,
+        variant: 'warning',
+      });
+      return;
+    }
+
+    if (isScaleKurang && rawNilai > 500_000_000) {
+      setWarning({
+        isOpen: true,
+        title: 'Kategori Skala RUP Tidak Sesuai',
+        message: `Anda memilih kategori skala 'Kurang 500 Juta', namun anggaran yang dimasukkan adalah Rp ${rawNilai.toLocaleString('id-ID')} (lebih dari Rp 500.000.000). Silakan sesuaikan kategori skala atau nominal anggaran.`,
+        variant: 'warning',
+      });
+      return;
+    }
+
     onSubmit(form);
   };
 
@@ -500,6 +584,15 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
           </div>
         </form>
       </div>
+
+      <WarningModal
+        isOpen={warning.isOpen}
+        onClose={() => setWarning((prev) => ({ ...prev, isOpen: false }))}
+        title={warning.title}
+        message={warning.message}
+        detail={warning.detail}
+        variant={warning.variant}
+      />
     </div>
   );
 };

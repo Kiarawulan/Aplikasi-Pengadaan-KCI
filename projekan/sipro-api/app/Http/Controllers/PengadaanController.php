@@ -52,6 +52,11 @@ class PengadaanController extends Controller
                 'form_data'  => 'nullable|array',
             ]);
 
+            $trimmedName = trim($request->nama);
+            if (Pengadaan::whereRaw('LOWER(nama) = ?', [strtolower($trimmedName)])->exists()) {
+                return response()->json(['message' => 'Judul pengadaan sudah digunakan. Mohon gunakan judul pengadaan yang unik.'], 422);
+            }
+
             $flow = $request->flow;
             $status = 'draft';
 
@@ -68,7 +73,7 @@ class PengadaanController extends Controller
             $formData = $this->normalizeFormData($flow, $request->form_data);
             $pengadaan = Pengadaan::create([
                 'id'           => $id,
-                'nama'         => $request->nama,
+                'nama'         => $trimmedName,
                 'flow_type'    => $flow,
                 'departemen'   => $request->user()->is_admin
                     ? ($request->departemen ?: $request->user()->departemen)
@@ -297,7 +302,13 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
         ]);
 
         if (! $user->is_admin && ! in_array($pengadaan->status, ['draft', 'revision_required', 'rejected'], true)) return response()->json(['message' => 'Pengadaan tidak dapat diubah pada status saat ini.'], 422);
-        if ($request->has('nama')) $pengadaan->nama = $request->nama;
+        if ($request->has('nama')) {
+            $trimmedName = trim($request->nama);
+            if (Pengadaan::where('id', '!=', $pengadaan->id)->whereRaw('LOWER(nama) = ?', [strtolower($trimmedName)])->exists()) {
+                return response()->json(['message' => 'Judul pengadaan sudah digunakan. Mohon gunakan judul pengadaan yang unik.'], 422);
+            }
+            $pengadaan->nama = $trimmedName;
+        }
         if ($request->has('departemen')) $pengadaan->departemen = $request->departemen;
         if ($request->has('nominal')) $pengadaan->nominal = $request->nominal;
         if ($user->is_admin && $request->has('currentStep')) {

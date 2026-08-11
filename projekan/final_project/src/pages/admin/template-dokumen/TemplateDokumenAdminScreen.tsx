@@ -3,6 +3,7 @@ import { Upload, Download, FileText, Trash2, Edit3, Eye, Plus, Search, X } from 
 import { AdminTopBar } from "@/components/admin/layout/AdminTopBar";
 import { useAuth } from "@/store/authStore";
 import { api } from "@/services/api";
+import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -82,9 +83,10 @@ const SUB_BADGE_COLORS: Record<string, string> = {
 };
 
 // ─── Add/Edit Modal ────────────────────────────────────────────────────────────
-function TemplateModal({ title, initial, onSave, onClose }: {
+function TemplateModal({ title, initial, existingTemplates = [], onSave, onClose }: {
   title: string;
   initial?: Template;
+  existingTemplates?: Template[];
   onSave: (data: Omit<Template, "id" | "uploadedBy" | "uploadedAt">) => void;
   onClose: () => void;
 }) {
@@ -96,6 +98,19 @@ function TemplateModal({ title, initial, onSave, onClose }: {
   const [ukuran, setUkuran] = useState(initial?.ukuran || "—");
   const [deskripsi, setDeskripsi] = useState(initial?.deskripsi || "");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [warning, setWarning] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    detail?: string;
+    variant: WarningVariant;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "warning",
+  });
 
   const handleKategoriChange = (k: KategoriUtama) => {
     setKategoriUtama(k);
@@ -118,6 +133,28 @@ function TemplateModal({ title, initial, onSave, onClose }: {
     const sizeKB = (file.size / 1024).toFixed(0);
     const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
     setUkuran(file.size > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`);
+  };
+
+  const handleFormSubmit = () => {
+    const trimmedTitle = judul.trim();
+    if (!trimmedTitle) return;
+
+    const isDuplicate = existingTemplates.some(t => {
+      if (initial?.id && t.id === initial.id) return false;
+      return t.judul.trim().toLowerCase() === trimmedTitle.toLowerCase();
+    });
+
+    if (isDuplicate) {
+      setWarning({
+        isOpen: true,
+        title: "Judul Template Sudah Digunakan",
+        message: `Template dokumen dengan judul "${trimmedTitle}" sudah terdaftar dalam sistem. Tidak diperbolehkan menambahkan template dengan judul yang sama.`,
+        variant: "duplicate",
+      });
+      return;
+    }
+
+    onSave({ judul: trimmedTitle, kategoriUtama, subkategori, tipeFile, ukuran: ukuran !== "—" ? ukuran : "180 KB", deskripsi });
   };
 
   return (
@@ -248,7 +285,7 @@ function TemplateModal({ title, initial, onSave, onClose }: {
             Batal
           </button>
           <button
-            onClick={() => onSave({ judul, kategoriUtama, subkategori, tipeFile, ukuran: ukuran !== "—" ? ukuran : "180 KB", deskripsi })}
+            onClick={handleFormSubmit}
             disabled={!judul.trim()}
             className="px-6 py-2.5 rounded-xl text-[12.5px] font-semibold text-white bg-gradient-to-b from-[#e6251c] to-[#c20f06] hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
           >
@@ -256,6 +293,15 @@ function TemplateModal({ title, initial, onSave, onClose }: {
           </button>
         </div>
       </div>
+
+      <WarningModal
+        isOpen={warning.isOpen}
+        onClose={() => setWarning(prev => ({ ...prev, isOpen: false }))}
+        title={warning.title}
+        message={warning.message}
+        detail={warning.detail}
+        variant={warning.variant}
+      />
     </div>
   );
 }
@@ -546,8 +592,8 @@ export function TemplateDokumenAdminScreen() {
       </div>
 
       {/* Modals */}
-      {showAdd && <TemplateModal title="Upload Template Baru" onSave={handleAdd} onClose={() => setShowAdd(false)} />}
-      {showEdit && <TemplateModal title="Edit Template" initial={showEdit} onSave={handleEdit} onClose={() => setShowEdit(null)} />}
+      {showAdd && <TemplateModal title="Upload Template Baru" existingTemplates={templates} onSave={handleAdd} onClose={() => setShowAdd(false)} />}
+      {showEdit && <TemplateModal title="Edit Template" initial={showEdit} existingTemplates={templates} onSave={handleEdit} onClose={() => setShowEdit(null)} />}
       {showDetail && <DetailModal template={showDetail} onClose={() => setShowDetail(null)} />}
       {deleteId && <ConfirmDeleteModal onConfirm={handleDelete} onClose={() => setDeleteId(null)} />}
     </div>

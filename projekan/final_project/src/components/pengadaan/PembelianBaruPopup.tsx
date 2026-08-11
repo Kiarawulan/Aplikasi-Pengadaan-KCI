@@ -4,17 +4,40 @@ import type { ParkStep, PengadaanItem, RupItem } from "../../types";
 import { getRupList } from "../../store/dataStore";
 import { api } from "../../services/api";
 import { DIVISI_LIST } from "../../constants/divisi";
+import { WarningModal, WarningVariant } from "../common/WarningModal";
 
-export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Pengadaan Baru", submitLabel = "Submit", initialStep = "npp" as ParkStep, initialData, isViewOnly }: {
+export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Pengadaan Baru", submitLabel = "Submit", initialStep = "npp" as ParkStep, initialData, isViewOnly, existingItems = [], editingId }: {
   onClose: () => void; onSubmit: (item: any) => void;
   title?: string; submitLabel?: string; initialStep?: ParkStep;
-  initialData?: any; isViewOnly?: boolean;
+  initialData?: any; isViewOnly?: boolean; existingItems?: PengadaanItem[]; editingId?: string | null;
 }) {
   const today = new Date().toISOString().split("T")[0];
   const [rupList, setRupList] = useState<RupItem[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [fetchedItems, setFetchedItems] = useState<PengadaanItem[]>([]);
+
+  const [warning, setWarning] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    detail?: string;
+    variant: WarningVariant;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "warning",
+  });
   
   useEffect(() => {
+    api.get("/pengadaan")
+      .then((res) => {
+        if (Array.isArray(res.data)) {
+          setFetchedItems(res.data);
+        }
+      })
+      .catch(() => {});
+
     api.get("/rup")
       .then((res) => {
         const backendItems = res.data.map((r: any) => ({
@@ -140,7 +163,46 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
     const errs: Record<string, boolean> = {};
     required.forEach((k) => { if (!form[k as keyof typeof form]?.toString().trim()) errs[k] = true; });
     if (form.rupIds.length === 0) errs.rupIds = true;
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      setWarning({
+        isOpen: true,
+        title: "Data Belum Lengkap",
+        message: "Mohon lengkapi semua field bertanda bintang (*) sebelum melanjutkan.",
+        variant: "warning",
+      });
+      return;
+    }
+
+    const trimmedTitle = form.judulPermohonan.trim();
+    const currentId = editingId || initialData?.id || initialData?.pengadaanId;
+    const allItems = [...existingItems, ...fetchedItems];
+    const isDuplicate = allItems.some((item) => {
+      if (currentId && item.id === currentId) return false;
+      const itemTitle = (item.nama || item.formData?.judulPermohonan || '').trim().toLowerCase();
+      return itemTitle === trimmedTitle.toLowerCase();
+    });
+
+    if (isDuplicate) {
+      setWarning({
+        isOpen: true,
+        title: "Judul Pengadaan Sudah Digunakan",
+        message: `Judul pengadaan "${trimmedTitle}" sudah terdaftar dalam sistem. Tidak diperbolehkan membuat pengadaan dengan judul yang sama.`,
+        variant: "duplicate",
+      });
+      return;
+    }
+
+    const rawNominal = parseInt(form.nominalPermohonan.replace(/[^0-9]/g, ''), 10) || 0;
+    if (rawNominal <= 0) {
+      setWarning({
+        isOpen: true,
+        title: "Nominal Pengadaan Tidak Valid",
+        message: "Nominal permohonan pengadaan tidak boleh Rp 0 atau kosong.",
+        variant: "warning",
+      });
+      return;
+    }
 
     const formattedNominal = form.kurs === 'IDR' 
       ? (form.nominalPermohonan.startsWith("Rp") ? form.nominalPermohonan : `Rp ${form.nominalPermohonan}`)
@@ -282,6 +344,15 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
           )}
         </div>
       </div>
+
+      <WarningModal
+        isOpen={warning.isOpen}
+        onClose={() => setWarning(prev => ({ ...prev, isOpen: false }))}
+        title={warning.title}
+        message={warning.message}
+        detail={warning.detail}
+        variant={warning.variant}
+      />
     </div>
   );
 }
