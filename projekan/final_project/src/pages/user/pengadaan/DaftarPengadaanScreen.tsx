@@ -179,6 +179,8 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
           initialData={editingItem?.formData}
           initialStep={editingItem ? "pengajuan-dana" : "pengajuan-dana"}
           requiresRup={false}
+          existingItems={items}
+          editingId={editingItem?.id}
           onClose={() => { setShowPopup(false); setEditingItem(null); }}
           onSubmit={handleCreate}
         />

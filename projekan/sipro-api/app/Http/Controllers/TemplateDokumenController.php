@@ -23,11 +23,16 @@ class TemplateDokumenController extends Controller
             'deskripsi' => 'nullable|string',
         ]);
 
+        $trimmedName = trim($request->nama);
+        if (TemplateDokumen::whereRaw('LOWER(nama) = ?', [strtolower($trimmedName)])->exists()) {
+            return response()->json(['message' => 'Template dokumen dengan nama tersebut sudah ada.'], 422);
+        }
+
         $id = 'TPL-' . str_pad(TemplateDokumen::count() + 1, 3, '0', STR_PAD_LEFT);
 
         $template = TemplateDokumen::create([
             'id'          => $id,
-            'nama'        => $request->nama,
+            'nama'        => $trimmedName,
             'kategori'    => $request->kategori,
             'tipe'        => $request->tipe,
             'ukuran'      => $request->ukuran ?? '—',
@@ -53,6 +58,13 @@ class TemplateDokumenController extends Controller
             'ukuran'    => 'sometimes|string',
             'deskripsi' => 'nullable|string',
         ]);
+
+        if ($request->has('nama')) {
+            $trimmedName = trim($request->nama);
+            if (TemplateDokumen::where('id', '!=', $template->id)->whereRaw('LOWER(nama) = ?', [strtolower($trimmedName)])->exists()) {
+                return response()->json(['message' => 'Template dokumen dengan nama tersebut sudah ada.'], 422);
+            }
+        }
 
         $template->update($request->all());
         return response()->json($template);

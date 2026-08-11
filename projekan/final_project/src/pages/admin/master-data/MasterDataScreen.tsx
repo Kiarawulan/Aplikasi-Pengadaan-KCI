@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { AdminTopBar } from "@/components/admin/layout/AdminTopBar";
 import { Plus, Search, Edit3, Trash2, X, Database, Building2, Briefcase, Users, MapPin, Banknote, Tag, FileStack, CalendarDays, Percent, CreditCard, FlaskConical, PenTool, Activity } from "lucide-react";
 import { api } from "@/services/api";
+import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -427,17 +428,29 @@ export function MasterDataScreen() {
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState<MasterItem | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [warning, setWarning] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    detail?: string;
+    variant: WarningVariant;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "warning",
+  });
 
   const loadVendors = async () => {
     const response = await api.get("/vendors");
     const vendors = (response.data || []).map((vendor: any) => ({
       id: vendor.id,
       nama: vendor.nama,
-      npwp: vendor.npwp || "â€”",
+      npwp: vendor.npwp || "—",
       kategori: vendor.kategori,
       status: String(vendor.status || "").replace(/^./, (letter) => letter.toUpperCase()),
-      kontak: vendor.kontak_person || "â€”",
-      telepon: vendor.telepon || "â€”",
+      kontak: vendor.kontak_person || "—",
+      telepon: vendor.telepon || "—",
     }));
     setAllData((previous) => ({ ...previous, vendor: vendors }));
   };
@@ -455,11 +468,48 @@ export function MasterDataScreen() {
     return data.filter(item => Object.values(item).some(v => String(v).toLowerCase().includes(q)));
   }, [data, search]);
 
+  const checkIsDuplicate = (formData: Record<string, any>, excludeId?: string) => {
+    const currentList = allData[activeTab] || [];
+    const newName = (formData.nama || formData.tahun || "").toString().trim().toLowerCase();
+    const newKode = (formData.kode || "").toString().trim().toLowerCase();
+
+    return currentList.find((item) => {
+      if (excludeId && item.id === excludeId) return false;
+      const itemName = (item.nama || item.tahun || "").toString().trim().toLowerCase();
+      if (newName && itemName && newName === itemName) return true;
+      if (newKode && item.kode) {
+        const itemKode = item.kode.toString().trim().toLowerCase();
+        if (newKode === itemKode) return true;
+      }
+      return false;
+    });
+  };
+
   const handleAdd = async (formData: Record<string, any>) => {
+    const duplicate = checkIsDuplicate(formData);
+    if (duplicate) {
+      setWarning({
+        isOpen: true,
+        title: "Data Duplikat Terdeteksi",
+        message: `Data dengan nama atau kode "${formData.nama || formData.kode || 'tersebut'}" sudah terdaftar pada Master Data ${currentTabDef.label}. Tidak diperbolehkan menginputkan data ganda.`,
+        variant: "duplicate",
+      });
+      return;
+    }
+
     if (activeTab === "vendor") {
-      await api.post("/vendors", { ...formData, kontakPerson: formData.kontak, status: String(formData.status || "aktif").toLowerCase() });
-      await loadVendors();
-      setShowAdd(false);
+      try {
+        await api.post("/vendors", { ...formData, kontakPerson: formData.kontak, status: String(formData.status || "aktif").toLowerCase() });
+        await loadVendors();
+        setShowAdd(false);
+      } catch (err: any) {
+        setWarning({
+          isOpen: true,
+          title: "Gagal Menambahkan Vendor",
+          message: err.response?.data?.message || "Nama vendor sudah ada atau data tidak valid.",
+          variant: "error",
+        });
+      }
       return;
     }
     const prefix = activeTab.split("-").map(w => w[0].toUpperCase()).join("");
@@ -473,10 +523,31 @@ export function MasterDataScreen() {
 
   const handleEdit = async (formData: Record<string, any>) => {
     if (!showEdit) return;
+
+    const duplicate = checkIsDuplicate(formData, showEdit.id);
+    if (duplicate) {
+      setWarning({
+        isOpen: true,
+        title: "Data Duplikat Terdeteksi",
+        message: `Data dengan nama atau kode "${formData.nama || formData.kode || 'tersebut'}" sudah terdaftar pada Master Data ${currentTabDef.label}. Tidak diperbolehkan mengubah ke data yang sudah ada.`,
+        variant: "duplicate",
+      });
+      return;
+    }
+
     if (activeTab === "vendor") {
-      await api.put(`/vendors/${showEdit.id}`, { ...formData, kontakPerson: formData.kontak, status: String(formData.status || "aktif").toLowerCase() });
-      await loadVendors();
-      setShowEdit(null);
+      try {
+        await api.put(`/vendors/${showEdit.id}`, { ...formData, kontakPerson: formData.kontak, status: String(formData.status || "aktif").toLowerCase() });
+        await loadVendors();
+        setShowEdit(null);
+      } catch (err: any) {
+        setWarning({
+          isOpen: true,
+          title: "Gagal Mengubah Vendor",
+          message: err.response?.data?.message || "Nama vendor sudah ada atau data tidak valid.",
+          variant: "error",
+        });
+      }
       return;
     }
     setAllData(prev => ({
@@ -617,6 +688,15 @@ export function MasterDataScreen() {
         />
       )}
       {deleteId && <ConfirmDeleteModal onConfirm={handleDelete} onClose={() => setDeleteId(null)} />}
+
+      <WarningModal
+        isOpen={warning.isOpen}
+        onClose={() => setWarning(prev => ({ ...prev, isOpen: false }))}
+        title={warning.title}
+        message={warning.message}
+        detail={warning.detail}
+        variant={warning.variant}
+      />
     </div>
   );
 }

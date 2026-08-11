@@ -28,6 +28,23 @@ class RupController extends Controller
         $nama = $data['nama'] ?? $data['namaPaket'] ?? $data['judul'] ?? null;
         abort_unless($nama, 422, 'Judul RUP wajib diisi.');
 
+        // Validasi judul RUP tidak boleh double
+        abort_if(Rup::whereRaw('LOWER(nama) = ?', [strtolower(trim($nama))])->exists(), 422, 'Judul RUP sudah digunakan. Mohon gunakan judul RUP yang unik.');
+
+        // Validasi nominal > 0
+        $rawNilai = (int) preg_replace('/\D/', '', (string) ($data['nilai'] ?? $request->input('nilaiSebelumPajak', '0')));
+        abort_if($rawNilai <= 0, 422, 'Nominal RUP tidak boleh 0 rupiah.');
+
+        // Validasi kesesuaian skala (> 500 Juta vs < 500 Juta)
+        $pilihanRup = $request->input('pilihanRup') ?? ($data['details']['pilihanRup'] ?? null);
+        if ($pilihanRup) {
+            if (str_contains($pilihanRup, 'Lebih') || str_contains($pilihanRup, '>')) {
+                abort_if($rawNilai <= 500000000, 422, 'Nominal anggaran harus lebih dari Rp 500.000.000 untuk kategori skala Lebih 500 Juta.');
+            } elseif (str_contains($pilihanRup, 'Kurang') || str_contains($pilihanRup, '<')) {
+                abort_if($rawNilai > 500000000, 422, 'Nominal anggaran tidak boleh melebihi Rp 500.000.000 untuk kategori skala Kurang 500 Juta.');
+            }
+        }
+
         $id = $data['id'] ?? null;
         if ($id) {
             abort_unless((bool) preg_match('/^RUP-[A-Za-z0-9-]+$/', $id), 422, 'Format ID RUP tidak valid.');
@@ -49,6 +66,25 @@ class RupController extends Controller
         $isResubmission = $request->input('status') === 'pending';
         if (! $isResubmission && ! in_array($rup->status, ['draft', 'revision_required'], true)) return response()->json(['message' => 'RUP hanya dapat diubah saat draft atau revisi.'], 422);
         $data = $request->validate(['nama' => 'sometimes|string|max:255', 'jenis' => 'sometimes|string|max:100', 'metode' => 'sometimes|string|max:100', 'nilai' => 'sometimes|string|max:100', 'details' => 'sometimes|array']);
+        
+        if (array_key_exists('nama', $data)) {
+            abort_if(Rup::where('id', '!=', $rup->id)->whereRaw('LOWER(nama) = ?', [strtolower(trim($data['nama']))])->exists(), 422, 'Judul RUP sudah digunakan. Mohon gunakan judul RUP yang unik.');
+        }
+
+        if (array_key_exists('nilai', $data)) {
+            $rawNilai = (int) preg_replace('/\D/', '', (string) $data['nilai']);
+            abort_if($rawNilai <= 0, 422, 'Nominal RUP tidak boleh 0 rupiah.');
+
+            $pilihanRup = $request->input('pilihanRup') ?? ($data['details']['pilihanRup'] ?? ($rup->details['pilihanRup'] ?? null));
+            if ($pilihanRup) {
+                if (str_contains($pilihanRup, 'Lebih') || str_contains($pilihanRup, '>')) {
+                    abort_if($rawNilai <= 500000000, 422, 'Nominal anggaran harus lebih dari Rp 500.000.000 untuk kategori skala Lebih 500 Juta.');
+                } elseif (str_contains($pilihanRup, 'Kurang') || str_contains($pilihanRup, '<')) {
+                    abort_if($rawNilai > 500000000, 422, 'Nominal anggaran tidak boleh melebihi Rp 500.000.000 untuk kategori skala Kurang 500 Juta.');
+                }
+            }
+        }
+
         $rup->fill($data);
         if (array_key_exists('details', $data)) $rup->details = array_merge($rup->details ?? [], $data['details']);
         $rup->updated_by = $request->user()->id;
