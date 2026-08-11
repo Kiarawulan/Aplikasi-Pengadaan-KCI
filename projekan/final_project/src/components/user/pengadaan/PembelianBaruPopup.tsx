@@ -184,6 +184,43 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
       return;
     }
 
+    // Validasi Revisi: User harus mengubah data jika dalam mode edit/revisi
+    const isEditingOrRevising = !!(editingId || initialData?.id || title?.toLowerCase().includes("edit") || title?.toLowerCase().includes("revisi") || submitLabel?.toLowerCase().includes("revisi"));
+    if (isEditingOrRevising && initialData) {
+      const initialRupIds = (initialData?.rupIds || []).slice().sort().join(",");
+      const currentRupIds = (form.rupIds || []).slice().sort().join(",");
+      const initialEmail = (initialData?.emailPic || currentUser?.email || "").trim();
+      const initialTahun = (initialData?.tahun || new Date().getFullYear().toString()).trim();
+      const initialDivisi = (initialData?.divisi || initialData?.subUnit || currentUser?.departemen || "").trim();
+      const initialJudul = (initialData?.judulPermohonan || initialData?.nama || "").trim();
+      const initialJenis = (initialData?.jenisPermohonan || "").trim();
+      const initialNominal = (initialData?.nominalPermohonan || initialData?.nominal || "").replace(/\D/g, "");
+      const currentNominal = (form.nominalPermohonan || "").replace(/\D/g, "");
+      const initialKurs = (initialData?.kurs || "IDR").trim();
+      const initialDetail = (initialData?.detailPermohonan || "").trim();
+
+      const isUnchanged =
+        initialRupIds === currentRupIds &&
+        initialEmail === form.emailPic.trim() &&
+        initialTahun === form.tahun.trim() &&
+        initialDivisi === form.divisi.trim() &&
+        initialJudul === form.judulPermohonan.trim() &&
+        initialJenis === form.jenisPermohonan.trim() &&
+        initialNominal === currentNominal &&
+        initialKurs === form.kurs.trim() &&
+        initialDetail === form.detailPermohonan.trim();
+
+      if (isUnchanged) {
+        setWarning({
+          isOpen: true,
+          title: "Belum Ada yang Diganti",
+          message: "Anda belum melakukan perubahan apapun pada data pengadaan. Silakan lakukan revisi/perubahan data yang diperlukan sesuai catatan admin sebelum mengirim ulang.",
+          variant: "warning",
+        });
+        return;
+      }
+    }
+
     // 1. Validasi Judul Pengadaan tidak boleh double
     const trimmedTitle = form.judulPermohonan.trim();
     const currentId = editingId || initialData?.id || initialData?.pengadaanId;

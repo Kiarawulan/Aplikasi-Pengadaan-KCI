@@ -105,6 +105,47 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
       return;
     }
 
+    // Validasi Revisi: User harus mengubah data jika dalam mode edit/revisi
+    if (editingId || initialData?.id) {
+      const initPilihan = (initialData?.pilihanRup || 'Lebih 500 Juta').trim();
+      const initNama = (initialData?.namaPaket || initialData?.judul || initialData?.nama || '').trim();
+      const initOpex = (initialData?.opexCapex || initialData?.capexOpex || '').trim();
+      const initUraian = (initialData?.uraian || '').trim();
+      const initMetode = (initialData?.metode || 'Penunjukan Langsung').trim();
+      const initJenis = (initialData?.jenisPengadaan || initialData?.jenis || '').trim();
+      const initKategori = (initialData?.kategoriAnggaran || initialData?.kategori || '').trim();
+      const initTahun = (initialData?.tahunAnggaran || '').trim();
+      const initTipeKontrak = (initialData?.tipeKontrak || 'Single Year').trim();
+      const initPbj = (initialData?.pbj || '').trim();
+      const initNilai = (initialData?.nilaiSebelumPajak || initialData?.nilaiRkap || initialData?.nilai || '').replace(/\D/g, '');
+      const currentNilai = (form.nilaiSebelumPajak || '').replace(/\D/g, '');
+      const initPajak = (initialData?.tipePajak || initialData?.typeTax || '').trim();
+
+      const isUnchanged =
+        initPilihan === form.pilihanRup.trim() &&
+        initNama === form.namaPaket.trim() &&
+        initOpex === form.opexCapex.trim() &&
+        initUraian === form.uraian.trim() &&
+        initMetode === form.metode.trim() &&
+        initJenis === form.jenisPengadaan.trim() &&
+        initKategori === form.kategoriAnggaran.trim() &&
+        initTahun === form.tahunAnggaran.trim() &&
+        initTipeKontrak === form.tipeKontrak.trim() &&
+        initPbj === form.pbj.trim() &&
+        initNilai === currentNilai &&
+        initPajak === form.tipePajak.trim();
+
+      if (isUnchanged) {
+        setWarning({
+          isOpen: true,
+          title: 'Belum Ada yang Diganti',
+          message: 'Anda belum melakukan perubahan apapun pada data RUP. Silakan ubah/revisi data yang diperlukan terlebih dahulu sebelum menyimpan.',
+          variant: 'warning',
+        });
+        return;
+      }
+    }
+
     // 1. Validasi Judul RUP tidak boleh double
     const currentId = editingId || initialData?.id;
     const isDuplicate = existingRups.some((r) => {

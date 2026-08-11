@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Eye, Trash2, Edit2, Search } from "lucide-react";
 import { AdminModal, ConfirmModal, ModalField, ModalInput, ModalSelect } from "@/components/admin/shared/AdminModal";
+import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { api } from "@/services/api";
 import type { AppUser, AppRole } from "@/types";
 import { useAuth } from "@/store/authStore";
@@ -27,6 +28,21 @@ export function UserManagementScreen() {
     division: "Operational", directorate: "Direktorat Operasi & Pemasaran", kodeUser: ""
   });
   const [editForm, setEditForm] = useState<Partial<AppUser>>({});
+  const [notifyModal, setNotifyModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: WarningVariant;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "info",
+  });
+
+  const showNotify = (title: string, message: string, variant: WarningVariant = "info") => {
+    setNotifyModal({ isOpen: true, title, message, variant });
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -52,7 +68,7 @@ export function UserManagementScreen() {
 
   const handleAddSubmit = async () => {
     if (!form.email || !form.name || !form.username || !form.password || !form.roleId) {
-      alert("Harap isi Nama Lengkap, Username, Email, Password, dan Role user.");
+      showNotify("Data Belum Lengkap", "Harap isi Nama Lengkap, Username, Email, Password, dan Role user.", "warning");
       return;
     }
     const selectedRole = form.roleId;
@@ -69,7 +85,7 @@ export function UserManagementScreen() {
 
       setShowAdd(false);
       setForm({ name: "", username: "", email: "", password: "", roleId: "", departemen: "CUG - LOGISTIC", division: "Operational", directorate: "Direktorat Operasi & Pemasaran", kodeUser: "" });
-      alert(`User berhasil dibuat di Database!\nEmail: ${form.email}`);
+      showNotify("User Berhasil Dibuat", `User ${form.name} (${form.email}) berhasil disimpan ke database!`, "info");
       fetchData();
     } catch (e: any) {
       let errMsg = "Gagal menyimpan user ke database.";
@@ -80,7 +96,7 @@ export function UserManagementScreen() {
       } else if (e.response?.data?.errors) {
         errMsg = Object.values(e.response.data.errors).flat().join("\n");
       }
-      alert(errMsg);
+      showNotify("Gagal Menyimpan", errMsg, "error");
     }
   };
 
@@ -89,9 +105,10 @@ export function UserManagementScreen() {
     try {
       await api.put(`/users/${showEdit.id}`, editForm);
       setShowEdit(null);
+      showNotify("User Diperbarui", "Data user berhasil diperbarui.", "info");
       fetchData();
     } catch (e: any) {
-      alert(e.response?.data?.message || "Gagal mengedit user di database.");
+      showNotify("Gagal Mengedit", e.response?.data?.message || "Gagal mengedit user di database.", "error");
     }
   };
 
@@ -100,9 +117,10 @@ export function UserManagementScreen() {
     try {
       await api.delete(`/users/${showConfirmDelete.id}`);
       setShowConfirmDelete(null);
+      showNotify("User Dihapus", "User berhasil dihapus dari database.", "info");
       fetchData();
     } catch (e: any) {
-      alert(e.response?.data?.message || "Gagal menghapus user dari database.");
+      showNotify("Gagal Menghapus", e.response?.data?.message || "Gagal menghapus user dari database.", "error");
     }
   };
 
@@ -361,6 +379,14 @@ export function UserManagementScreen() {
           destructive
         />
       )}
+
+      <WarningModal
+        isOpen={notifyModal.isOpen}
+        title={notifyModal.title}
+        message={notifyModal.message}
+        variant={notifyModal.variant}
+        onClose={() => setNotifyModal(p => ({ ...p, isOpen: false }))}
+      />
     </div>
   );
 }

@@ -6,8 +6,8 @@ import { api } from "../services/api";
 export const DEFAULT_ROLES: AppRole[] = [
   {
     id: "role-admin",
-    name: "Admin",
-    description: "Akses penuh ke seluruh fitur sistem",
+    name: "Super Admin",
+    description: "Akses penuh ke seluruh fitur sistem dan konfigurasi",
     isSystem: true,
     roleType: "admin",
     color: "#e6251c",
@@ -19,9 +19,51 @@ export const DEFAULT_ROLES: AppRole[] = [
     },
   },
   {
+    id: "role-admin-pengadaan",
+    name: "Admin Pengadaan",
+    description: "Administrator Pengadaan yang bertugas memverifikasi NPP, menerbitkan SP3, PBJ, Kontrak, memverifikasi BAHP/pengujian, dan memverifikasi pembayaran.",
+    isSystem: true,
+    roleType: "admin",
+    color: "#e6251c",
+    createdAt: "2024-01-01",
+    permissions: {
+      dashboard: "editor", pengajuanDana: "editor", pengadaan: "editor",
+      pengujian: "editor", pembayaran: "editor", templateDokumen: "editor",
+      masterData: "editor", userManagement: "editor", roleManagement: "no-access",
+    },
+  },
+  {
+    id: "role-admin-logistik",
+    name: "Admin Logistik",
+    description: "Administrator pengelola logistik, warehouse, material, inventory, dan verifikasi alur logistik.",
+    isSystem: true,
+    roleType: "admin",
+    color: "#0284c7",
+    createdAt: "2024-01-01",
+    permissions: {
+      dashboard: "editor", pengajuanDana: "viewer", pengadaan: "editor",
+      pengujian: "editor", pembayaran: "viewer", templateDokumen: "editor",
+      masterData: "editor", userManagement: "viewer", roleManagement: "no-access",
+    },
+  },
+  {
+    id: "role-staff-pengadaan",
+    name: "Staff Pengadaan (user)",
+    description: "Staff pengguna/pemohon untuk membuat pengajuan Park Document (PD), Purchase Requisition (PR), mengajukan request pengujian, dan mengunggah dokumen pembayaran.",
+    isSystem: true,
+    roleType: "user",
+    color: "#10b981",
+    createdAt: "2024-01-01",
+    permissions: {
+      dashboard: "editor", pengajuanDana: "editor", pengadaan: "editor",
+      pengujian: "editor", pembayaran: "editor", templateDokumen: "viewer",
+      masterData: "no-access", userManagement: "no-access", roleManagement: "no-access",
+    },
+  },
+  {
     id: "role-it",
-    name: "IT",
-    description: "Akses terbatas untuk departemen IT",
+    name: "User IT",
+    description: "Pengguna CTIT untuk membuat dan memantau pengajuan",
     isSystem: false,
     roleType: "user",
     color: "#7c3aed",
@@ -36,6 +78,9 @@ export const DEFAULT_ROLES: AppRole[] = [
 
 export const DEFAULT_USERS: AppUser[] = [
   { id: "user-admin", email: "admin@sipro.com", name: "Super Admin", password: "admin123", roleId: "role-admin", departemen: "Management", isActive: true, isAdmin: true, createdAt: "2024-01-01" },
+  { id: "user-admin-pengadaan", email: "admin.pengadaan@sipro.com", name: "Admin Pengadaan", password: "pengadaan123", roleId: "role-admin-pengadaan", departemen: "Pengadaan", isActive: true, isAdmin: true, createdAt: "2024-01-01" },
+  { id: "user-admin-logistik", email: "admin.logistik@sipro.com", name: "Admin Logistik", password: "logistik123", roleId: "role-admin-logistik", departemen: "Logistik", isActive: true, isAdmin: true, createdAt: "2024-01-01" },
+  { id: "user-staff-pengadaan", email: "staff.pengadaan@sipro.com", name: "Staff Pengadaan", password: "staff123", roleId: "role-staff-pengadaan", departemen: "Pengadaan", isActive: true, isAdmin: false, createdAt: "2024-01-01" },
   { id: "user-it", email: "it@sipro.com", name: "User IT", password: "it123", roleId: "role-it", departemen: "CTIT", isActive: true, isAdmin: false, createdAt: "2024-01-12" },
 ];
 

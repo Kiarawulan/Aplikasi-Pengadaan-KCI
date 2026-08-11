@@ -2,7 +2,18 @@ import { Check } from "lucide-react";
 import { StatusBadge } from "../common/StatusBadge";
 import { SummaryRow } from "../common/SummaryRow";
 
-export function PdSubStatus({ subId, data }: { subId: string; data: Record<string, string> }) {
+export function PdSubStatus({
+  subId,
+  data,
+  status,
+  isApproved,
+}: {
+  subId: string;
+  data: Record<string, string>;
+  status?: string;
+  isApproved?: boolean;
+}) {
+  const isDone = isApproved || status === "approved" || status === "Approved" || status === "Selesai" || status === "selesai" || status === "completed";
   const rows: { label: string; key: string }[] = (() => {
     if (subId === "payment-request") return [{ label: "File BAHP TTD", key: "fileBAHP" }, { label: "Keterangan", key: "keterangan" }];
     if (subId === "nota-dokumen") return [{ label: "Keterangan", key: "keterangan" }];
@@ -11,6 +22,14 @@ export function PdSubStatus({ subId, data }: { subId: string; data: Record<strin
     return [];
   })();
 
+  const badgeStatus = isDone
+    ? "Selesai"
+    : status === "revisi" || status === "Perlu Revisi"
+    ? "Perlu Revisi"
+    : status === "rejected" || status === "Ditolak"
+    ? "Ditolak"
+    : "Menunggu Verifikasi";
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -18,8 +37,12 @@ export function PdSubStatus({ subId, data }: { subId: string; data: Record<strin
           <Check size={16} className="text-green-600" />
         </div>
         <div>
-          <p className="text-[11.5px] font-semibold text-[#0a0a0a]">Data Berhasil Disubmit</p>
-          <p className="text-[10.5px] text-[#6b6b6b]">Menunggu verifikasi dari Finance</p>
+          <p className="text-[11.5px] font-semibold text-[#0a0a0a]">
+            {isDone ? "Pembayaran Telah Diverifikasi & Selesai" : "Data Berhasil Disubmit"}
+          </p>
+          <p className="text-[10.5px] text-[#6b6b6b]">
+            {isDone ? "Telah diverifikasi dan disetujui oleh Finance & Admin" : "Menunggu verifikasi dari Finance"}
+          </p>
         </div>
       </div>
       <div className="bg-[#fafafa] border border-[#ebebeb] rounded-lg p-4 space-y-3">
@@ -28,7 +51,9 @@ export function PdSubStatus({ subId, data }: { subId: string; data: Record<strin
         ))}
         <div>
           <p className="text-[10.5px] text-[#6b6b6b]">Status Verifikasi</p>
-          <div className="mt-1"><StatusBadge status="Menunggu Verifikasi" /></div>
+          <div className="mt-1">
+            <StatusBadge status={badgeStatus} />
+          </div>
         </div>
       </div>
     </div>

@@ -6,7 +6,8 @@ import { Breadcrumb } from "@/components/user/layout/Breadcrumb";
 import { DetailHeaderCard } from "@/components/user/pengadaan/DetailHeaderCard";
 import { StepTracker } from "@/components/user/pengadaan/StepTracker";
 import { PrStepContent } from "@/components/user/pengadaan/PrStepContent";
-import { PengajuanDanaAttachments } from "@/components/user/pengadaan/PengajuanDanaAttachments";
+import { PengajuanDanaAttachments, FILES, stageFor } from "@/components/user/pengadaan/PengajuanDanaAttachments";
+import { WarningModal } from "@/components/common/WarningModal";
 import { PembelianBaruPopup } from "@/components/user/pengadaan/PembelianBaruPopup";
 import { api } from "@/services/api";
 import { getVerifRecords, addVerifRecord, generateId, getPengujianList, savePengujianList, updatePengadaanItem } from "@/store/dataStore";
@@ -86,6 +87,18 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   const [verifId, setVerifId] = useState<number | null>(null);
   const [pengujianId, setPengujianId] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
+  const [docWarningModal, setDocWarningModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    detail?: string;
+    variant: "warning" | "error" | "info" | "duplicate";
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "warning",
+  });
 
   // Fetch latest item data on mount
   useEffect(() => {
@@ -238,13 +251,37 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     isSubmitPoint = activeSubIdx === 0; // payment-request harus disetujui sebelum pelunasan
   }
 
-  const goNext = () => {
+  const goNext = async () => {
     // User PR hanya dapat mengajukan NPP dan Pengajuan Dana. Tahap setelahnya
     // adalah proses internal admin dan bersifat view-only bagi user.
     const userSubmitSteps = ["npp", "pengajuan-dana"];
     const adminOnlySteps = ["sp3", "pbj", "contract"];
 
     if (!adminOnlySteps.includes(activeStep.id) && !remindIncompleteFields(document.getElementById("pr-active-form"))) return;
+
+    if (activeStep.id === "pengajuan-dana" && isSubmitPoint) {
+      try {
+        const res = await api.get(`/pengadaan/${item.id}/documents`);
+        const docs = Array.isArray(res.data?.data) ? res.data.data : [];
+        const uploadedStages = new Set(docs.map((d: any) => d.stage));
+        const missing = FILES.pr.filter(
+          def => !uploadedStages.has(stageFor("pr", def.key))
+        );
+
+        if (missing.length > 0) {
+          setDocWarningModal({
+            isOpen: true,
+            title: "Berkas Pendukung Wajib Diunggah",
+            message: `Terdapat ${missing.length} dari ${FILES.pr.length} berkas pendukung pada Pengajuan Dana yang belum diunggah. Seluruh berkas wajib diunggah sebelum dapat melakukan submit atau melanjutkan proses.`,
+            detail: "Berkas yang belum diunggah:\n" + missing.map(m => `• ${m.label.replace(/\s*\*/g, '')}`).join("\n"),
+            variant: "warning",
+          });
+          return;
+        }
+      } catch (err) {
+        console.error("Gagal memeriksa dokumen:", err);
+      }
+    }
 
     if (userSubmitSteps.includes(activeStep.id) && isSubmitPoint && (verifStatus === "not_submitted" || verifStatus === "revisi" || verifStatus === "rejected")) {
       // Save form data before submitting
@@ -264,7 +301,12 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         });
       }).catch((err) => {
         console.error("Gagal mengirim verifikasi:", err);
-        alert(err.response?.data?.message || "Gagal mengirim verifikasi.");
+        setDocWarningModal({
+          isOpen: true,
+          title: "Gagal Mengirim",
+          message: err.response?.data?.message || "Gagal mengirim verifikasi.",
+          variant: "error",
+        });
       });
       return; // Do not advance step yet!
     }
@@ -628,51 +670,55 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       </div>
 
       {showPrPaymentModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-gray-100">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-[#252271] text-base font-bold">Lanjut ke Menu Pembayaran</h3>
-              <button onClick={() => setShowPrPaymentModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={18} />
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-100">
+              <h3 className="text-[#252271] text-[16px] font-extrabold">Lanjut ke Menu Pembayaran</h3>
+              <button onClick={() => setShowPrPaymentModal(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors">
+                <X size={16} />
               </button>
             </div>
-            <p className="text-[12px] text-gray-600 mb-4">
-              Silakan pilih jenis pembayaran yang akan digunakan:
+            <p className="text-[12px] text-gray-600 mb-5 text-center">
+              Silakan pilih jenis jalur pembayaran yang akan digunakan:
             </p>
-            <div className="space-y-3 mb-6">
-              <button type="button"
+            <div className="grid grid-cols-2 gap-3.5 mb-6">
+              <button
+                type="button"
                 onClick={() => handleConfirmPrPayment("Outsource")}
-                className={`flex items-center p-3 rounded-xl border cursor-pointer transition-all ${
+                className={`flex flex-col items-center justify-center text-center p-4 rounded-2xl border-2 cursor-pointer transition-all ${
                   selectedPaymentType === "Outsource"
-                    ? "border-[#252271] bg-[#252271]/5 ring-1 ring-[#252271]"
-                    : "border-gray-200 hover:bg-gray-50"
+                    ? "border-[#252271] bg-[#252271]/5 shadow-sm ring-2 ring-[#252271]/20"
+                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50/80"
                 }`}
               >
-                <div className="ml-3">
-                  <p className="text-[12.5px] font-bold text-gray-800">Outsource</p>
-                  <p className="text-[10.5px] text-gray-500">Pembayaran untuk jasa outsource</p>
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#252271] flex items-center justify-center mb-2 font-bold text-sm">
+                  OS
                 </div>
+                <p className="text-[13px] font-bold text-gray-900">Outsource</p>
+                <p className="text-[10.5px] text-gray-500 mt-1 leading-snug">Pembayaran untuk jasa outsource</p>
               </button>
 
-              <button type="button"
+              <button
+                type="button"
                 onClick={() => handleConfirmPrPayment("Non-outsource")}
-                className={`flex items-center p-3 rounded-xl border cursor-pointer transition-all ${
+                className={`flex flex-col items-center justify-center text-center p-4 rounded-2xl border-2 cursor-pointer transition-all ${
                   selectedPaymentType === "Non-outsource"
-                    ? "border-[#252271] bg-[#252271]/5 ring-1 ring-[#252271]"
-                    : "border-gray-200 hover:bg-gray-50"
+                    ? "border-[#252271] bg-[#252271]/5 shadow-sm ring-2 ring-[#252271]/20"
+                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50/80"
                 }`}
               >
-                <div className="ml-3">
-                  <p className="text-[12.5px] font-bold text-gray-800">Non Outsource</p>
-                  <p className="text-[10.5px] text-gray-500">Pembayaran pengadaan barang / jasa non-outsource</p>
+                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center mb-2 font-bold text-sm">
+                  NOS
                 </div>
+                <p className="text-[13px] font-bold text-gray-900">Non Outsource</p>
+                <p className="text-[10.5px] text-gray-500 mt-1 leading-snug">Pembayaran barang / non-outsource</p>
               </button>
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-center pt-2">
               <button
                 onClick={() => setShowPrPaymentModal(false)}
-                className="px-4 py-2 rounded-xl text-[11.5px] font-medium border border-gray-200 text-gray-600 hover:bg-gray-50"
+                className="px-6 py-2 rounded-xl text-[12px] font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
               >
                 Batal
               </button>
@@ -700,6 +746,15 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           onSubmit={handleRevisionSubmit}
         />
       )}
+
+      <WarningModal
+        isOpen={docWarningModal.isOpen}
+        title={docWarningModal.title}
+        message={docWarningModal.message}
+        detail={docWarningModal.detail}
+        variant={docWarningModal.variant}
+        onClose={() => setDocWarningModal(p => ({ ...p, isOpen: false }))}
+      />
     </div>
   );
 }

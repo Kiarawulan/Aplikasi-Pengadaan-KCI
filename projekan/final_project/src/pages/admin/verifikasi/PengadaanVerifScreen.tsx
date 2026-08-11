@@ -3,6 +3,7 @@ import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/shared/AdminModal";
+import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { Plus, CheckCircle2, XCircle, FileWarning, Eye, Printer, Download, Trash2, Edit3, ChevronRight } from "lucide-react";
 import { RupForm, NppForm, VendorForm } from "../../../types/forms";
 import { Sp3DetailView } from "../../../components/admin/verifikasi/Sp3DetailView";
@@ -217,6 +218,24 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
   const [showContractProcess, setShowContractProcess] = useState<any | null>(null);
   const [actionModal, setActionModal] = useState<{ item: any; type: "revisi" | "reject"; docType: string; notes: string } | null>(null);
 
+  const [notifyModal, setNotifyModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: WarningVariant;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "info",
+  });
+
+  const showNotify = (title: string, message: string, variant: WarningVariant = "info") => {
+    setNotifyModal({ isOpen: true, title, message, variant });
+  };
+
+  const [confirmDeleteModal, setConfirmDeleteModal] = useState<{ isOpen: boolean; row: any } | null>(null);
+
   const submitActionModal = async () => {
     if (!actionModal) return;
     const { item, type, docType, notes } = actionModal;
@@ -227,16 +246,22 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
     try {
       await api.post(`/verifikasi/${item.verif_id}/${endpoint}`, { catatan });
       fetchData();
-      alert(successMsg);
+      showNotify(type === "revisi" ? "Revisi Terkirim" : "Pengajuan Ditolak", successMsg, "info");
     } catch (e: any) {
-      alert(e.response?.data?.message || `Gagal ${type === "revisi" ? "merevisi" : "menolak"}.`);
+      showNotify("Gagal", e.response?.data?.message || `Gagal ${type === "revisi" ? "merevisi" : "menolak"}.`, "error");
     } finally {
       setActionModal(null);
     }
   };
 
-  const handleDelete = async (row: any) => {
-    if (!row.verif_id || !confirm(`Hapus ${row.tipe || 'data'} ini? Data tahap, antrean verifikasi, dan riwayat terkait akan dihapus.`)) return;
+  const handleDelete = (row: any) => {
+    if (!row.verif_id) return;
+    setConfirmDeleteModal({ isOpen: true, row });
+  };
+
+  const executeDelete = async () => {
+    if (!confirmDeleteModal?.row) return;
+    const row = confirmDeleteModal.row;
     try {
       await api.delete(`/verifikasi/${row.verif_id}`);
       // Bersihkan cache demo lama agar data tidak tampil lagi saat halaman dimuat ulang.
@@ -248,9 +273,11 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
       setShowPbjProcess(null);
       setShowContractProcess(null);
       await fetchData();
-      alert('Data berhasil dihapus.');
+      showNotify("Data Dihapus", "Data berhasil dihapus dari sistem.", "info");
     } catch (e: any) {
-      alert(e.response?.data?.message || 'Gagal menghapus data.');
+      showNotify("Gagal Menghapus", e.response?.data?.message || "Gagal menghapus data.", "error");
+    } finally {
+      setConfirmDeleteModal(null);
     }
   };
 
@@ -450,10 +477,10 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                   updateVerifRecord(r.verif_id, { status: "approved" as any });
                 }
                 fetchData();
-                alert(`RUP ${r.nama || r.id} berhasil disetujui.`);
+                showNotify("RUP Disetujui", `RUP ${r.nama || r.id} berhasil disetujui.`, "info");
               } catch (e: any) {
                 console.error(e);
-                alert("Gagal menyetujui RUP.");
+                showNotify("Gagal", "Gagal menyetujui RUP.", "error");
               }
             }}
             onRevisi={(r) => {
@@ -486,9 +513,9 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                 try {
                   await api.post(`/verifikasi/${r.verif_id}/approve`);
                   fetchData();
-                  alert("NPP berhasil disetujui.");
+                  showNotify("NPP Disetujui", "NPP berhasil disetujui.", "info");
                 } catch (e: any) {
-                  alert(e.response?.data?.message || "Gagal menyetujui.");
+                  showNotify("Gagal", e.response?.data?.message || "Gagal menyetujui NPP.", "error");
                 }
               } else {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Approved" } : item));
@@ -524,9 +551,9 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                 try {
                   await api.post(`/verifikasi/${r.verif_id}/approve`);
                   fetchData();
-                  alert("SP3 berhasil disetujui.");
+                  showNotify("SP3 Disetujui", "SP3 berhasil disetujui.", "info");
                 } catch (e: any) {
-                  alert(e.response?.data?.message || "Gagal menyetujui.");
+                  showNotify("Gagal", e.response?.data?.message || "Gagal menyetujui SP3.", "error");
                 }
               } else {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Approved" } : item));
@@ -562,9 +589,9 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                 try {
                   await api.post(`/verifikasi/${r.verif_id}/approve`);
                   fetchData();
-                  alert("PBJ berhasil disetujui.");
+                  showNotify("PBJ Disetujui", "PBJ berhasil disetujui.", "info");
                 } catch (e: any) {
-                  alert(e.response?.data?.message || "Gagal menyetujui.");
+                  showNotify("Gagal", e.response?.data?.message || "Gagal menyetujui PBJ.", "error");
                 }
               } else {
                 setPengadaanList(prev => prev.map(item => item.id === r.id ? { ...item, status: "Approved" } : item));
@@ -606,29 +633,29 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                   if (puj) {
                     await api.post(`/pengujian/${puj.id}/advance-status`, { status: "selesai" });
                     await api.put(`/pengadaan/${r.id}`, { status: "Selesai" });
-                    alert("Pengujian berhasil di-bypass.");
+                    showNotify("Bypass Berhasil", "Pengujian berhasil di-bypass.", "info");
                     fetchData();
                   } else {
-                    alert("Data pengujian tidak ditemukan di backend.");
+                    showNotify("Data Tidak Ditemukan", "Data pengujian tidak ditemukan di backend.", "warning");
                   }
                 } catch (e) {
-                  alert("Gagal bypass pengujian");
+                  showNotify("Gagal", "Gagal bypass pengujian.", "error");
                 }
               } else if (s.includes("pembayaran")) {
                 try {
                   const res = await api.get(`/pengadaan/${r.id}/step-status?stepId=pembayaran`);
                   if (res.data.verifikasi?.id) {
                     await api.post(`/verifikasi/${res.data.verifikasi.id}/approve`);
-                    alert("Pembayaran berhasil di-bypass.");
+                    showNotify("Bypass Berhasil", "Pembayaran berhasil di-bypass.", "info");
                     fetchData();
                   } else {
-                    alert("Verifikasi pembayaran belum tersedia.");
+                    showNotify("Perhatian", "Verifikasi pembayaran belum tersedia.", "warning");
                   }
                 } catch (e) {
-                  alert("Gagal bypass pembayaran");
+                  showNotify("Gagal", "Gagal bypass pembayaran.", "error");
                 }
               } else {
-                alert("Hanya bisa bypass tahap Pengujian atau Pembayaran dari sini.");
+                showNotify("Perhatian", "Hanya bisa bypass tahap Pengujian atau Pembayaran dari sini.", "warning");
               }
             }}
             showCrudActions={true} emptyMessage="Tidak ada data Kontrak."
@@ -782,14 +809,14 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                     disabled={["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(showDetail.item.status || "").toLowerCase())}
                     onClick={async () => {
                       if (["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(showDetail.item.status || "").toLowerCase())) return;
-                      if (!revisionNote.trim()) { alert("Harap isi catatan revisi."); return; }
+                      if (!revisionNote.trim()) { showNotify("Catatan Kosong", "Harap isi catatan revisi terlebih dahulu.", "warning"); return; }
                       if (showDetail.item.verif_id) {
                         try {
                           await api.post(`/verifikasi/${showDetail.item.verif_id}/revisi`, { catatan: revisionNote });
                           fetchData();
                         } catch(e) {}
                       }
-                      alert("Catatan revisi berhasil dikirim!");
+                      showNotify("Revisi Terkirim", "Catatan revisi berhasil dikirim ke user!", "info");
                       setShowRevisionBox(false);
                       setRevisionNote("");
                       setShowDetail(null);
@@ -837,7 +864,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
                           fetchData();
                         } catch(e) {}
                       }
-                      alert(`${showDetail.type.toUpperCase()} berhasil diverifikasi & disetujui!`);
+                      showNotify("Verifikasi Berhasil", `${showDetail.type.toUpperCase()} berhasil diverifikasi & disetujui!`, "info");
                       setShowDetail(null);
                     }}
                     className={`h-[30px] px-3 rounded-[9px] text-[11px] font-bold flex items-center gap-1.5 shadow-sm transition-all ${["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(showDetail.item.status || "").toLowerCase()) ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] text-white hover:brightness-110 cursor-pointer"}`}
@@ -888,6 +915,31 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
           </div>
         </AdminModal>
       )}
+
+      {/* Centered Delete Confirmation Modal */}
+      {confirmDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setConfirmDeleteModal(null)}>
+          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-6 text-center" onClick={e => e.stopPropagation()}>
+            <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <Trash2 size={24} className="text-red-500" />
+            </div>
+            <h3 className="text-[16px] font-bold text-gray-800 mb-1">Hapus {confirmDeleteModal.row?.tipe?.toUpperCase() || 'Data'}?</h3>
+            <p className="text-[12px] text-gray-500 mb-5">Data tahap, antrean verifikasi, dan riwayat terkait akan dihapus secara permanen.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmDeleteModal(null)} className="flex-1 h-10 rounded-xl border border-gray-200 text-gray-600 text-[12.5px] font-medium hover:bg-gray-50">Batal</button>
+              <button onClick={executeDelete} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-[12.5px] font-semibold hover:bg-red-600">Ya, Hapus</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <WarningModal
+        isOpen={notifyModal.isOpen}
+        title={notifyModal.title}
+        message={notifyModal.message}
+        variant={notifyModal.variant}
+        onClose={() => setNotifyModal(p => ({ ...p, isOpen: false }))}
+      />
     </div>
   );
 }

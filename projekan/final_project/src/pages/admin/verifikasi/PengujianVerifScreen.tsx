@@ -4,6 +4,7 @@ import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/shared/AdminModal";
 import { FileUploadInput } from "../../../components/common/FileUploadInput";
+import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { Plus, CheckCircle2, XCircle, FileWarning, Eye, BarChart3, TrendingUp, ShieldCheck } from "lucide-react";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
 
@@ -23,6 +24,16 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
   const [kontrakListOver, setKontrakListOver] = useState<any[]>([]);
   const [requestList, setRequestList] = useState<any[]>([]);
   const [reviewList, setReviewList] = useState<any[]>([]);
+  const [notifyModal, setNotifyModal] = useState<{ isOpen: boolean; title: string; message: string; variant: WarningVariant }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "info",
+  });
+
+  const showNotify = (title: string, message: string, variant: WarningVariant = "info") => {
+    setNotifyModal({ isOpen: true, title, message, variant });
+  };
 
   const fetchPengadaanData = async () => {
     setLoading(true);
@@ -202,16 +213,16 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
                     if (puj) {
                       await api.post(`/pengujian/${puj.id}/advance-status`, { status: "selesai" });
                       await api.put(`/pengadaan/${r.id}`, { status: "Selesai", currentStep: "pembayaran" });
-                      alert("Pengujian berhasil di-bypass.");
+                      showNotify("Bypass Berhasil", "Pengujian berhasil di-bypass ke tahap Pembayaran.", "info");
                       fetchPengadaanData();
                     } else {
-                      alert("Data pengujian tidak ditemukan di backend.");
+                      showNotify("Data Tidak Ditemukan", "Data pengujian tidak ditemukan di database.", "warning");
                     }
                   } catch (e) {
-                    alert("Gagal bypass pengujian");
+                    showNotify("Gagal", "Gagal melakukan bypass pengujian.", "error");
                   }
                 } else {
-                  alert("Hanya bisa bypass tahap Pengujian dari sini.");
+                  showNotify("Perhatian", "Hanya bisa bypass tahap Pengujian dari menu ini.", "warning");
                 }
               }}
               emptyMessage="Tidak ada data kontrak."
@@ -405,17 +416,17 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
 
                   if (confirmDialog.type === "kelengkapan" || confirmDialog.type === "revisi") {
                     await api.post(`/verifikasi/${verifId}/revisi`, { catatan });
-                    alert("Catatan revisi pengujian berhasil dikirim ke user.");
+                    showNotify("Revisi Terkirim", "Catatan revisi pengujian berhasil dikirim ke user.", "info");
                   } else if (confirmDialog.type === "reject") {
                     await api.post(`/verifikasi/${verifId}/reject`, { catatan });
-                    alert("Pengujian berhasil ditolak.");
+                    showNotify("Pengujian Ditolak", "Pengujian berhasil ditolak.", "error");
                   } else {
                     await api.post(`/verifikasi/${verifId}/approve`);
-                    alert("Pengujian berhasil diverifikasi.");
+                    showNotify("Verifikasi Berhasil", "Pengujian berhasil diverifikasi dan disetujui.", "info");
                   }
                   fetchPengadaanData();
                 } catch (err: any) {
-                  alert(err?.response?.data?.message || "Gagal memproses tindakan pengujian.");
+                  showNotify("Gagal Memproses", err?.response?.data?.message || "Gagal memproses tindakan pengujian.", "error");
                 } finally {
                   setConfirmDialog({ type: "verifikasi", text: "", show: false });
                   setShowReviewDetail(null);
@@ -464,6 +475,13 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
   return (
     <div className="flex-1 min-h-screen pb-12">
       {renderContent()}
+      <WarningModal
+        isOpen={notifyModal.isOpen}
+        title={notifyModal.title}
+        message={notifyModal.message}
+        variant={notifyModal.variant}
+        onClose={() => setNotifyModal(p => ({ ...p, isOpen: false }))}
+      />
     </div>
   );
 }

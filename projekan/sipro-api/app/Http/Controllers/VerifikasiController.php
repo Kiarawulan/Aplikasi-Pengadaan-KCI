@@ -264,7 +264,7 @@ class VerifikasiController extends Controller
                             'processed_by' => $admin->id,
                         ]);
                     }
-                    $pengadaan->status = 'approved';
+                    $pengadaan->status = 'Selesai';
                     $pengadaan->current_step = 'completed';
                 }
 

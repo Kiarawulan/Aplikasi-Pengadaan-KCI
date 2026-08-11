@@ -21,8 +21,8 @@ class VendorController extends Controller
             'kontakPerson' => 'nullable|string',
             'telepon'      => 'nullable|string',
             'email'        => 'nullable|email',
-            'kategori'     => 'required|string',
-            'status'       => 'required|in:aktif,blacklist,non-aktif',
+            'kategori'     => 'nullable|string',
+            'status'       => 'nullable|string',
         ]);
 
         $trimmedName = trim($request->nama);
@@ -30,18 +30,33 @@ class VendorController extends Controller
             return response()->json(['message' => 'Vendor dengan nama tersebut sudah terdaftar di Master Data.'], 422);
         }
 
-        $id = 'VND-' . str_pad(Vendor::count() + 1, 3, '0', STR_PAD_LEFT);
+        $maxId = 0;
+        foreach (Vendor::all() as $v) {
+            if (preg_match('/VND-(\d+)/i', $v->id, $m)) {
+                $num = (int)$m[1];
+                if ($num > $maxId) {
+                    $maxId = $num;
+                }
+            }
+        }
+        $id = 'VND-' . str_pad($maxId + 1, 3, '0', STR_PAD_LEFT);
+
+        $kategori = !empty($request->kategori) ? trim($request->kategori) : 'General';
+        $status = !empty($request->status) ? strtolower(trim($request->status)) : 'aktif';
+        if (!in_array($status, ['aktif', 'blacklist', 'non-aktif'])) {
+            $status = 'aktif';
+        }
 
         $vendor = Vendor::create([
             'id'              => $id,
             'nama'            => $trimmedName,
             'npwp'            => $request->npwp,
             'alamat'          => $request->alamat,
-            'kontak_person'   => $request->kontakPerson,
+            'kontak_person'   => $request->kontakPerson ?? $request->kontak,
             'telepon'         => $request->telepon,
             'email'           => $request->email,
-            'kategori'        => $request->kategori,
-            'status'          => $request->status,
+            'kategori'        => $kategori,
+            'status'          => $status,
             'created_at_date' => now()->toDateString(),
         ]);
 
@@ -62,15 +77,18 @@ class VendorController extends Controller
             }
         }
 
+        $kategori = $request->has('kategori') ? (!empty($request->kategori) ? trim($request->kategori) : $vendor->kategori) : $vendor->kategori;
+        $status = $request->has('status') ? (!empty($request->status) ? strtolower(trim($request->status)) : $vendor->status) : $vendor->status;
+
         $vendor->update([
             'nama'          => $request->input('nama', $vendor->nama),
             'npwp'          => $request->input('npwp', $vendor->npwp),
             'alamat'        => $request->input('alamat', $vendor->alamat),
-            'kontak_person' => $request->input('kontakPerson', $vendor->kontak_person),
+            'kontak_person' => $request->input('kontakPerson', $request->input('kontak', $vendor->kontak_person)),
             'telepon'       => $request->input('telepon', $vendor->telepon),
-            'email'           => $request->input('email', $vendor->email),
-            'kategori'      => $request->input('kategori', $vendor->kategori),
-            'status'        => $request->input('status', $vendor->status),
+            'email'         => $request->input('email', $vendor->email),
+            'kategori'      => $kategori,
+            'status'        => $status,
         ]);
 
         return response()->json($vendor);

@@ -1,33 +1,17 @@
 <?php
 
-namespace Database\Seeders;
-
 use App\Models\Role;
 use App\Models\RolePermission;
 use App\Models\User;
-use Illuminate\Database\Seeder;
+use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
-class DatabaseSeeder extends Seeder
+return new class extends Migration
 {
-    public function run(): void
+    public function up(): void
     {
         $roles = [
-            [
-                'id' => 'role-admin',
-                'name' => 'Super Admin',
-                'description' => 'Akses penuh ke seluruh modul dan verifikasi.',
-                'color' => '#e6251c',
-                'role_type' => 'admin',
-                'is_system' => true,
-                'permissions' => [
-                    'dashboard' => 'editor', 'pengajuanDana' => 'editor', 'pengadaan' => 'editor',
-                    'pengujian' => 'editor', 'pembayaran' => 'editor', 'templateDokumen' => 'editor',
-                    'masterData' => 'editor', 'userManagement' => 'editor',
-                    'roleManagement' => 'editor',
-                ],
-            ],
             [
                 'id' => 'role-admin-pengadaan',
                 'name' => 'Admin Pengadaan',
@@ -36,9 +20,14 @@ class DatabaseSeeder extends Seeder
                 'role_type' => 'admin',
                 'is_system' => true,
                 'permissions' => [
-                    'dashboard' => 'editor', 'pengajuanDana' => 'editor', 'pengadaan' => 'editor',
-                    'pengujian' => 'editor', 'pembayaran' => 'editor', 'templateDokumen' => 'editor',
-                    'masterData' => 'editor', 'userManagement' => 'editor',
+                    'dashboard' => 'editor',
+                    'pengajuanDana' => 'editor',
+                    'pengadaan' => 'editor',
+                    'pengujian' => 'editor',
+                    'pembayaran' => 'editor',
+                    'templateDokumen' => 'editor',
+                    'masterData' => 'editor',
+                    'userManagement' => 'editor',
                     'roleManagement' => 'no-access',
                 ],
             ],
@@ -50,9 +39,14 @@ class DatabaseSeeder extends Seeder
                 'role_type' => 'admin',
                 'is_system' => true,
                 'permissions' => [
-                    'dashboard' => 'editor', 'pengajuanDana' => 'viewer', 'pengadaan' => 'editor',
-                    'pengujian' => 'editor', 'pembayaran' => 'viewer', 'templateDokumen' => 'editor',
-                    'masterData' => 'editor', 'userManagement' => 'viewer',
+                    'dashboard' => 'editor',
+                    'pengajuanDana' => 'viewer',
+                    'pengadaan' => 'editor',
+                    'pengujian' => 'editor',
+                    'pembayaran' => 'viewer',
+                    'templateDokumen' => 'editor',
+                    'masterData' => 'editor',
+                    'userManagement' => 'viewer',
                     'roleManagement' => 'no-access',
                 ],
             ],
@@ -64,23 +58,14 @@ class DatabaseSeeder extends Seeder
                 'role_type' => 'user',
                 'is_system' => true,
                 'permissions' => [
-                    'dashboard' => 'editor', 'pengajuanDana' => 'editor', 'pengadaan' => 'editor',
-                    'pengujian' => 'editor', 'pembayaran' => 'editor', 'templateDokumen' => 'viewer',
-                    'masterData' => 'no-access', 'userManagement' => 'no-access',
-                    'roleManagement' => 'no-access',
-                ],
-            ],
-            [
-                'id' => 'role-it',
-                'name' => 'User IT',
-                'description' => 'Pengguna CTIT untuk membuat dan memantau pengajuan.',
-                'color' => '#7c3aed',
-                'role_type' => 'user',
-                'is_system' => true,
-                'permissions' => [
-                    'dashboard' => 'viewer', 'pengajuanDana' => 'editor', 'pengadaan' => 'editor',
-                    'pengujian' => 'editor', 'pembayaran' => 'editor', 'templateDokumen' => 'viewer',
-                    'masterData' => 'no-access', 'userManagement' => 'no-access',
+                    'dashboard' => 'editor',
+                    'pengajuanDana' => 'editor',
+                    'pengadaan' => 'editor',
+                    'pengujian' => 'editor',
+                    'pembayaran' => 'editor',
+                    'templateDokumen' => 'viewer',
+                    'masterData' => 'no-access',
+                    'userManagement' => 'no-access',
                     'roleManagement' => 'no-access',
                 ],
             ],
@@ -126,17 +111,6 @@ class DatabaseSeeder extends Seeder
 
         $users = [
             [
-                'id' => 'user-admin',
-                'name' => 'Super Admin',
-                'username' => 'superadmin',
-                'email' => 'admin@sipro.com',
-                'password' => 'admin123',
-                'role_name' => 'Super Admin',
-                'default_role_id' => 'role-admin',
-                'departemen' => 'Management',
-                'is_admin' => true,
-            ],
-            [
                 'id' => 'user-admin-pengadaan',
                 'name' => 'Admin Pengadaan',
                 'username' => 'adminpengadaan',
@@ -167,17 +141,6 @@ class DatabaseSeeder extends Seeder
                 'role_name' => 'Staff Pengadaan (user)',
                 'default_role_id' => 'role-staff-pengadaan',
                 'departemen' => 'Pengadaan',
-                'is_admin' => false,
-            ],
-            [
-                'id' => 'user-it',
-                'name' => 'User IT',
-                'username' => 'userit',
-                'email' => 'it@sipro.com',
-                'password' => 'it123',
-                'role_name' => 'User IT',
-                'default_role_id' => 'role-it',
-                'departemen' => 'CTIT',
                 'is_admin' => false,
             ],
         ];
@@ -224,4 +187,8 @@ class DatabaseSeeder extends Seeder
             }
         }
     }
-}
+
+    public function down(): void
+    {
+    }
+};

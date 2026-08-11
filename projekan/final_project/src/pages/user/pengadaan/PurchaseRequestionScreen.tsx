@@ -141,19 +141,23 @@ export function PurchaseRequestionScreen({ onSelectItem }: {
                     <td className="px-4 py-3.5"><StatusBadge status={item.status} /></td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-0.5">
-                        {PARK_STEPS.map((s) => (
-                          <div
-                            key={s.id}
-                            title={s.label}
-                            className={`w-3 h-3 rounded-full ${
-                              (item.completedSteps || []).includes(s.id)
-                                ? "bg-[#e6251c]"
-                                : item.currentStep === s.id
-                                ? "bg-[#252271]"
-                                : "bg-gray-100 border border-gray-200"
-                            }`}
-                          />
-                        ))}
+                        {PARK_STEPS.map((s) => {
+                          const isAllDone = item.status === "Selesai" || item.status === "approved" || item.status === "completed" || item.currentStep === "completed" || (item.completedSteps || []).length >= PARK_STEPS.length;
+                          const isCompleted = isAllDone || (item.completedSteps || []).includes(s.id);
+                          return (
+                            <div
+                              key={s.id}
+                              title={s.label}
+                              className={`w-3 h-3 rounded-full ${
+                                isCompleted
+                                  ? "bg-[#22c55e]"
+                                  : item.currentStep === s.id
+                                  ? "bg-[#252271]"
+                                  : "bg-gray-100 border border-gray-200"
+                              }`}
+                            />
+                          );
+                        })}
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
