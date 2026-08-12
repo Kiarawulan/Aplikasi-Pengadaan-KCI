@@ -1,22 +1,14 @@
 export function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    Proses: "status-progress",
-    Selesai: "status-success",
-    Draft: "status-neutral",
-    Aktif: "status-success",
-    Approved: "status-success",
-    approved: "status-success",
-    "Sudah Diverifikasi": "status-success",
-    "Menunggu Verifikasi": "status-pending",
-    "Menunggu Verifikasi Admin": "status-pending",
-    pending: "status-pending",
-    Revisi: "status-danger",
-    revisi: "status-danger",
-    rejected: "status-danger",
-    "Perlu Revisi": "status-danger",
-  };
+  const normalized = String(status || "-").trim().toLowerCase();
+  const colors = ["selesai", "approve", "approved", "disetujui", "final", "closed", "aktif", "active", "sudah diverifikasi", "verified", "cair", "completed", "complete", "lengkap", "uploaded", "lunas"].includes(normalized)
+    ? "bg-[#f0fdf4] text-[#008236]"
+    : ["revisi", "perlu revisi", "revision_required", "rejected", "ditolak", "tolak"].includes(normalized)
+      ? "bg-[#fff1f2] text-[#be123c]"
+      : ["pending", "menunggu verifikasi", "menunggu verifikasi admin", "submitted", "draft", "proses", "on process", "on_progress", "contract release", "request pengujian", "review hasil pengujian", "pengujian on process"].includes(normalized)
+        ? "bg-[#f0f9ff] text-[#0069a8]"
+        : "bg-[#f0f9ff] text-[#0069a8]";
   return (
-    <span className={`status-badge text-[10px] font-semibold px-2 py-0.5 rounded-full ${colors[status] ?? "status-neutral"}`}>{status}</span>
+    <span className={`inline-flex items-center text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px] whitespace-nowrap ${colors}`}>{status || "-"}</span>
   );
 }
 

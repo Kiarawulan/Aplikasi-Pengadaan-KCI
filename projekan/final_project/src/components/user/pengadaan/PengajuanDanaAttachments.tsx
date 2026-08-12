@@ -191,18 +191,20 @@ export function PengajuanDanaAttachments({
                           <button
                             type="button"
                             onClick={() => view(document)}
-                            className="flex h-7 px-2.5 items-center gap-1 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-[10.5px] font-bold cursor-pointer transition-colors shadow-2xs"
+                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer transition-colors"
                             title="Lihat berkas"
+                            aria-label="Lihat berkas"
                           >
-                            <Eye size={12} /> Lihat
+                            <Eye size={12} />
                           </button>
                           <button
                             type="button"
                             onClick={() => remove(document)}
-                            className="flex h-7 px-2.5 items-center gap-1 rounded-lg bg-rose-600 text-white hover:bg-rose-700 text-[10.5px] font-bold cursor-pointer transition-colors shadow-2xs"
+                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 cursor-pointer transition-colors"
                             title="Hapus berkas"
+                            aria-label="Hapus berkas"
                           >
-                            <Trash2 size={12} /> Hapus
+                            <Trash2 size={12} />
                           </button>
                         </>
                       ) : (

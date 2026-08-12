@@ -5,7 +5,7 @@ import { FileUploadInput } from "../common/FileUploadInput";
 import { SummaryRow } from "../common/SummaryRow";
 import { ApprovedBadge } from "../common/ApprovedBadge";
 import { getPengujianList } from "../../store/dataStore";
-import { Sp3DetailView } from "./Sp3DetailView";
+import { Sp3DetailView } from "../user/pengadaan/Sp3DetailView";
 import { useMasterVendors } from "../../hooks/useMasterVendors";
 
 export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
@@ -14,6 +14,9 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
   status?: string;
   item?: any;
 }) {
+  const SignedDocument = ({ title, emptyText }: { stage: string; title: string; emptyText: string }) => (
+    <div className="space-y-2"><p className="text-[11.5px] font-semibold">{title}</p><p className="text-[11px] text-gray-500">{emptyText}</p></div>
+  );
   const { vendorOptions } = useMasterVendors();
   const f = (k: string) => {
     if (allFd[subStepId]?.[k]) return allFd[subStepId][k];
@@ -161,7 +164,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
     );
   }
   if (step === "pengujian") {
-    const pengujianItem = getPengujianList().find(x => x.pengadaan_id === item?.id);
+    const pengujianItem = getPengujianList().find((x: any) => x.pengadaan_id === item?.id);
     let statusLabel = "Belum Diajukan";
     if (pengujianItem?.status === "selesai") statusLabel = "Selesai Pengujian";
     else if (pengujianItem?.status === "diproses" || pengujianItem?.status === "approved") statusLabel = "Dalam Proses";

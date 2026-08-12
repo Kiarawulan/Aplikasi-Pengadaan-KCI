@@ -1,7 +1,8 @@
 // src/components/admin/layout/SidebarAdmin.tsx
 import React, { useState } from "react";
 import { useAuth } from "@/store/authStore";
-import { NavIcon, ChevronRight } from "../common"; // adjust import as needed
+const NavIcon = ({ path }: { path: string }) => <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none"><path d={path} stroke="currentColor" /></svg>;
+const ChevronRight = ({ open }: { open: boolean }) => <span className={`transition-transform ${open ? "rotate-90" : ""}`}>›</span>;
 
 const ICONS = {
   dashboard: "M2.66667 4C...", // placeholder path, replace with actual
@@ -30,7 +31,7 @@ export function SidebarAdmin({ page, onNavigate, collapsed = false }: SidebarAdm
   const isVerifikasiSection = page === "verifikasi";
 
   if (collapsed) {
-    const navIcons = [
+    const navIcons: Array<{ path: string; p: Page; active: boolean }> = [
       { path: ICONS.dashboard, p: "dashboard", active: page === "dashboard" },
       { path: ICONS.users, p: "manajemen-user", active: isUserRoleSection },
       { path: ICONS.clipboard, p: "verifikasi", active: isVerifikasiSection },

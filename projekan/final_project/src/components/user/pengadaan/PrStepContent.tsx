@@ -154,7 +154,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
   if (step === "pbj") return <InternalProcessView kind="pbj" item={item} />;
   if (step === "contract") return <InternalProcessView kind="contract" item={item} />;
   if (step === "pengujian") {
-    const pengujianItem = getPengujianList().find(x => x.pengadaan_id === item?.id);
+    const pengujianItem = getPengujianList().find((x: any) => x.pengadaan_id === item?.id);
     let statusLabel = "Belum Diajukan";
     if (pengujianItem?.status === "selesai") statusLabel = "Selesai Pengujian";
     else if (pengujianItem?.status === "diproses" || pengujianItem?.status === "approved") statusLabel = "Dalam Proses";

@@ -273,7 +273,7 @@ function PengajuanDanaDashboard() {
         uraian: row.pengadaan_nama || parent.nama || "—",
         nominal: currency(row.nominal || parent.nominal),
         dept: row.departemen || parent.departemen || "—",
-        statuses: String(row.tipe || "verifikasi").replaceAll("-", " ").toUpperCase(),
+        statuses: String(row.tipe || "verifikasi").replace(/-/g, " ").toUpperCase(),
       };
     }), [verifikasi, unit, tahun, pengadaanById]);
 

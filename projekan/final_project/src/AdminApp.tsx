@@ -25,6 +25,7 @@ import featureUnavailableImage from "./assets/feature-unavailable.png";
 import { DIVISI_LIST } from "./constants/divisi";
 import { useMasterVendors } from "./hooks/useMasterVendors";
 import { getFigmaCaptureConfig } from "./figmaCapture";
+import { StatusBadge } from "./components/common/StatusBadge";
 
 // ─── SVG path data (inlined from Figma exports) ───────────────────────────────
 const ICONS = {
@@ -82,6 +83,7 @@ type PengujianDoc =
 type PembayaranDoc =
   | "pembayaran-outsource"
   | "pembayaran-non-outsource"
+  | "pembayaran-payment-request"
   | "pembayaran-umd"
   | "pembayaran-daily-reports"
   | "pembayaran-weekly-reports"
@@ -124,22 +126,35 @@ function useAdminVerificationQueue(types: string) {
 function mapVerificationRow(verifikasi: any) {
   const form = verifikasi.document_form_data || verifikasi.pengadaan_form_data || {};
   const document = verifikasi.document || {};
-  const nominal = verifikasi.nominal || form.nilaiKontrak || form.nilai || form.nominal || "-";
-  const packageName = verifikasi.pengadaan_nama || form.namaPaket || form.judul || form.nama || "Pengadaan";
-  const reference = document.nomor_sp3 || document.no_sp3 || document.no_kontrak || form.nomorSp3 || form.noSp3 || verifikasi.pengadaan_id;
+  // Form pengadaan berisi objek per tahapan (RUP, NPP, SP3, kontrak, dst.).
+  // Ambil nilai dari seluruh tahapan agar tabel pengujian dapat mereferensikan
+  // kembali isian yang sudah dibuat user sebelumnya.
+  const formSections = [form, ...Object.values(form).filter((value) => value && typeof value === "object" && !Array.isArray(value))] as any[];
+  const fromForm = (...keys: string[]) => {
+    for (const section of formSections) {
+      for (const key of keys) {
+        const value = section?.[key];
+        if (value !== undefined && value !== null && value !== "") return value;
+      }
+    }
+    return undefined;
+  };
+  const nominal = verifikasi.nominal || fromForm("nilaiKontrak", "nilaiSebelumPajak", "nilai", "nominalPermohonan", "nominal") || "-";
+  const packageName = verifikasi.pengadaan_nama || fromForm("namaPaket", "judulPengadaan", "judulPermohonan", "judul", "nama") || "Pengadaan";
+  const reference = document.nomor_sp3 || document.no_sp3 || document.no_kontrak || fromForm("nomorSp3", "noSp3", "sp3No", "nomorKontrak", "noKontrak") || verifikasi.pengadaan_id;
 
   return {
     ...verifikasi,
     ...document,
     formData: form,
-    idNpp: form.idNpp || form.noNpp || verifikasi.pengadaan_id,
-    idRup: form.idRup || form.rupId || "-",
-    noCont: document.no_kontrak || form.nomorKontrak || "-",
-    opexCapex: form.opexCapex || form.opex_capex || "-",
-    kategori: form.kategori || form.category || "-",
-    tahun: form.tahun || (verifikasi.submit_at ? new Date(verifikasi.submit_at).getFullYear().toString() : "-"),
+    idNpp: fromForm("idNpp", "noNpp", "nomorNpp", "nppNo") || verifikasi.pengadaan_id,
+    idRup: fromForm("idRup", "rupId", "noRup", "nomorRup") || (Array.isArray(fromForm("rupIds")) ? fromForm("rupIds").join(", ") : "-"),
+    noCont: document.no_kontrak || fromForm("nomorKontrak", "noKontrak", "contractNo") || "-",
+    opexCapex: fromForm("opexCapex", "opex_capex", "capexOpex", "cost") || "-",
+    kategori: fromForm("kategori", "category", "kategoriAnggaran", "jenisPengadaan", "jenisBarang") || "-",
+    tahun: fromForm("tahun", "tahunAnggaran") || (verifikasi.submit_at ? new Date(verifikasi.submit_at).getFullYear().toString() : "-"),
     sp3Final: reference,
-    statusHps: form.statusHps || "-",
+    statusHps: fromForm("statusHps", "status_hps") || "-",
     noRequest: document.nomor_pengujian || document.reference_number || verifikasi.id,
     noSp3: reference,
     sp3: document.no_sp3 || form.nomorSp3 || form.noSp3 || reference,
@@ -159,8 +174,8 @@ function mapVerificationRow(verifikasi: any) {
     taxValue: form.taxValue || form.pajak || "-",
     dept: verifikasi.departemen || form.departemen || "-",
     divisi: verifikasi.departemen || form.departemen || "-",
-    vendor: document.vendor || form.vendor || form.namaVendor || "-",
-    vendorName: document.vendor || form.vendor || form.namaVendor || "-",
+    vendor: document.vendor || fromForm("vendor", "namaVendor", "vendorName") || "-",
+    vendorName: document.vendor || fromForm("vendor", "namaVendor", "vendorName") || "-",
     tanggalPermohonan: verifikasi.submit_at ? new Date(verifikasi.submit_at).toLocaleDateString("id-ID") : "-",
     tanggalRequest: verifikasi.submit_at ? new Date(verifikasi.submit_at).toLocaleDateString("id-ID") : "-",
     pemohon: verifikasi.submit_by || "-",
@@ -1493,16 +1508,16 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
 
         {/* Textbox Catatan Revisi */}
         {showRevisionBox && (
-          <div className="bg-amber-50 border border-amber-300 rounded-[16px] p-[20px] mb-[20px] shadow-sm animate-in fade-in-0">
-            <h4 className="text-amber-900 text-[14px] font-bold mb-[8px] flex items-center gap-2">
-              <svg className="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+          <div className="bg-rose-50 border border-rose-300 rounded-[16px] p-[20px] mb-[20px] shadow-sm animate-in fade-in-0">
+            <h4 className="text-red-900 text-[14px] font-bold mb-[8px] flex items-center gap-2">
+              <svg className="w-4 h-4 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
               Input Catatan Revisi Untuk Permohonan Ini
             </h4>
             <textarea
               value={revisionNote}
               onChange={(e) => setRevisionNote(e.target.value)}
               placeholder="Tuliskan alasan perbaikan atau catatan revisi dokumen secara jelas..."
-              className="w-full h-[90px] bg-white border border-amber-300 rounded-[10px] p-[12px] text-[13px] text-[#0f172a] focus:border-[#252271] outline-none transition-colors mb-[12px]"
+              className="w-full h-[90px] bg-white border border-rose-300 rounded-[10px] p-[12px] text-[13px] text-[#0f172a] focus:border-red-500 outline-none transition-colors mb-[12px]"
             />
             <div className="flex items-center gap-[10px]">
               <button
@@ -2525,7 +2540,7 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
                     </td>
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.tahun}</td>
                     <td className="px-[14px] py-[14px] text-center">
-                      <span className={`inline-flex items-center text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px] ${row.status === "Final" ? "bg-[#f0fdf4] text-[#008236]" : "bg-[#fef3c7] text-[#92400e]"}`}>{row.status}</span>
+                      <StatusBadge status={row.status} />
                     </td>
                     <td className="px-[14px] py-[14px]">
                       <div className="flex items-center gap-[3px] justify-center">
@@ -2978,7 +2993,7 @@ function RupSignedPage() {
                   <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.namaFile}</td>
                   <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.tanggal}</td>
                   <td className="px-[14px] py-[14px] text-center">
-                    <span className="inline-flex items-center bg-[#f0fdf4] text-[#008236] text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px]">{row.status}</span>
+                    <StatusBadge status={row.status} />
                   </td>
                   <td className="px-[14px] py-[14px]">
                     <div className="flex items-center gap-[3px] justify-center">
@@ -3166,7 +3181,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.namaFile}</td>
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.tanggal}</td>
                     <td className="px-[14px] py-[14px] text-center">
-                      <span className="inline-flex items-center bg-[#f0fdf4] text-[#008236] text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px]">{row.status}</span>
+                      <StatusBadge status={row.status} />
                     </td>
                     <td className="px-[14px] py-[14px]">
                       <div className="flex items-center gap-[3px] justify-center">
@@ -3247,18 +3262,18 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
 
           {/* Inline Revisi Box */}
           {showRevisi && (
-            <div className="mx-[44px] mb-[16px] bg-amber-50 border border-amber-300 rounded-[12px] p-[16px]">
-              <p className="text-[#92400e] text-[12px] font-bold mb-[8px]">Tuliskan Catatan Revisi:</p>
+            <div className="mx-[44px] mb-[16px] bg-rose-50 border border-rose-300 rounded-[12px] p-[16px]">
+              <p className="text-red-900 text-[12px] font-bold mb-[8px]">Tuliskan Catatan Revisi:</p>
               <textarea
                 autoFocus
                 value={actionNote}
                 onChange={(e) => setActionNote(e.target.value)}
-                className="w-full h-[80px] border border-amber-300 rounded-[8px] px-[12px] py-[8px] text-[13px] outline-none focus:border-amber-500 resize-none transition-colors"
+                className="w-full h-[80px] border border-rose-300 rounded-[8px] px-[12px] py-[8px] text-[13px] outline-none focus:border-red-500 resize-none transition-colors"
                 placeholder="Catatan revisi..."
               />
               <div className="flex gap-[10px] justify-end mt-[10px]">
                 <button onClick={() => { setShowRevisi(false); setActionNote(""); }} className="px-[16px] py-[7px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[12px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
-                <button disabled={!actionNote.trim()} onClick={() => submitAction("revisi")} className="px-[16px] py-[7px] rounded-[8px] bg-amber-500 text-white text-[12px] font-medium hover:bg-amber-600 disabled:bg-amber-200 disabled:cursor-not-allowed transition-colors active:scale-95">Kirim Revisi</button>
+                <button disabled={!actionNote.trim()} onClick={() => submitAction("revisi")} className="px-[16px] py-[7px] rounded-[8px] bg-gradient-to-r from-red-600 to-rose-500 text-white text-[12px] font-medium hover:from-red-700 hover:to-rose-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors active:scale-95">Kirim Revisi</button>
               </div>
             </div>
           )}
@@ -3357,7 +3372,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px] whitespace-nowrap">{row.taxValue}</td>
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.realisation}</td>
                     <td className="px-[14px] py-[14px] text-center">
-                      <span className={`inline-flex items-center text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px] ${row.status === "Final" ? "bg-[#f0fdf4] text-[#008236]" : "bg-[#f0f9ff] text-[#0069a8]"}`}>{row.status}</span>
+                      <StatusBadge status={row.status} />
                     </td>
                     <td className="px-[14px] py-[14px]">
                       <div className="flex items-center gap-[3px] justify-center">
@@ -3904,16 +3919,16 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
 
           {/* Textbox Catatan Revisi */}
           {showRevisionBox && (
-            <div className="bg-amber-50 border border-amber-300 rounded-[14px] p-[16px] mb-[20px] shadow-sm animate-in fade-in-0">
-              <h4 className="text-amber-900 text-[13px] font-bold mb-[6px] flex items-center gap-2">
-                <svg className="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            <div className="bg-rose-50 border border-rose-300 rounded-[14px] p-[16px] mb-[20px] shadow-sm animate-in fade-in-0">
+              <h4 className="text-red-900 text-[13px] font-bold mb-[6px] flex items-center gap-2">
+                <svg className="w-4 h-4 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                 Catatan Revisi Step Ini ({PBJ_STEPS[activeStep]})
               </h4>
               <textarea
                 value={revisionNote}
                 onChange={(e) => setRevisionNote(e.target.value)}
                 placeholder="Tuliskan catatan revisi atau instruksi perbaikan dokumen untuk step ini..."
-                className="w-full h-[80px] bg-white border border-amber-300 rounded-[8px] p-[10px] text-[12.5px] text-[#0f172a] focus:border-[#252271] outline-none transition-colors mb-[10px]"
+                className="w-full h-[80px] bg-white border border-rose-300 rounded-[8px] p-[10px] text-[12.5px] text-[#0f172a] focus:border-red-500 outline-none transition-colors mb-[10px]"
               />
               <div className="flex items-center gap-[8px]">
                 <button
@@ -4124,7 +4139,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
                       <td className="px-[14px] py-[12px] text-[#364153] whitespace-nowrap">{r.realisasi}</td>
                       <td className="px-[14px] py-[12px] text-[#364153] whitespace-nowrap">{r.assignTo}</td>
                       <td className="px-[14px] py-[12px] text-center">
-                        <span className="px-[10px] py-[3px] rounded-full text-[10.5px] font-semibold bg-indigo-50 text-[#3b82f6] border border-indigo-200 inline-block">{r.status}</span>
+                        <StatusBadge status={r.status} />
                       </td>
                       <td className="px-[14px] py-[12px]">
                         <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
@@ -4163,7 +4178,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
                       <td className="px-[14px] py-[12px] text-[#364153] font-medium">{r.namaPaket}</td>
                       <td className="px-[14px] py-[12px] text-[#364153] whitespace-nowrap">{r.nilaiKontrak}</td>
                       <td className="px-[14px] py-[12px] text-center">
-                        <span className="px-[10px] py-[3px] rounded-full text-[10.5px] font-semibold bg-indigo-50 text-[#3b82f6] border border-indigo-200 inline-block">{r.status}</span>
+                        <StatusBadge status={r.status} />
                       </td>
                       <td className="px-[14px] py-[12px]">
                         <div className="flex items-center justify-center gap-2">
@@ -4201,7 +4216,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
                       <td className="px-[14px] py-[12px] text-[#364153] whitespace-nowrap">{r.nomorMemoInternal}</td>
                       <td className="px-[14px] py-[12px] text-[#364153] whitespace-nowrap">{r.tanggalMemo}</td>
                       <td className="px-[14px] py-[12px] text-center">
-                        <span className="px-[10px] py-[3px] rounded-full text-[10.5px] font-semibold bg-green-50 text-green-700 border border-green-200 inline-block">{r.status}</span>
+                        <StatusBadge status={r.status} />
                       </td>
                       <td className="px-[14px] py-[12px]">
                         <div className="flex items-center justify-center gap-2">
@@ -4480,16 +4495,16 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
 
           {/* Textbox Catatan Revisi */}
           {showRevisionBox && (
-            <div className="bg-amber-50 border border-amber-300 rounded-[14px] p-[16px] mb-[20px] shadow-sm animate-in fade-in-0">
-              <h4 className="text-amber-900 text-[13px] font-bold mb-[6px] flex items-center gap-2">
-                <svg className="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            <div className="bg-rose-50 border border-rose-300 rounded-[14px] p-[16px] mb-[20px] shadow-sm animate-in fade-in-0">
+              <h4 className="text-red-900 text-[13px] font-bold mb-[6px] flex items-center gap-2">
+                <svg className="w-4 h-4 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                 Catatan Revisi Step Ini ({CONTRACT_STEPS[activeStep]})
               </h4>
               <textarea
                 value={revisionNote}
                 onChange={(e) => setRevisionNote(e.target.value)}
                 placeholder="Tuliskan catatan revisi atau instruksi perbaikan dokumen untuk step ini..."
-                className="w-full h-[80px] bg-white border border-amber-300 rounded-[8px] p-[10px] text-[12.5px] text-[#0f172a] focus:border-[#252271] outline-none transition-colors mb-[10px]"
+                className="w-full h-[80px] bg-white border border-rose-300 rounded-[8px] p-[10px] text-[12.5px] text-[#0f172a] focus:border-red-500 outline-none transition-colors mb-[10px]"
               />
               <div className="flex items-center gap-[8px]">
                 <button
@@ -4697,7 +4712,7 @@ function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" 
                       <td className="px-[14px] py-[12px] text-[#364153] whitespace-nowrap">{r.pbj}</td>
                       <td className="px-[14px] py-[12px] text-[#364153] whitespace-nowrap">{r.performanceBond}</td>
                       <td className="px-[14px] py-[12px] text-center">
-                        <span className="px-[10px] py-[3px] rounded-full text-[10.5px] font-semibold bg-indigo-50 text-[#3b82f6] border border-indigo-200 inline-block">{r.status}</span>
+                        <StatusBadge status={r.status} />
                       </td>
                       <td className="px-[14px] py-[12px]">
                         <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
@@ -4733,7 +4748,7 @@ function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" 
                       <td className="px-[14px] py-[12px] text-[#364153] font-medium">{r.namaPaket}</td>
                       <td className="px-[14px] py-[12px] text-[#364153] whitespace-nowrap">{r.nilaiKontrak}</td>
                       <td className="px-[14px] py-[12px] text-center">
-                        <span className="px-[10px] py-[3px] rounded-full text-[10.5px] font-semibold bg-green-50 text-green-700 border border-green-200 inline-block">{r.status}</span>
+                        <StatusBadge status={r.status} />
                       </td>
                       <td className="px-[14px] py-[12px]">
                         <div className="flex items-center justify-center gap-2">
@@ -4816,17 +4831,6 @@ function DetailPengujianPage({ item, isKontrak, onBack, onProcess, onUploadBahp 
         onReject={(note) => { if (onProcess) onProcess("reject", note).catch((error: any) => alert(error?.response?.data?.message || "Pengujian gagal ditolak.")); }}
         onRevisi={(note) => { if (onProcess) onProcess("revisi", note).catch((error: any) => alert(error?.response?.data?.message || "Catatan revisi gagal dikirim.")); }}
       />
-      {!isKontrak && onUploadBahp && (
-        <div className="px-6 pb-6 -mt-4 bg-[#f8fafc]">
-          <AdminUploadBar
-            title="Unggah Surat BAHP Signed"
-            description="Surat BAHP Signed akan tersimpan dan terhubung dengan data pengujian."
-            buttonText="Pilih & Upload BAHP Signed"
-            accept=".pdf,.doc,.docx"
-            onFileSelected={(file) => onUploadBahp(file).catch((error: any) => alert(error?.response?.data?.message || "Surat BAHP gagal diunggah."))}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -4902,6 +4906,7 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
   const subDocLabels: Record<PembayaranDoc, string> = {
     "pembayaran-outsource": "Payment Approve > Outsource",
     "pembayaran-non-outsource": "Payment Approve > Non-Outsource",
+    "pembayaran-payment-request": "Payment Approve > Payment Request",
     "pembayaran-umd": "Payment Approve > UMD",
     "pembayaran-daily-reports": "Reports > Daily Reports",
     "pembayaran-weekly-reports": "Reports > Weekly Reports",
@@ -5015,22 +5020,20 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
                     <td className="px-[14px] py-[10px] text-[#364153] font-medium">{typeof r?.nilaiTagihan === 'object' ? JSON.stringify(r?.nilaiTagihan) : String(r?.nilaiTagihan || '')}</td>
                     <td className="px-[14px] py-[10px] text-[#364153]">{typeof r?.tanggalPermohonan === 'object' ? JSON.stringify(r?.tanggalPermohonan) : String(r?.tanggalPermohonan || '')}</td>
                     <td className="px-[14px] py-[10px]">
-                      <span className={`px-[10px] py-[3px] rounded-full text-[11px] font-medium ${r?.status === "Disetujui" || r?.status === "Cair" || r?.status === "approved" ? "bg-[#d1fae5] text-[#065f46]" : "bg-[#dbeafe] text-[#1d4ed8]"}`}>
-                        {typeof r?.status === 'object' ? String(r?.status?.status || 'pending') : String(r?.status || 'pending')}
-                      </span>
+                      <StatusBadge status={typeof r?.status === 'object' ? String(r?.status?.status || 'pending') : String(r?.status || 'pending')} />
                     </td>
                     <td className="px-[14px] py-[10px] text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => { setSelectedRow(r); setView("detail"); }}
-                          className="px-2 py-1 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 text-[10.5px] font-bold transition-all flex items-center gap-1 border border-blue-200"
+                          className="w-7 h-7 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all flex items-center justify-center"
                           title="Detail"
+                          aria-label="Lihat detail pembayaran"
                         >
                           <svg fill="none" height="12" viewBox="0 0 12 12" width="12">
                             <path d={group14Svg.p126ce980} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
                             <path d={group14Svg.p24092800} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
-                          Detail
                         </button>
                       </div>
                     </td>
@@ -5208,14 +5211,10 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
                       <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.tahun}</td>
                       <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.sp3Final}</td>
                       <td className="px-[14px] py-[14px] text-center">
-                        <span className="inline-flex items-center bg-[#f0fdf4] text-[#008236] text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px]">
-                          {row.status}
-                        </span>
+                        <StatusBadge status={row.status} />
                       </td>
                       <td className="px-[14px] py-[14px] text-center">
-                        <span className="inline-flex items-center bg-[#f3f4f6] text-[#364153] text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px]">
-                          {row.statusHps}
-                        </span>
+                        <StatusBadge status={row.statusHps} />
                       </td>
                       <td className="px-[14px] py-[14px]">
                         <div className="flex items-center gap-[3px] justify-center">
@@ -5255,7 +5254,7 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
                       <td className="px-[14px] py-[10px] text-[#364153]">{r.pemohon}</td>
                       <td className="px-[14px] py-[10px] text-[#364153]">{r.kategori}</td>
                       <td className="px-[14px] py-[10px]">
-                        <span className={`px-[10px] py-[3px] rounded-full text-[11px] font-medium ${r.status === "Selesai" ? "bg-[#d1fae5] text-[#065f46]" : "bg-[#fef9c3] text-[#854d0e]"}`}>{r.status}</span>
+                        <StatusBadge status={r.status} />
                       </td>
                       <td className="px-[14px] py-[10px] text-center">
                         <button
@@ -5310,6 +5309,7 @@ const PEMBAYARAN_ROWS: Record<PembayaranDoc, PembayaranRow[]> = {
   "pembayaran-non-outsource": [
     { noPembayaran: "NON-2024-001", noKontrak: "KTR-2024-001", namaPaket: "Tagihan Lisensi Software Systems Direct", vendor: "PT Tech Solution", nilaiTagihan: "Rp 180.000.000", tanggalPermohonan: "14-02-2024", status: "Disetujui" },
   ],
+  "pembayaran-payment-request": [],
   "pembayaran-umd": [
     { noPembayaran: "UMD-2024-001", noKontrak: "SPPD-2024-089", namaPaket: "Uang Muka Dinas Perjalanan Audit Stasiun", vendor: "Ahmad Fauzi (Tim Audit)", nilaiTagihan: "Rp 15.000.000", tanggalPermohonan: "10-02-2024", status: "Cair" },
     { noPembayaran: "UMD-2024-002", noKontrak: "SPPD-2024-092", namaPaket: "Uang Muka Dinas Pengujian Signal Bogor", vendor: "Budi Santoso (Tim Sinyal)", nilaiTagihan: "Rp 8.500.000", tanggalPermohonan: "18-02-2024", status: "Verifikasi" },
@@ -5762,9 +5762,9 @@ function DetailPembayaranPage({
           </div>
 
           {showRevisiBox && (
-            <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mt-4 animate-in fade-in-0">
-              <p className="text-[12px] font-bold text-purple-900 mb-2 flex items-center gap-1.5">
-                <FileWarning size={15} className="text-purple-600" />
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 mt-4 animate-in fade-in-0">
+              <p className="text-[12px] font-bold text-red-900 mb-2 flex items-center gap-1.5">
+                <FileWarning size={15} className="text-red-600" />
                 Catatan Revisi UMD untuk User:
               </p>
               <textarea
@@ -5779,7 +5779,7 @@ function DetailPembayaranPage({
                 <button
                   type="button"
                   onClick={() => handleProcessPayment("revisi")}
-                  className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-[11.5px] font-bold hover:bg-purple-700 shadow-sm cursor-pointer"
+                  className="px-4 py-1.5 bg-gradient-to-r from-red-600 to-rose-500 text-white rounded-lg text-[11.5px] font-bold hover:from-red-700 hover:to-rose-600 shadow-sm cursor-pointer"
                 >
                   Kirim Catatan Revisi
                 </button>
@@ -6003,9 +6003,9 @@ function DetailPembayaranPage({
         </div>
 
         {showRevisiBox && (
-          <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mt-4 animate-in fade-in-0">
-            <p className="text-[12px] font-bold text-purple-900 mb-2 flex items-center gap-1.5">
-              <FileWarning size={15} className="text-purple-600" />
+          <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 mt-4 animate-in fade-in-0">
+            <p className="text-[12px] font-bold text-red-900 mb-2 flex items-center gap-1.5">
+              <FileWarning size={15} className="text-red-600" />
               Catatan Revisi Pembayaran untuk User:
             </p>
             <textarea
@@ -6020,7 +6020,7 @@ function DetailPembayaranPage({
               <button
                 type="button"
                 onClick={() => handleProcessPayment("revisi")}
-                className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-[11.5px] font-bold hover:bg-purple-700 shadow-sm cursor-pointer"
+                className="px-4 py-1.5 bg-gradient-to-r from-red-600 to-rose-500 text-white rounded-lg text-[11.5px] font-bold hover:from-red-700 hover:to-rose-600 shadow-sm cursor-pointer"
               >
                 Kirim Catatan Revisi
               </button>
@@ -6318,14 +6318,10 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.tahun}</td>
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.sp3Final}</td>
                     <td className="px-[14px] py-[14px] text-center">
-                      <span className={`inline-flex items-center text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px] ${row.status === "Final" ? "bg-[#f0fdf4] text-[#008236]" : "bg-[#fef3c7] text-[#92400e]"}`}>
-                        {row.status}
-                      </span>
+                      <StatusBadge status={row.status} />
                     </td>
                     <td className="px-[14px] py-[14px] text-center">
-                      <span className="inline-flex items-center bg-[#f3f4f6] text-[#364153] text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px]">
-                        {row.statusHps}
-                      </span>
+                      <StatusBadge status={row.statusHps} />
                     </td>
                     <td className="px-[14px] py-[14px]">
                       <div className="flex items-center gap-[3px] justify-center">

@@ -8,6 +8,7 @@ import { Plus, CheckCircle2, XCircle, FileWarning, Download, ChevronRight, Trash
 import { useAuth } from "../../../store/authStore";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
 import { useMasterVendors } from "../../../hooks/useMasterVendors";
+import { StatusBadge } from "../../../components/common/StatusBadge";
 
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
@@ -49,6 +50,9 @@ function FinanceVerifModal({
   onClose: () => void;
   onAction?: (type: "approve" | "revisi" | "reject", item: any) => void;
 }) {
+  const [notifyModal, setNotifyModal] = useState<{ isOpen: boolean; title: string; message: string; variant: WarningVariant }>({
+    isOpen: false, title: "", message: "", variant: "info",
+  });
   const { vendorOptions } = useMasterVendors();
   const docsList = tipe === "non-outsource"
     ? SYARAT_DOCS.filter(d => d !== "SPP PPT 3 Bulan")
@@ -57,7 +61,7 @@ function FinanceVerifModal({
 
   const [syarat, setSyarat] = useState(docsList.map(d => ({ doc: d, syarat: false, ada: false, ket: "" })));
   const [syaratLain, setSyaratLain] = useState<{ doc: string; syarat: boolean; ada: boolean; ket: string }[]>([]);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<any>({
     unit: DIVISI_OPTIONS[0].value, date: "", currency: "IDR", noPr: "", noPo: "",
     typeVendor: "anak-perusahaan", namaVendor: item.namaVendor || "",
     noKontrak: item.noKontrak || "", amandemen: "0", tanggalKontrak: "",
@@ -972,8 +976,7 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
   ];
 
   const statusBadge = (s: string) => {
-    const c: Record<string, string> = { pending: "bg-amber-50 text-amber-600 border border-amber-200", approved: "bg-green-50 text-green-600 border border-green-200", rejected: "bg-red-50 text-red-600 border border-red-200", revisi: "bg-purple-50 text-purple-600 border border-purple-200" };
-    return <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${c[s] || "bg-gray-50 text-gray-600"}`}>{s.toUpperCase()}</span>;
+    return <StatusBadge status={s} />;
   };
 
   const payColumns = [

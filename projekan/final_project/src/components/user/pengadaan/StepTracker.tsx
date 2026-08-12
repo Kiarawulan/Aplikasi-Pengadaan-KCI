@@ -1,5 +1,5 @@
 import { Lock } from "lucide-react";
-import type { MainStep } from "../../types";
+import type { MainStep } from "../../../types";
 
 export function StepTracker({ steps, activeStepIdx, activeSubIdx, completedStepIds, submittedSubs, onSelectStep, onSelectSub, canAccessStep, canAccessSub, visibleFromStepId }: {
   steps: MainStep[];

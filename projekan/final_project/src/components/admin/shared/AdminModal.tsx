@@ -203,11 +203,13 @@ export function ModalTextarea({
   onChange,
   placeholder,
   rows = 3,
+  autoFocus,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   rows?: number;
+  autoFocus?: boolean;
 }) {
   return (
     <textarea
@@ -215,6 +217,7 @@ export function ModalTextarea({
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       rows={rows}
+      autoFocus={autoFocus}
       className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-[12.5px] text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 transition-all resize-none"
     />
   );

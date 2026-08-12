@@ -13,6 +13,7 @@ import { NppDetailView } from "../../../components/admin/verifikasi/NppDetailVie
 import { PengujianDetailView } from "../../../components/admin/verifikasi/PengujianDetailView";
 import { getVerifRecords, getRupList, saveVerifRecords, saveRupList, updateRup, updateVerifRecord } from "../../../store/dataStore";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
+import { StatusBadge } from "../../../components/common/StatusBadge";
 
 type ScreenProps = {
   activeSubItem: string;
@@ -340,7 +341,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
     { key: "capexOpex", label: "Capex/Opex", render: (r: any) => <span className="text-gray-600 text-[11px] font-mono">{r.capexOpex}</span> },
     { key: "nilaiRkap", label: "RKAP", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nilaiRkap}</span> },
     { key: "tahunRkap", label: "Tahun RUP", render: (r: any) => <span className="text-[11px] text-gray-500">{r.tahunRkap}</span> },
-    { key: "status", label: "Status", render: (r: any) => <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${r.status === "Approved" ? "bg-green-50 text-green-600 border border-green-200" : "bg-amber-50 text-amber-600 border border-amber-200"}`}>{r.status.toUpperCase()}</span> },
+    { key: "status", label: "Status", render: (r: any) => <StatusBadge status={r.status} /> },
   ];
 
   const nppColumns = [
@@ -371,18 +372,18 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
     { key: "efisiensi", label: "Nilai Efisiensi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.nilaiEfisiensi || "Rp 15.000.000"}</span> },
     { key: "realisasi", label: "Realisasi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.realisasi || "100%"}</span> },
     { key: "assign", label: "Assign to", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.assignTo || "Tim PBJ 1"}</span> },
-    { key: "status", label: "Status", render: (r: any) => <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-indigo-50 text-[#3b82f6] border border-indigo-200">{r.status || "Contract Release"}</span> },
+    { key: "status", label: "Status", render: (r: any) => <StatusBadge status={r.status || "Contract Release"} /> },
   ] : activeSubItem === 'pbj-memo-internal' ? [
     { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id || r.sp3 || "SP3-2024-001"}</span> },
     { key: "judul", label: "Judul Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama || r.judul}</p> },
     { key: "memo", label: "Nomor Memo Internal", render: (r: any) => <span className="font-mono text-gray-700 text-[11.5px]">{r.nomorMemo || "MI-2024-001"}</span> },
     { key: "tglMemo", label: "Tanggal Memo", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.tanggalMemo || "15-01-2024"}</span> },
-    { key: "status", label: "Status", render: (r: any) => <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-green-50 text-green-700 border border-green-200">{r.status || "Approved"}</span> },
+    { key: "status", label: "Status", render: (r: any) => <StatusBadge status={r.status || "Approved"} /> },
   ] : [
     { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id || r.sp3 || "SP3-2024-001"}</span> },
     { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama || r.judul}</p> },
     { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.nilaiKontrak || "Rp 485.000.000"}</span> },
-    { key: "status", label: "Status", render: (r: any) => <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-indigo-50 text-[#3b82f6] border border-indigo-200">{r.status || "Contract Release"}</span> },
+    { key: "status", label: "Status", render: (r: any) => <StatusBadge status={r.status || "Contract Release"} /> },
   ];
 
   const contractColumns = activeSubItem === 'contract-task-approval-contract' ? [
@@ -392,12 +393,12 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
     { key: "dept", label: "Divisi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen || r.dept || "CTIT"}</span> },
     { key: "pbj", label: "PBJ", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.pbj || "Sarana"}</span> },
     { key: "bond", label: "Performance Bond", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.performanceBond || "Rp 24.250.000"}</span> },
-    { key: "status", label: "Status", render: (r: any) => <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-indigo-50 text-[#3b82f6] border border-indigo-200">{r.status || "Contract Release"}</span> },
+    { key: "status", label: "Status", render: (r: any) => <StatusBadge status={r.status || "Contract Release"} /> },
   ] : [
     { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id || r.sp3 || "SP3-2024-001"}</span> },
     { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama || r.paket}</p> },
     { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.nilai || "Rp 485.000.000"}</span> },
-    { key: "status", label: "Status", render: (r: any) => <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-green-50 text-green-700 border border-green-200">{r.status || "Active"}</span> },
+    { key: "status", label: "Status", render: (r: any) => <StatusBadge status={r.status || "Active"} /> },
   ];
 
   const jamlakColumns = [
@@ -405,7 +406,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
     { key: "judul", label: "Judul Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[200px] truncate">{r.judul}</p> },
     { key: "berlaku", label: "Masa Berlaku", render: (r: any) => <span className="text-[11px] text-gray-600">{r.tglMulai} s/d {r.tglSelesai}</span> },
     { key: "keuangan", label: "Diterima Keuangan", render: (r: any) => <span className="text-[11px] font-semibold text-gray-700">{r.keuangan} ({r.tglTerima})</span> },
-    { key: "status", label: "Status", render: (r: any) => <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${r.status === "aktif" ? "bg-green-50 text-green-600 border border-green-200" : "bg-red-50 text-red-500 border border-red-200"}`}>{r.status.toUpperCase()}</span> },
+    { key: "status", label: "Status", render: (r: any) => <StatusBadge status={r.status} /> },
   ];
 
   const vendorColumns = [

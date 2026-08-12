@@ -34,7 +34,9 @@ export type ParkStep =
   | "pbj"
   | "contract"
   | "pengujian"
-  | "pembayaran";
+  | "pembayaran"
+  | "completed"
+  | "proses-selesai";
 
 export interface PengadaanItem {
   id: string;
@@ -49,6 +51,8 @@ export interface PengadaanItem {
   verificationStatus?: Record<string, VerifStatus>; // stepId → status
   revisiNote?: Record<string, string>; // stepId → note from admin
   formData?: Record<string, any>; // Add form data mapping
+  flowType?: "pd" | "pr";
+  flow_type?: "pd" | "pr";
 }
 
 export type VerifStatus = "pending" | "approved" | "revisi" | "rejected";

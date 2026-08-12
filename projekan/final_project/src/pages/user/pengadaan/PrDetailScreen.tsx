@@ -538,13 +538,13 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             <div className="bg-[#252271] px-4 py-2.5"><p className="text-white font-semibold text-[11.5px]">{cardHeader()}</p></div>
             <div id="pr-active-form" className="p-4">
               {verifStatus === "revisi" && (
-                <div className="mb-4 bg-purple-50 border border-purple-200 rounded-xl p-3.5 flex items-start justify-between gap-3">
-                  <FileWarning className="text-purple-600 shrink-0 mt-0.5" size={16} />
+                <div className="mb-4 bg-rose-50 border border-rose-200 rounded-xl p-3.5 flex items-start justify-between gap-3">
+                  <FileWarning className="text-red-600 shrink-0 mt-0.5" size={16} />
                   <div className="flex-1">
-                    <p className="text-[12px] font-bold text-purple-900">Perlu Revisi dari Admin</p>
-                    <p className="text-[11.5px] text-purple-700 mt-0.5">{catatanAdmin || "Silakan perbaiki data yang diajukan, lalu klik Kirim/Submit kembali."}</p>
+                    <p className="text-[12px] font-bold text-red-900">Perlu Revisi dari Admin</p>
+                    <p className="text-[11.5px] text-rose-700 mt-0.5">{catatanAdmin || "Silakan perbaiki data yang diajukan, lalu klik Kirim/Submit kembali."}</p>
                   </div>
-                  <button onClick={openEdit} className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-[11px] font-bold hover:bg-purple-700 transition-colors shrink-0">
+                  <button onClick={openEdit} className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-red-600 to-rose-500 text-white rounded-lg text-[11px] font-bold hover:from-red-700 hover:to-rose-600 transition-colors shrink-0">
                     <Edit2 size={12} /> Edit
                   </button>
                 </div>

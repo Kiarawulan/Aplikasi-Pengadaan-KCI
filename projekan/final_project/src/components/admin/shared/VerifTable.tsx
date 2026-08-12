@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search, ChevronDown, Check, X, AlertCircle, Eye, Pencil, Trash2, Plus, Download, Filter, CheckCircle2, XCircle } from "lucide-react";
-import type { VerifStatus } from "../../types";
+import type { VerifStatus } from "../../../types";
 
 interface Column<T> {
   key: string;

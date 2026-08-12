@@ -9,6 +9,7 @@ import { Plus, CheckCircle2, XCircle, FileWarning } from "lucide-react";
 import { useAuth } from "../../../store/authStore";
 import { getVerifRecords } from "../../../store/dataStore";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
+import { StatusBadge } from "../../../components/common/StatusBadge";
 
 type ScreenProps = {
   activeSubItem: string;
@@ -226,15 +227,7 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
     { key: "nominalKonversi", label: "Konversi", render: (r: any) => <span className="text-gray-500 text-[11px] font-mono">{r.nominalKonversi}</span> },
     { key: "divisi", label: "Divisi", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.divisi.split(" - ")[0]}</span> },
     { key: "emailPic", label: "Email PIC", render: (r: any) => <span className="text-gray-500 text-[11px]">{r.emailPic}</span> },
-    { key: "status", label: "Status", render: (r: any) => {
-      const colors: Record<string, string> = {
-        pending: "bg-amber-50 text-amber-600 border border-amber-200",
-        approved: "bg-green-50 text-green-600 border border-green-200",
-        rejected: "bg-red-50 text-red-600 border border-red-200",
-        revisi: "bg-purple-50 text-purple-600 border border-purple-200"
-      };
-      return <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${colors[r.status] || "bg-gray-50 text-gray-600"}`}>{r.status.toUpperCase()}</span>;
-    }}
+    { key: "status", label: "Status", render: (r: any) => <StatusBadge status={r.status} /> }
   ];
 
   return (

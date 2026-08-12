@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Check, Edit3, X, FileText, Download } from 'lucide-react';
 import { api } from '@/services/api';
+import { StatusBadge } from '@/components/common/StatusBadge';
 
 export interface DetailDocumentField {
   label: string;
@@ -127,10 +128,7 @@ export const DetailDocumentView: React.FC<DetailDocumentViewProps> = ({
         {showActions && (
           <div className="flex flex-wrap items-center gap-2">
             {/* Status Badge */}
-            <span className="px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-[#b45309] text-[10.5px] font-semibold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              {status}
-            </span>
+            <StatusBadge status={status} />
 
             {/* Revisi Button */}
             <button

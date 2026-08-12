@@ -8,6 +8,7 @@ import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { Plus, CheckCircle2, XCircle, FileWarning, Eye, BarChart3, TrendingUp, ShieldCheck } from "lucide-react";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
 import { useMasterVendors } from "../../../hooks/useMasterVendors";
+import { StatusBadge } from "../../../components/common/StatusBadge";
 
 type ScreenProps = {
   activeSubItem: string;
@@ -43,6 +44,16 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
       const res = await api.get('/pengadaan');
       const allData = res.data.map((item: any) => {
         const fd = typeof item.formData === 'string' ? JSON.parse(item.formData) : (item.formData || {});
+        const sections = [fd, ...Object.values(fd).filter((value) => value && typeof value === "object" && !Array.isArray(value))] as any[];
+        const previousValue = (...keys: string[]) => {
+          for (const section of sections) {
+            for (const key of keys) {
+              const value = section?.[key];
+              if (value !== undefined && value !== null && value !== "") return value;
+            }
+          }
+          return undefined;
+        };
         const nominalStr = item.nominal || "Rp 0";
         const cleanNominal = parseInt(nominalStr.replace(/\D/g, '')) || 0;
         const isOver = cleanNominal >= 500000000;
@@ -59,6 +70,11 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
           status: item.status,
           currentStep: item.currentStep,
           timeline: "On Schedule",
+          idNpp: previousValue("idNpp", "noNpp", "nomorNpp", "nppNo") || item.id,
+          idRup: previousValue("idRup", "rupId", "noRup", "nomorRup") || (Array.isArray(previousValue("rupIds")) ? previousValue("rupIds").join(", ") : "-"),
+          opexCapex: previousValue("opexCapex", "opex_capex", "capexOpex", "cost") || "-",
+          kategori: previousValue("kategori", "category", "kategoriAnggaran", "jenisPengadaan", "jenisBarang") || "-",
+          tahun: previousValue("tahun", "tahunAnggaran") || (item.tanggal ? new Date(item.tanggal).getFullYear().toString() : "-"),
           isOver
         };
       });
@@ -185,7 +201,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
         { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-[#252271]">{r.nominal}</span> },
         { key: "departemen", label: "Divisi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen}</span> },
         { key: "tanggal", label: "Tanggal Kontrak", render: (r: any) => <span className="text-gray-500 text-[11.5px]">{r.tanggal}</span> },
-        { key: "status", label: "Status", render: (r: any) => <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-blue-50 text-blue-600 border border-blue-200">{r.status}</span> }
+        { key: "status", label: "Status", render: (r: any) => <StatusBadge status={r.status} /> }
       ];
 
       return (
@@ -319,15 +335,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
         { key: "nama", label: "Judul Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[12.5px]">{r.nama}</span> },
         { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-[#252271]">{r.nominal}</span> },
         { key: "departemen", label: "Divisi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen}</span> },
-        { key: "status", label: "Status Pengujian", render: (r: any) => {
-          const colors: Record<string, string> = {
-            "Request Pengujian": "bg-blue-50 text-blue-600 border border-blue-200",
-            "Review Hasil Pengujian": "bg-purple-50 text-purple-600 border border-purple-200",
-            "Pengujian On Process": "bg-amber-50 text-amber-600 border border-amber-200",
-            "Pengujian Rejected": "bg-red-50 text-red-600 border border-red-200"
-          };
-          return <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${colors[r.status] || "bg-gray-50 text-gray-600"}`}>{r.status}</span>;
-        }}
+        { key: "status", label: "Status Pengujian", render: (r: any) => <StatusBadge status={r.status} /> }
       ];
 
       return (
@@ -416,7 +424,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
 
                   const verifId = verif?.id || `VR-${pengadaanId}`;
 
-                  if (confirmDialog.type === "kelengkapan" || confirmDialog.type === "revisi") {
+                  if (confirmDialog.type === "kelengkapan") {
                     await api.post(`/verifikasi/${verifId}/revisi`, { catatan });
                     showNotify("Revisi Terkirim", "Catatan revisi pengujian berhasil dikirim ke user.", "info");
                   } else if (confirmDialog.type === "reject") {
@@ -455,7 +463,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
       { key: "id", label: "ID Referensi", render: (r: any) => <span className="font-mono text-[11.5px] font-bold text-[#252271]">{r.id}</span> },
       { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[12px]">{r.nama}</span> },
       { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-medium text-[#252271]">{r.nominal}</span> },
-      { key: "status", label: "Status", render: (r: any) => <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-600 border border-green-200">{r.status}</span> }
+      { key: "status", label: "Status", render: (r: any) => <StatusBadge status={r.status} /> }
     ];
 
     const fallbackData = kontrakList.concat(kontrakListOver);

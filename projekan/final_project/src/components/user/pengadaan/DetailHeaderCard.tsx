@@ -1,4 +1,4 @@
-import type { PengadaanItem } from "../../types";
+import type { PengadaanItem } from "../../../types";
 import { useAuth } from "@/store/authStore";
 
 export function DetailHeaderCard({ item, allFd, verifStatus }: { item: PengadaanItem, allFd?: Record<string, any>, verifStatus?: string }) {
