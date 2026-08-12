@@ -3,6 +3,7 @@ import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/shared/AdminModal";
+import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { Plus, CheckCircle2, XCircle, FileWarning, Download, ChevronRight, Trash2, Upload } from "lucide-react";
 import { useAuth } from "../../../store/authStore";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
@@ -329,10 +330,20 @@ function FinanceVerifModal({
                       payload.append("file", file);
                       payload.append("stage", "pelunasan-proof");
                       await api.post(`/pengadaan/${targetId}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
-                      alert(`✅ Surat bukti pelunasan (${file.name}) berhasil diunggah dan langsung masuk ke sisi User.`);
+                      setNotifyModal({
+                        isOpen: true,
+                        title: "Unggah Berhasil",
+                        message: `Surat bukti pelunasan (${file.name}) berhasil diunggah dan langsung masuk ke sisi User.`,
+                        variant: "info",
+                      });
                     } catch (error: any) {
                       console.error(error);
-                      alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.");
+                      setNotifyModal({
+                        isOpen: true,
+                        title: "Gagal Mengunggah",
+                        message: error?.response?.data?.message || "Bukti pelunasan gagal diunggah.",
+                        variant: "error",
+                      });
                     }
                     event.target.value = "";
                   }
@@ -371,6 +382,14 @@ function FinanceVerifModal({
             </div>
           )}
         </div>
+
+        <WarningModal
+          isOpen={notifyModal.isOpen}
+          title={notifyModal.title}
+          message={notifyModal.message}
+          variant={notifyModal.variant}
+          onClose={() => setNotifyModal(p => ({ ...p, isOpen: false }))}
+        />
       </div>
     </div>
   );
@@ -390,24 +409,48 @@ function UmdSubmissionModal({
   const umdData = item.formData?.umdData || item.formData?.["buat-pd"] || item.formData || {};
   const pengadaanId = item.pengadaan_id || item.pengadaanId || item.id;
   const [uploadedDocuments, setUploadedDocuments] = useState<any[]>([]);
+  const [notifyModal, setNotifyModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: WarningVariant;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "info",
+  });
 
-  useEffect(() => {
+  const fetchUploadedDocuments = () => {
     if (!pengadaanId) return;
     api.get(`/pengadaan/${pengadaanId}/documents`)
       .then((response) => setUploadedDocuments(Array.isArray(response.data?.data) ? response.data.data : []))
       .catch(() => setUploadedDocuments([]));
+  };
+
+  useEffect(() => {
+    fetchUploadedDocuments();
   }, [pengadaanId]);
 
   const downloadDocument = async (uploadedDocument: any) => {
-    const response = await api.get(`/documents/${uploadedDocument.id}/download`, { responseType: 'blob' });
-    const url = URL.createObjectURL(response.data);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = uploadedDocument.original_name;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
+    try {
+      const response = await api.get(`/documents/${uploadedDocument.id}/download`, { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = uploadedDocument.original_name;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setNotifyModal({
+        isOpen: true,
+        title: "Gagal Mengunduh",
+        message: "Gagal mengunduh dokumen dari server.",
+        variant: "error",
+      });
+    }
   };
 
   const UMD_SYARAT = Array.isArray(umdData.syaratDocs) ? umdData.syaratDocs : [];
@@ -430,9 +473,18 @@ function UmdSubmissionModal({
         disabled={!fileName}
         onClick={() => {
           const uploaded = uploadedDocuments.find((entry) => entry.original_name === fileName);
-          if (uploaded) downloadDocument(uploaded).catch(() => alert('Gagal mengunduh dokumen.'));
+          if (uploaded) {
+            downloadDocument(uploaded);
+          } else {
+            setNotifyModal({
+              isOpen: true,
+              title: "Informasi Berkas",
+              message: `Berkas "${fileName}" dicatat dalam sistem.`,
+              variant: "info",
+            });
+          }
         }}
-        className="flex items-center gap-1 bg-[#252271] text-white hover:bg-[#1a1753] px-3 py-1.5 rounded-lg text-[11px] font-semibold shadow-xs"
+        className="flex items-center gap-1 bg-[#252271] text-white hover:bg-[#1a1753] px-3 py-1.5 rounded-lg text-[11px] font-semibold shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Download size={12} /> View File
       </button>
@@ -477,7 +529,7 @@ function UmdSubmissionModal({
                       <p className="text-[10.5px] font-semibold text-gray-500 capitalize">{String(document.stage || 'Dokumen pendukung').replace(/[-_]/g, ' ')}</p>
                       <p className="text-[12px] font-bold text-gray-800 truncate">{document.original_name}</p>
                     </div>
-                    <button onClick={() => downloadDocument(document).catch(() => alert('Gagal mengunduh dokumen.'))} className="flex items-center gap-1 bg-[#252271] text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold"><Download size={12} /> Unduh</button>
+                    <button onClick={() => downloadDocument(document)} className="flex items-center gap-1 bg-[#252271] text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold"><Download size={12} /> Unduh</button>
                   </div>
                 ))}
               </div>
@@ -485,25 +537,14 @@ function UmdSubmissionModal({
           </div>
           {/* Submission Form */}
           <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">1. SUBMISSION FORM UMD</p>
-            <div className="grid grid-cols-2 gap-3">
-              <ReadOnlyField label="No Dokumen" value={umdData.noDokumen || item.id || "DOK-2024-001"} />
-              <ReadOnlyField label="Bulan UMD" value={umdData.bulanUmd || "Maret 2024"} />
-              <ReadOnlyField label="Judul" value={umdData.judul || item.nama || "—"} />
-              <ReadOnlyField label="Nominal" value={umdData.nominal || item.nominal || "—"} />
-            </div>
-          </div>
-
-          {/* Data PE & G63 */}
-          <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">2. DATA PE & G63</p>
-            <div className="grid grid-cols-3 gap-3">
-              <ReadOnlyField label="Nomor PE" value={umdData.nomorPe || "PE-2024-001"} />
-              <ReadOnlyField label="Nomor G63" value={umdData.nomorG63 || "G63-2024-089"} />
-              <ReadOnlyField label="Tanggal G63" value={umdData.tanggalG63 || "2024-03-15"} />
-              <ReadOnlyField label="Nominal G63 (Rp)" value={umdData.nominalG63 || item.nominal || "—"} />
-              <ReadOnlyField label="Tanggal Cair" value={umdData.tanggalCair || "2024-03-20"} />
-              <ReadOnlyField label="Nomor VA" value={umdData.nomorVa || "VA-88291039"} />
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">1. DATA PE &amp; G63 HASIL ISIAN USER</p>
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <ReadOnlyField label="Nomor PE" value={umdData.nomorPe || "-"} />
+              <ReadOnlyField label="Nomor G63" value={umdData.nomorG63 || "-"} />
+              <ReadOnlyField label="Tanggal G63" value={umdData.tanggalG63 || "-"} />
+              <ReadOnlyField label="Nominal G63" value={umdData.nominalG63 || item.nominal || "-"} />
+              <ReadOnlyField label="Tanggal Cair" value={umdData.tanggalCair || "-"} />
+              <ReadOnlyField label="Nomor VA" value={umdData.nomorVa || "-"} />
             </div>
           </div>
 
@@ -511,23 +552,35 @@ function UmdSubmissionModal({
 
           {/* Syarat Pembayaran UMD */}
           <div>
-            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">3. SYARAT PEMBAYARAN UMD</p>
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">2. SYARAT PEMBAYARAN UMD HASIL ISIAN USER</p>
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <FileDetailRow label="Upload Dokumen G64" fileName={umdData.fileG64 || ""} />
+              <FileDetailRow label="Upload Surat Pernyataan" fileName={umdData.fileSuratPernyataanUmd || ""} />
+              <FileDetailRow label="Upload Surat Keabsahan Dokumen" fileName={umdData.fileKeabsahan || ""} />
+            </div>
+          </div>
+
+          <hr className="border-gray-100" />
+
+          {/* Syarat Tambahan Table */}
+          <div>
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide mb-3">3. CHECKLIST SYARAT PEMBAYARAN USER</p>
             <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-[11.5px]">
                 <thead>
                   <tr className="bg-[#252271] text-white">
-                    <th className="px-3 py-2.5 text-left font-semibold w-8">No</th>
-                    <th className="px-3 py-2.5 text-left font-semibold">Dokumen</th>
-                    <th className="px-3 py-2.5 text-center font-semibold w-24">Syarat</th>
-                    <th className="px-3 py-2.5 text-center font-semibold w-28">Kelengkapan</th>
-                    <th className="px-3 py-2.5 text-left font-semibold">Keterangan</th>
-                    <th className="px-3 py-2.5 text-center font-semibold w-24">File</th>
+                    <th className="px-3 py-2 text-left font-semibold">Nama Dokumen</th>
+                    <th className="px-3 py-2 text-center font-semibold w-24">Syarat</th>
+                    <th className="px-3 py-2 text-center font-semibold w-28">Status File</th>
+                    <th className="px-3 py-2 text-left font-semibold">Keterangan</th>
+                    <th className="px-3 py-2 text-center font-semibold w-20">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {UMD_SYARAT.map((row: any, i: number) => (
-                    <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
-                      <td className="px-3 py-2.5 text-gray-500 text-center">{i + 1}</td>
+                  {UMD_SYARAT.length === 0 ? (
+                    <tr><td colSpan={5} className="px-3 py-3 text-center text-gray-400">Tidak ada daftar syarat checklist tambahan.</td></tr>
+                  ) : UMD_SYARAT.map((row: any, i: number) => (
+                    <tr key={i} className="bg-white border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
                       <td className="px-3 py-2.5 font-semibold text-gray-800">{row.doc}</td>
                       <td className="px-3 py-2.5 text-center">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${row.syarat ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>
@@ -542,7 +595,12 @@ function UmdSubmissionModal({
                       <td className="px-3 py-2.5 text-gray-600">{row.ket || "Dokumen sesuai permohonan"}</td>
                       <td className="px-3 py-2.5 text-center">
                         <button
-                          onClick={() => alert(`Membuka file ${row.file || row.doc + '.pdf'}`)}
+                          onClick={() => setNotifyModal({
+                            isOpen: true,
+                            title: "Informasi Berkas",
+                            message: `Menampilkan berkas: ${row.file || row.doc + '.pdf'}`,
+                            variant: "info",
+                          })}
                           className="text-[#252271] hover:underline text-[11px] font-semibold"
                         >
                           View
@@ -615,11 +673,21 @@ function UmdSubmissionModal({
                       payload.append("file", file);
                       payload.append("stage", "pelunasan-proof");
                       await api.post(`/pengadaan/${targetId}/documents`, payload, { headers: { "Content-Type": "multipart/form-data" } });
-                      alert(`✅ Surat bukti pelunasan (${file.name}) berhasil diunggah dan langsung masuk ke sisi User.`);
+                      setNotifyModal({
+                        isOpen: true,
+                        title: "Unggah Berhasil",
+                        message: `Surat bukti pelunasan (${file.name}) berhasil diunggah dan langsung masuk ke sisi User.`,
+                        variant: "info",
+                      });
                       fetchUploadedDocuments();
                     } catch (error: any) {
                       console.error(error);
-                      alert(error?.response?.data?.message || "Bukti pelunasan gagal diunggah.");
+                      setNotifyModal({
+                        isOpen: true,
+                        title: "Gagal Mengunggah",
+                        message: error?.response?.data?.message || "Bukti pelunasan gagal diunggah.",
+                        variant: "error",
+                      });
                     }
                     event.target.value = "";
                   }
@@ -658,6 +726,14 @@ function UmdSubmissionModal({
             </div>
           )}
         </div>
+
+        <WarningModal
+          isOpen={notifyModal.isOpen}
+          title={notifyModal.title}
+          message={notifyModal.message}
+          variant={notifyModal.variant}
+          onClose={() => setNotifyModal(p => ({ ...p, isOpen: false }))}
+        />
       </div>
     </div>
   );
@@ -671,6 +747,21 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
   const { currentUser } = useAuth();
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [notifyModal, setNotifyModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: WarningVariant;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "info",
+  });
+
+  const showNotify = (title: string, message: string, variant: WarningVariant = "info") => {
+    setNotifyModal({ isOpen: true, title, message, variant });
+  };
 
   const fetchPengadaanData = async () => {
     setLoading(true);
@@ -842,15 +933,19 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
       }
 
       if (pengadaanId) {
-        const newStatus = type === 'approve' ? 'approved' : type === 'revisi' ? 'revision_required' : 'rejected';
-        await api.put(`/pengadaan/${pengadaanId}`, { status: newStatus }).catch(() => {});
+        const newStatus = type === 'approve' ? 'Selesai' : type === 'revisi' ? 'revision_required' : 'rejected';
+        await api.put(`/pengadaan/${pengadaanId}`, { status: newStatus, currentStep: type === 'approve' ? 'completed' : undefined }).catch(() => {});
       }
 
-      alert(`✅ Pembayaran berhasil ${type === 'approve' ? 'disetujui (Approved)' : type === 'revisi' ? 'diminta revisi' : 'ditolak'}.`);
+      showNotify(
+        type === 'approve' ? "Pembayaran Disetujui" : type === 'revisi' ? "Revisi Terkirim" : "Pembayaran Ditolak",
+        `Pembayaran berhasil ${type === 'approve' ? 'disetujui (Approved)' : type === 'revisi' ? 'diminta revisi' : 'ditolak'}.`,
+        type === 'reject' ? "error" : "info"
+      );
       await fetchPengadaanData();
     } catch (err: any) {
       console.error('Gagal melakukan aksi verifikasi:', err);
-      alert(err?.response?.data?.message || 'Gagal memproses verifikasi pembayaran. Silakan coba lagi.');
+      showNotify("Gagal Memproses", err?.response?.data?.message || 'Gagal memproses verifikasi pembayaran. Silakan coba lagi.', "error");
     }
 
     setConfirmAction(null);
@@ -1013,6 +1108,14 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
 
       {showVerif && <FinanceVerifModal item={showVerif} tipe={tipe || showVerif.tipe || "outsource"} onClose={() => setShowVerif(null)} onAction={handleAction} />}
       {showUmd && <UmdSubmissionModal item={showUmd} onClose={() => setShowUmd(null)} onAction={handleAction} />}
+
+      <WarningModal
+        isOpen={notifyModal.isOpen}
+        title={notifyModal.title}
+        message={notifyModal.message}
+        variant={notifyModal.variant}
+        onClose={() => setNotifyModal(p => ({ ...p, isOpen: false }))}
+      />
     </div>
   );
 }

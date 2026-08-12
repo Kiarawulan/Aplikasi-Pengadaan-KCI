@@ -346,7 +346,11 @@ function MasterModal({ title, fields, initial, onSave, onClose }: {
 }) {
   const [form, setForm] = useState<Record<string, any>>(() => {
     const init: Record<string, any> = {};
-    fields.forEach(f => { init[f.key] = initial?.[f.key] ?? f.options?.[0] ?? ""; });
+    fields.forEach(f => {
+      init[f.key] = initial?.[f.key] !== undefined && initial?.[f.key] !== null
+        ? initial[f.key]
+        : (f.options && f.options.length > 0 ? f.options[0] : "");
+    });
     return init;
   });
 
@@ -448,9 +452,9 @@ export function MasterDataScreen() {
       id: vendor.id,
       nama: vendor.nama,
       npwp: vendor.npwp || "—",
-      kategori: vendor.kategori,
-      status: String(vendor.status || "").replace(/^./, (letter) => letter.toUpperCase()),
-      kontak: vendor.kontak_person || "—",
+      kategori: vendor.kategori || "General",
+      status: String(vendor.status || "Aktif").replace(/^./, (letter) => letter.toUpperCase()),
+      kontak: vendor.kontak_person || vendor.kontakPerson || "—",
       telepon: vendor.telepon || "—",
     }));
     setAllData((previous) => ({ ...previous, vendor: vendors }));
@@ -500,7 +504,16 @@ export function MasterDataScreen() {
 
     if (activeTab === "vendor") {
       try {
-        await api.post("/vendors", { ...formData, kontakPerson: formData.kontak, status: String(formData.status || "aktif").toLowerCase() });
+        const payload = {
+          nama: formData.nama,
+          npwp: formData.npwp || "",
+          alamat: formData.alamat || "",
+          kontakPerson: formData.kontak || formData.kontakPerson || "",
+          telepon: formData.telepon || "",
+          kategori: formData.kategori || "General",
+          status: String(formData.status || "aktif").toLowerCase(),
+        };
+        await api.post("/vendors", payload);
         await loadVendors();
         setShowAdd(false);
       } catch (err: any) {
@@ -538,7 +551,16 @@ export function MasterDataScreen() {
 
     if (activeTab === "vendor") {
       try {
-        await api.put(`/vendors/${showEdit.id}`, { ...formData, kontakPerson: formData.kontak, status: String(formData.status || "aktif").toLowerCase() });
+        const payload = {
+          nama: formData.nama,
+          npwp: formData.npwp || "",
+          alamat: formData.alamat || "",
+          kontakPerson: formData.kontak || formData.kontakPerson || "",
+          telepon: formData.telepon || "",
+          kategori: formData.kategori || "General",
+          status: String(formData.status || "aktif").toLowerCase(),
+        };
+        await api.put(`/vendors/${showEdit.id}`, payload);
         await loadVendors();
         setShowEdit(null);
       } catch (err: any) {

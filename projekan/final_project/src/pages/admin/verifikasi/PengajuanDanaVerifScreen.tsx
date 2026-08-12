@@ -3,6 +3,7 @@ import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/shared/AdminModal";
+import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { DetailDocumentView } from "../../../components/user/pengadaan/DetailDocumentView";
 import { Plus, CheckCircle2, XCircle, FileWarning } from "lucide-react";
 import { useAuth } from "../../../store/authStore";
@@ -22,6 +23,21 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
   const [parkDocs, setParkDocs] = useState<any[]>([]);
   const [purchaseReqs, setPurchaseReqs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [notifyModal, setNotifyModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: WarningVariant;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "info",
+  });
+
+  const showNotify = (title: string, message: string, variant: WarningVariant = "info") => {
+    setNotifyModal({ isOpen: true, title, message, variant });
+  };
 
   const fetchVerifData = async () => {
     setLoading(true);
@@ -165,10 +181,15 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
       } else {
         await api.put(`/pengadaan/${item.id}`, { status: type === 'approve' ? 'approved' : type === 'revisi' ? 'Perlu Revisi' : 'rejected' });
       }
+      showNotify(
+        type === 'approve' ? "Pengajuan Disetujui" : type === 'revisi' ? "Revisi Terkirim" : "Pengajuan Ditolak",
+        `Dokumen berhasil ${type === 'approve' ? 'disetujui' : type === 'revisi' ? 'diminta revisi' : 'ditolak'}.`,
+        type === 'reject' ? "error" : "info"
+      );
       fetchVerifData();
     } catch (err) {
       console.error("Gagal melakukan verifikasi", err);
-      alert("Terjadi kesalahan saat memproses data.");
+      showNotify("Gagal Memproses", "Terjadi kesalahan saat memproses data verifikasi.", "error");
     }
 
     setConfirmAction(null);
@@ -336,6 +357,14 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
           </div>
         </AdminModal>
       )}
+
+      <WarningModal
+        isOpen={notifyModal.isOpen}
+        title={notifyModal.title}
+        message={notifyModal.message}
+        variant={notifyModal.variant}
+        onClose={() => setNotifyModal(p => ({ ...p, isOpen: false }))}
+      />
     </div>
   );
 }

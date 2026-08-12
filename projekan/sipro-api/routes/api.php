@@ -100,7 +100,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/vendors/options', [VendorController::class, 'index'])->middleware('module.permission:pengadaan,viewer');
 
     // Vendors
-    Route::apiResource('/vendors', VendorController::class)->middleware('module.permission:masterData,editor');
+    Route::get('/vendors', [VendorController::class, 'index'])->middleware('module.permission:masterData,viewer');
+    Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->middleware('module.permission:masterData,viewer');
+    Route::post('/vendors', [VendorController::class, 'store'])->middleware('module.permission:masterData,editor');
+    Route::put('/vendors/{vendor}', [VendorController::class, 'update'])->middleware('module.permission:masterData,editor');
+    Route::delete('/vendors/{vendor}', [VendorController::class, 'destroy'])->middleware('module.permission:masterData,editor');
 
     // Harga Satuan
     Route::apiResource('/harga-satuan', HargaSatuanController::class)->middleware('module.permission:masterData,editor');

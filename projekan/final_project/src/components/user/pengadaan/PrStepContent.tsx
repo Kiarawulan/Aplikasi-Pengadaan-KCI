@@ -73,10 +73,18 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
     </div>
   );
   const StatusDisplay = () => {
-    if (status === "pending") return <span className="bg-yellow-100 text-yellow-700 text-[10px] font-semibold px-2 py-0.5 rounded">Menunggu Verifikasi</span>;
-    if (status === "approved") return <ApprovedBadge />;
-    if (status === "revisi") return <span className="bg-orange-100 text-orange-700 text-[10px] font-semibold px-2 py-0.5 rounded">Perlu Revisi</span>;
-    if (status === "rejected") return <span className="bg-red-100 text-red-700 text-[10px] font-semibold px-2 py-0.5 rounded">Ditolak</span>;
+    if (status === "approved" || status === "Approved" || status === "Selesai" || status === "selesai" || status === "completed" || item?.status === "Selesai" || item?.status?.toLowerCase() === "approved") {
+      return <span className="bg-[#e8f5e2] text-[#28ab00] text-[10px] font-semibold px-2 py-0.5 rounded">Selesai</span>;
+    }
+    if (status === "pending" || status === "Menunggu Verifikasi" || status === "Menunggu Verifikasi Admin") {
+      return <span className="bg-yellow-100 text-yellow-700 text-[10px] font-semibold px-2 py-0.5 rounded">Menunggu Verifikasi</span>;
+    }
+    if (status === "revisi" || status === "Perlu Revisi") {
+      return <span className="bg-orange-100 text-orange-700 text-[10px] font-semibold px-2 py-0.5 rounded">Perlu Revisi</span>;
+    }
+    if (status === "rejected" || status === "Ditolak") {
+      return <span className="bg-red-100 text-red-700 text-[10px] font-semibold px-2 py-0.5 rounded">Ditolak</span>;
+    }
     return <span className="bg-gray-100 text-gray-500 text-[10px] font-semibold px-2 py-0.5 rounded">Draft</span>;
   };
 
@@ -248,8 +256,9 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
       return (
         <div>
           <div className="grid grid-cols-1 gap-y-[12px]">
-            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg"><SignedDocument stage="pelunasan-proof" title="Surat Bukti Pelunasan" emptyText="Surat bukti pelunasan belum diunggah oleh Admin." /></div>
-
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <SignedDocument stage="pelunasan-proof" title="Surat Bukti Pelunasan" emptyText="Surat bukti pelunasan belum diunggah oleh Admin." />
+            </div>
             <div className="flex items-center gap-2">
               <p className="text-[11.5px] font-medium text-[#0a0a0a]">Status:</p>
               <StatusDisplay />
@@ -342,16 +351,48 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
         </div>
       );
     }
-    if (subStepId === "payment-request") return (
-      <div className="grid grid-cols-1 gap-y-[12px]">
-        <FileUploadInput label="Input File BAHP dengan TTD" required value={f("fileBahp")} onChange={u("fileBahp")} />
-        <FieldInput label="Keterangan" type="textarea" required value={f("keterangan")} onChange={u("keterangan")} />
-        <div className="flex items-center gap-2">
-          <p className="text-[11.5px] font-medium text-[#0a0a0a]">Status:</p>
-          <StatusDisplay />
+    if (subStepId === "payment-request") {
+      const kontrakNo = item?.nomorKontrak || fdFrom("contract")?.noKontrak || fdFrom("pbj")?.noKontrak || fdFrom("buat-pr")?.noKontrak || item?.noKontrak || `KTR/${item?.id || '2024'}`;
+      const vendorName = item?.vendor || fdFrom("contract")?.vendor || fdFrom("buat-pr")?.vendor || "Vendor Terdaftar";
+
+      return (
+        <div className="space-y-4">
+          <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-4 space-y-3">
+            <p className="text-[12px] font-bold text-[#252271] uppercase tracking-wide">Referensi Kontrak & BAHP (Otomatis dari Tahap Sebelumnya)</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[11.5px]">
+              <div>
+                <span className="text-gray-500 font-medium">Nomor Kontrak:</span>
+                <p className="font-semibold text-gray-800 font-mono text-[12px]">{kontrakNo}</p>
+              </div>
+              <div>
+                <span className="text-gray-500 font-medium">Vendor:</span>
+                <p className="font-semibold text-gray-800">{vendorName}</p>
+              </div>
+              <div>
+                <span className="text-gray-500 font-medium">Pengadaan:</span>
+                <p className="font-semibold text-gray-800">{item?.nama || "Pengadaan"}</p>
+              </div>
+              <div>
+                <span className="text-gray-500 font-medium">Nominal:</span>
+                <p className="font-semibold text-[#252271]">{item?.nominal || "Rp 0"}</p>
+              </div>
+            </div>
+            <div className="pt-3 border-t border-slate-200">
+              <SignedDocument
+                stage="bahp-signed"
+                title="Dokumen Surat BAHP Signed"
+                emptyText="Dokumen BAHP telah terhubung otomatis dari tahap Pengujian sebelumnya."
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <p className="text-[11.5px] font-medium text-[#0a0a0a]">Status Verifikasi Pembayaran:</p>
+            <StatusDisplay />
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
     if (subStepId === "proses-selesai") return (
       <div className="text-center py-10 overflow-hidden">
         <div className="relative w-20 h-20 mx-auto mb-5"><div className="absolute inset-0 rounded-full bg-green-300/50 animate-ping" /><div className="relative w-20 h-20 bg-green-100 rounded-full flex items-center justify-center animate-bounce"><Check size={38} className="text-green-600" /></div></div>

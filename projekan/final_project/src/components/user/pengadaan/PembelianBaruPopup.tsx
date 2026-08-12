@@ -185,13 +185,18 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
       return;
     }
 
-    if (requireChanges) {
+    // Validasi Revisi / Edit: User harus mengubah data jika dalam mode edit/revisi
+    const isEditingOrRevising = requireChanges || !!(editingId || initialData?.id || title?.toLowerCase().includes("edit") || title?.toLowerCase().includes("revisi") || submitLabel?.toLowerCase().includes("revisi"));
+    if (isEditingOrRevising) {
       const initialForm = initialFormRef.current;
       const hasChanges = (Object.keys(form) as (keyof typeof form)[]).some((key) => {
         if (key === "rupIds") {
           const currentIds = [...form.rupIds].sort();
           const initialIds = [...initialForm.rupIds].sort();
           return JSON.stringify(currentIds) !== JSON.stringify(initialIds);
+        }
+        if (key === "nominalPermohonan" || key === "nominalKonversi") {
+          return String(form[key] ?? "").replace(/\D/g, "") !== String(initialForm[key] ?? "").replace(/\D/g, "");
         }
         return String(form[key] ?? "").trim() !== String(initialForm[key] ?? "").trim();
       });
@@ -200,7 +205,7 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
         setWarning({
           isOpen: true,
           title: "Belum Ada Perubahan",
-          message: "Ubah minimal satu data sebelum mengirim revisi.",
+          message: "Anda belum melakukan perubahan apapun pada data pengadaan. Silakan lakukan revisi/perubahan data yang diperlukan sesuai catatan admin sebelum mengirim ulang.",
           detail: "Form revisi tidak dapat dikirim karena seluruh data masih sama dengan data sebelumnya.",
           variant: "warning",
         });

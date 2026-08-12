@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Search, Edit2, Trash2 } from "lucide-react";
 import { AdminModal, ConfirmModal, ModalField, ModalInput, ModalSelect } from "@/components/admin/shared/AdminModal";
+import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { PermissionMatrix, permissionGroupsFromRole, rolePermissionsFromGroups, type PermGroup } from "@/components/admin/shared/PermissionMatrix";
 import { useAuth } from "@/store/authStore";
 import { api } from "@/services/api";
@@ -77,6 +78,22 @@ export function RoleManagementScreen() {
     setEditGroups(permissionGroupsFromRole(preset));
   };
 
+  const [notifyModal, setNotifyModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: WarningVariant;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "info",
+  });
+
+  const showNotify = (title: string, message: string, variant: WarningVariant = "info") => {
+    setNotifyModal({ isOpen: true, title, message, variant });
+  };
+
   const fetchRoles = async () => {
     setLoading(true);
     try {
@@ -108,8 +125,9 @@ export function RoleManagementScreen() {
       setShowAdd(false);
       setForm({ name: "", roleType: "admin", color: "#252271" });
       setAddGroups(permissionGroupsFromRole(DEFAULT_ADMIN_PERMS));
+      showNotify("Role Berhasil Ditambahkan", `Role ${form.name} berhasil dibuat!`, "info");
     } catch (e: any) {
-      alert(e.response?.data?.message || 'Gagal menyimpan role ke database.');
+      showNotify("Gagal Menyimpan", e.response?.data?.message || 'Gagal menyimpan role ke database.', "error");
     }
   };
 
@@ -123,11 +141,11 @@ export function RoleManagementScreen() {
         color: showEdit.color,
         permissions: rolePermissionsFromGroups(editGroups, normalizePermissions(showEdit.permissions)),
       });
-      alert('✅ Role berhasil diperbarui!');
+      showNotify("Role Diperbarui", "Role berhasil diperbarui!", "info");
       fetchRoles();
       setShowEdit(null);
     } catch (e: any) {
-      alert(e.response?.data?.message || e.response?.data?.errors?.name?.[0] || 'Gagal merubah role di database.');
+      showNotify("Gagal Memperbarui", e.response?.data?.message || e.response?.data?.errors?.name?.[0] || 'Gagal merubah role di database.', "error");
     }
   };
 
@@ -137,8 +155,9 @@ export function RoleManagementScreen() {
       await api.delete(`/roles/${showConfirmDelete.id}`);
       fetchRoles();
       setShowConfirmDelete(null);
+      showNotify("Role Dihapus", "Role berhasil dihapus dari database.", "info");
     } catch (e: any) {
-      alert(e.response?.data?.message || 'Gagal menghapus role dari database.');
+      showNotify("Gagal Menghapus", e.response?.data?.message || 'Gagal menghapus role dari database.', "error");
     }
   };
 
@@ -336,6 +355,14 @@ export function RoleManagementScreen() {
           destructive
         />
       )}
+
+      <WarningModal
+        isOpen={notifyModal.isOpen}
+        title={notifyModal.title}
+        message={notifyModal.message}
+        variant={notifyModal.variant}
+        onClose={() => setNotifyModal(p => ({ ...p, isOpen: false }))}
+      />
     </div>
   );
 }

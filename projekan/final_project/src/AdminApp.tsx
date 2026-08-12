@@ -6572,18 +6572,137 @@ function FeatureUnavailablePage() {
 // ─── Root App ──────────────────────────────────────────────────────────────────
 export function AdminApp() {
   const { hasPermission, currentRole } = useAuth();
-  const captureConfig = getFigmaCaptureConfig();
-  const [page, setPage] = useState<Page>((captureConfig?.adminPage as Page) || "dashboard");
-  const [previousPage, setPreviousPage] = useState<Page>("dashboard");
+  // 1. Initial State with localStorage fallback so refresh stays on the exact same page
+  const [page, setPage] = useState<Page>(() => {
+    try {
+      const saved = localStorage.getItem("sipro_admin_page") as Page;
+      if (saved && ["dashboard", "manajemen-user", "manajemen-role", "tambah-role", "verifikasi", "template-dokumen", "master-data"].includes(saved)) {
+        return saved;
+      }
+    } catch {}
+    return "dashboard";
+  });
+
+  const [previousPage, setPreviousPage] = useState<Page>(() => {
+    try {
+      const saved = localStorage.getItem("sipro_admin_prev_page") as Page;
+      if (saved) return saved;
+    } catch {}
+    return "dashboard";
+  });
+
   const [modal, setModal] = useState<Modal>(null);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-  const [verifCategory, setVerifCategory] = useState<VerifCategory>((captureConfig?.verifCategory as VerifCategory) || "pengajuan-dana");
-  const [verifDoc, setVerifDoc] = useState<VerifDoc>((captureConfig?.verifDoc as VerifDoc) || "park-document");
-  const [pengadaanDoc, setPengadaanDoc] = useState<PengadaanDoc>((captureConfig?.pengadaanDoc as PengadaanDoc) || "rup-task-approval");
-  const [pengujianDoc, setPengujianDoc] = useState<PengujianDoc>((captureConfig?.pengujianDoc as PengujianDoc) || "kontrak-list-500");
-  const [pembayaranDoc, setPembayaranDoc] = useState<PembayaranDoc>((captureConfig?.pembayaranDoc as PembayaranDoc) || "pembayaran-contract-release");
+
+  const [verifCategory, setVerifCategory] = useState<VerifCategory>(() => {
+    try {
+      const saved = localStorage.getItem("sipro_admin_verif_cat") as VerifCategory;
+      if (saved && ["pengajuan-dana", "pengadaan", "pengujian", "pembayaran"].includes(saved)) {
+        return saved;
+      }
+    } catch {}
+    return "pengajuan-dana";
+  });
+
+  const [verifDoc, setVerifDoc] = useState<VerifDoc>(() => {
+    try {
+      const saved = localStorage.getItem("sipro_admin_verif_doc") as VerifDoc;
+      if (saved && ["park-document", "purchase-requisition"].includes(saved)) {
+        return saved;
+      }
+    } catch {}
+    return "park-document";
+  });
+
+  const [pengadaanDoc, setPengadaanDoc] = useState<PengadaanDoc>(() => {
+    try {
+      const saved = localStorage.getItem("sipro_admin_pg_doc") as PengadaanDoc;
+      if (saved) return saved;
+    } catch {}
+    return "rup-task-approval";
+  });
+
+  const [pengujianDoc, setPengujianDoc] = useState<PengujianDoc>(() => {
+    try {
+      const saved = localStorage.getItem("sipro_admin_pj_doc") as PengujianDoc;
+      if (saved) return saved;
+    } catch {}
+    return "kontrak-list-500";
+  });
+
+  const [pembayaranDoc, setPembayaranDoc] = useState<PembayaranDoc>(() => {
+    try {
+      const saved = localStorage.getItem("sipro_admin_byr_doc") as PembayaranDoc;
+      if (saved) return saved;
+    } catch {}
+    return "pembayaran-contract-release";
+  });
 
   const isVerifPage = page === "verifikasi";
+
+  // 2. Persist state to localStorage on changes
+  useEffect(() => {
+    localStorage.setItem("sipro_admin_page", page);
+  }, [page]);
+
+  useEffect(() => {
+    localStorage.setItem("sipro_admin_prev_page", previousPage);
+  }, [previousPage]);
+
+  useEffect(() => {
+    localStorage.setItem("sipro_admin_verif_cat", verifCategory);
+  }, [verifCategory]);
+
+  useEffect(() => {
+    localStorage.setItem("sipro_admin_verif_doc", verifDoc);
+  }, [verifDoc]);
+
+  useEffect(() => {
+    localStorage.setItem("sipro_admin_pg_doc", pengadaanDoc);
+  }, [pengadaanDoc]);
+
+  useEffect(() => {
+    localStorage.setItem("sipro_admin_pj_doc", pengujianDoc);
+  }, [pengujianDoc]);
+
+  useEffect(() => {
+    localStorage.setItem("sipro_admin_byr_doc", pembayaranDoc);
+  }, [pembayaranDoc]);
+
+  // 3. Setup HTML5 History API for browser back and forward button navigation
+  useEffect(() => {
+    const currentState = {
+      adminState: {
+        page,
+        previousPage,
+        verifCategory,
+        verifDoc,
+        pengadaanDoc,
+        pengujianDoc,
+        pembayaranDoc,
+      },
+    };
+    if (!window.history.state?.adminState) {
+      window.history.replaceState(currentState, "");
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state?.adminState) {
+        const s = event.state.adminState;
+        if (s.page) setPage(s.page);
+        if (s.previousPage) setPreviousPage(s.previousPage);
+        if (s.verifCategory) setVerifCategory(s.verifCategory);
+        if (s.verifDoc) setVerifDoc(s.verifDoc);
+        if (s.pengadaanDoc) setPengadaanDoc(s.pengadaanDoc);
+        if (s.pengujianDoc) setPengujianDoc(s.pengujianDoc);
+        if (s.pembayaranDoc) setPembayaranDoc(s.pembayaranDoc);
+        setModal(null);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const canOpenPage = (target: Page) => {
     if (target === "dashboard") return hasPermission("dashboard", "viewer");
@@ -6618,9 +6737,48 @@ export function AdminApp() {
 
   function handleNavigate(p: Page) {
     if (!canOpenPage(p)) return;
-    if (p !== page) setPreviousPage(page);
+    if (p !== page) {
+      setPreviousPage(page);
+      window.history.pushState(
+        {
+          adminState: {
+            page: p,
+            previousPage: page,
+            verifCategory,
+            verifDoc,
+            pengadaanDoc,
+            pengujianDoc,
+            pembayaranDoc,
+          },
+        },
+        ""
+      );
+    }
     setPage(p);
     setModal(null);
+  }
+
+  function handleVerifDocChange(cat: VerifCategory, doc?: any, pDoc?: any, pjDoc?: any, byrDoc?: any) {
+    const nextCat = cat || verifCategory;
+    const nextDoc = doc || verifDoc;
+    const nextPDoc = pDoc || pengadaanDoc;
+    const nextPjDoc = pjDoc || pengujianDoc;
+    const nextByrDoc = byrDoc || pembayaranDoc;
+
+    window.history.pushState(
+      {
+        adminState: {
+          page: "verifikasi",
+          previousPage: page === "verifikasi" ? previousPage : page,
+          verifCategory: nextCat,
+          verifDoc: nextDoc,
+          pengadaanDoc: nextPDoc,
+          pengujianDoc: nextPjDoc,
+          pembayaranDoc: nextByrDoc,
+        },
+      },
+      ""
+    );
   }
 
   return (
@@ -6646,11 +6804,24 @@ export function AdminApp() {
             setPengadaanDoc("rup-task-approval");
             setPengujianDoc("kontrak-list-500");
             setPembayaranDoc("pembayaran-contract-release");
+            handleVerifDocChange(c, "park-document", "rup-task-approval", "kontrak-list-500", "pembayaran-contract-release");
           }}
-          onDoc={setVerifDoc}
-          onPengadaanDoc={setPengadaanDoc}
-          onPengujianDoc={setPengujianDoc}
-          onPembayaranDoc={setPembayaranDoc}
+          onDoc={(d) => {
+            setVerifDoc(d);
+            handleVerifDocChange(verifCategory, d);
+          }}
+          onPengadaanDoc={(d) => {
+            setPengadaanDoc(d);
+            handleVerifDocChange(verifCategory, undefined, d);
+          }}
+          onPengujianDoc={(d) => {
+            setPengujianDoc(d);
+            handleVerifDocChange(verifCategory, undefined, undefined, d);
+          }}
+          onPembayaranDoc={(d) => {
+            setPembayaranDoc(d);
+            handleVerifDocChange(verifCategory, undefined, undefined, undefined, d);
+          }}
         />
       </div>
 

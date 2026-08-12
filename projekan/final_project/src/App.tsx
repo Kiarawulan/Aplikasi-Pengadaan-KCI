@@ -136,30 +136,91 @@ function UserApp() {
     if (selectedItem?.id) sessionStorage.setItem("sipro_active_pengadaan_id", selectedItem.id);
   }, [selectedItem?.id]);
 
+  useEffect(() => {
+    const currentState = {
+      userState: {
+        screen,
+        backScreen,
+        selectedItem,
+      },
+    };
+    if (!window.history.state?.userState) {
+      window.history.replaceState(currentState, "");
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state?.userState) {
+        const s = event.state.userState;
+        if (s.screen) {
+          setScreen(s.screen);
+          localStorage.setItem("sipro_last_user_screen", s.screen);
+        }
+        if (s.backScreen) {
+          setBackScreen(s.backScreen);
+          localStorage.setItem("sipro_last_back_screen", s.backScreen);
+        }
+        if (s.selectedItem !== undefined) {
+          setSelectedItem(s.selectedItem);
+          if (s.selectedItem) {
+            localStorage.setItem("sipro_last_selected_item", JSON.stringify(s.selectedItem));
+          } else {
+            localStorage.removeItem("sipro_last_selected_item");
+          }
+        }
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   const handleNavigate = (s: Screen) => {
     if (!canOpenScreen(s)) {
       const fallback = firstAllowedScreen();
       if (fallback) setScreen(fallback);
       return;
     }
-    setScreen(s);
-    localStorage.setItem("sipro_last_user_screen", s);
+    const nextItem = (s !== "pd-detail" && s !== "pr-detail") ? null : selectedItem;
     if (s !== "pd-detail" && s !== "pr-detail") {
       setSelectedItem(null);
       localStorage.removeItem("sipro_last_selected_item");
     }
+    setScreen(s);
+    localStorage.setItem("sipro_last_user_screen", s);
+
+    window.history.pushState(
+      {
+        userState: {
+          screen: s,
+          backScreen,
+          selectedItem: nextItem,
+        },
+      },
+      ""
+    );
   };
 
   const handleSelectItem = (item: PengadaanItem, s: Screen, targetBackScreen?: Screen) => {
     if (!item || !item.id) return;
+    const bScreen = targetBackScreen || screen;
     setSelectedItem(item);
     localStorage.setItem("sipro_last_selected_item", JSON.stringify(item));
     sessionStorage.setItem("sipro_active_pengadaan_id", item.id);
-    const bScreen = targetBackScreen || screen;
     setBackScreen(bScreen);
     localStorage.setItem("sipro_last_back_screen", bScreen);
     setScreen(s);
     localStorage.setItem("sipro_last_user_screen", s);
+
+    window.history.pushState(
+      {
+        userState: {
+          screen: s,
+          backScreen: bScreen,
+          selectedItem: item,
+        },
+      },
+      ""
+    );
   };
 
   const handleToggleCollapse = () => {

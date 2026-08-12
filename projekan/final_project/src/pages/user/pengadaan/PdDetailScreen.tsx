@@ -8,10 +8,11 @@ import { FieldInput } from "@/components/common/FieldInput";
 import { FileUploadInput } from "@/components/common/FileUploadInput";
 import { SummaryRow } from "@/components/common/SummaryRow";
 import { ApprovedBadge } from "@/components/common/ApprovedBadge";
+import { WarningModal } from "@/components/common/WarningModal";
 import { DetailHeaderCard } from "@/components/user/pengadaan/DetailHeaderCard";
 import { StepTracker } from "@/components/user/pengadaan/StepTracker";
 import { PdSubStatus } from "@/components/user/pengadaan/PdSubStatus";
-import { PengajuanDanaAttachments } from "@/components/user/pengadaan/PengajuanDanaAttachments";
+import { PengajuanDanaAttachments, FILES, stageFor } from "@/components/user/pengadaan/PengajuanDanaAttachments";
 import { PembelianBaruPopup } from "@/components/user/pengadaan/PembelianBaruPopup";
 import { api } from "@/services/api";
 import { useAuth } from "@/store/authStore";
@@ -93,6 +94,18 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   const [flash, setFlash] = useState(false);
   const [allFd, setAllFd] = useState<Record<string, Record<string, string>>>(item.formData || {});
   const [showEditPopup, setShowEditPopup] = useState(false);
+  const [docWarningModal, setDocWarningModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    detail?: string;
+    variant: "warning" | "error" | "info" | "duplicate";
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "warning",
+  });
 
   const handleRevisionSubmit = async (newItem: any) => {
     try {
@@ -117,16 +130,15 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           ...(newItem.formData || {}),
         },
       });
-      setAllFd(prev => ({
-        ...prev,
-        ...(newItem.formData || {}),
+      setAllFd(p => ({
+        ...p,
         "buat-pd": {
-          ...(prev["buat-pd"] || {}),
+          ...(p["buat-pd"] || {}),
           ...(newItem.formData || {})
         }
       }));
-      setShowEditPopup(false);
       setVerifState({ status: "pending", canProceed: false, loading: false });
+      setShowEditPopup(false);
       fetchStepVerifStatus(activeStep.id);
       setFlash(true);
       setTimeout(() => setFlash(false), 3000);
@@ -147,6 +159,11 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       const s = new Set<string>();
       if (fresh.formData && fresh.formData["__meta"] && fresh.formData["__meta"]["submittedSubs"]) {
         try { JSON.parse(fresh.formData["__meta"]["submittedSubs"]).forEach((x: string) => s.add(x)); } catch (e) { }
+      }
+      if (fresh.status === "Selesai" || fresh.status === "approved" || fresh.currentStep === "completed" || fresh.currentStep === "proses-selesai") {
+        s.add("pembayaran.payment-request");
+        s.add("pembayaran.pelunasan");
+        s.add("pembayaran.proses-selesai");
       }
       setSubmittedSubs(s);
 
@@ -215,6 +232,9 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
       if (res.data.status === "approved") {
         setCompletedStepIds(prev => new Set([...prev, stepId]));
+        if (stepId === "pembayaran") {
+          setSubmittedSubs(prev => new Set([...prev, "pembayaran.payment-request", "pembayaran.pelunasan", "pembayaran.proses-selesai"]));
+        }
       }
     } catch {
       // Fallback
@@ -231,7 +251,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     return isStepDone(idx - 1);
   };
   const canAccessSub = (sIdx: number): boolean => {
-    if (isStepDone(activeStepIdx)) return true;
+    if (isStepDone(activeStepIdx) || verifState.status === "approved" || item.status === "Selesai" || item.status?.toLowerCase() === "approved") return true;
     const sub = activeStep.subSteps[sIdx];
     return sIdx <= activeSubIdx || isSubSubmitted(activeStep.id, sub.id);
   };
@@ -261,14 +281,49 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   const isFirstSub = activeStepIdx === 0 && activeSubIdx === 0;
 
   const handleSubmit = async () => {
+    // If on pengajuan-dana, enforce that all mandatory files are uploaded before submitting or continuing
+    if (activeStep.id === "pengajuan-dana") {
+      try {
+        const res = await api.get(`/pengadaan/${item.id}/documents`);
+        const docs = Array.isArray(res.data?.data) ? res.data.data : [];
+        const uploadedStages = new Set(docs.map((d: any) => d.stage));
+        const missing = FILES.pd.filter(
+          def => !uploadedStages.has(stageFor("pd", def.key))
+        );
+
+        if (missing.length > 0) {
+          setDocWarningModal({
+            isOpen: true,
+            title: "Berkas Pendukung Wajib Diunggah",
+            message: `Terdapat ${missing.length} dari ${FILES.pd.length} berkas pendukung pada Park Document yang belum diunggah. Seluruh berkas wajib diunggah sebelum dapat melakukan submit atau melanjutkan proses.`,
+            detail: "Berkas yang belum diunggah:\n" + missing.map(m => `• ${m.label.replace(/\s*\*/g, '')}`).join("\n"),
+            variant: "warning",
+          });
+          return;
+        }
+      } catch (err) {
+        console.error("Gagal memeriksa dokumen:", err);
+      }
+    }
+
     if (isCurrentSubmitted || isDetailPd) {
       if (activeStep.id === "pengujian" && verifState.status !== "approved") {
-        alert("Pengujian belum diverifikasi Admin. Tahap Pembayaran masih terkunci.");
+        setDocWarningModal({
+          isOpen: true,
+          title: "Tahap Terkunci",
+          message: "Pengujian belum diverifikasi Admin. Tahap Pembayaran masih terkunci.",
+          variant: "warning",
+        });
         return;
       }
       // Check if user is allowed to proceed by Admin
       if (!verifState.canProceed && verifState.status === "pending") {
-        alert("⚠️ Pengajuan sedang menunggu verifikasi Admin. Anda belum bisa melanjutkan ke tahap berikutnya.");
+        setDocWarningModal({
+          isOpen: true,
+          title: "Menunggu Verifikasi Admin",
+          message: "Pengajuan sedang menunggu verifikasi Admin. Anda belum bisa melanjutkan ke tahap berikutnya.",
+          variant: "warning",
+        });
         return;
       }
 
@@ -305,7 +360,12 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           });
         }
       } catch (error: any) {
-        alert(error.response?.data?.message || "Gagal mengirim pengajuan.");
+        setDocWarningModal({
+          isOpen: true,
+          title: "Gagal Mengirim",
+          message: error.response?.data?.message || "Gagal mengirim pengajuan.",
+          variant: "error",
+        });
         return;
       }
 
@@ -396,7 +456,8 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           </div>
         );
       }
-      return <PdSubStatus subId={activeSub.id} data={fd(activeSub.id)} />;
+      const isStepApproved = verifState.status === "approved" || item.status === "Selesai" || item.status === "selesai" || item.status?.toLowerCase() === "approved" || item.currentStep === "completed" || item.currentStep === "proses-selesai";
+      return <PdSubStatus subId={activeSub.id} data={fd(activeSub.id)} status={verifState.status || item.status} isApproved={isStepApproved} />;
     }
 
     if (activeSub.id === "buat-pd") {
@@ -677,7 +738,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             <div className="bg-[#252271] px-4 py-2.5 flex items-center justify-between">
               <p className="text-white font-semibold text-[11.5px]">{cardHeader()}</p>
               {isCurrentSubmitted && activeSub.id !== "detail-pd" && (
-                <StatusBadge status={verifState.status === "approved" ? "Selesai" : verifState.status === "revisi" ? "Revisi" : "Menunggu Verifikasi"} />
+                <StatusBadge status={verifState.status === "approved" || item.status === "Selesai" || item.status?.toLowerCase() === "approved" ? "Selesai" : verifState.status === "revisi" ? "Revisi" : "Menunggu Verifikasi"} />
               )}
             </div>
             <div id="pd-active-form" className="p-4">{renderContent()}{activeStep.id === "pengajuan-dana" && <PengajuanDanaAttachments pengadaanId={item.id} flow="pd" />}</div>
@@ -756,6 +817,15 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           onSubmit={handleRevisionSubmit}
         />
       )}
+
+      <WarningModal
+        isOpen={docWarningModal.isOpen}
+        title={docWarningModal.title}
+        message={docWarningModal.message}
+        detail={docWarningModal.detail}
+        variant={docWarningModal.variant}
+        onClose={() => setDocWarningModal(p => ({ ...p, isOpen: false }))}
+      />
     </div>
   );
 }
