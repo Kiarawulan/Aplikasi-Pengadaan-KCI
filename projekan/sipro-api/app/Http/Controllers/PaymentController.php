@@ -27,6 +27,7 @@ class PaymentController extends Controller
             'pengadaan_id' => 'required|exists:pengadaan,id',
             'payment_type' => 'required|in:outsource,non-outsource,umd,payment-request',
             'form_data' => 'nullable|array',
+            'submission_phase' => 'nullable|in:request,documents',
         ]);
         $pengadaan = Pengadaan::findOrFail($data['pengadaan_id']);
         $this->assertOwner($request, $pengadaan);
@@ -46,14 +47,43 @@ class PaymentController extends Controller
             is_array($pengadaanFormData['pelunasan'] ?? null) ? $pengadaanFormData['pelunasan'] : [],
             ['jenis' => $data['payment_type']]
         );
+        $deletedTypes = is_array($pengadaanFormData['deleted_payment_types'] ?? null)
+            ? $pengadaanFormData['deleted_payment_types']
+            : [];
+        $pengadaanFormData['deleted_payment_types'] = array_values(array_filter(
+            $deletedTypes,
+            fn ($type) => $type !== $data['payment_type']
+        ));
         $pengadaan->form_data = $pengadaanFormData;
         $pengadaan->save();
 
+        // Pilihan pembayaran yang sebelumnya ditolak boleh diganti. Bersihkan
+        // record lama agar tipe yang sudah dihapus Admin tidak mengarahkan User
+        // kembali ke jalur pembayaran sebelumnya.
+        Payment::where('pengadaan_id', $pengadaan->id)
+            ->where('payment_type', '!=', $data['payment_type'])
+            ->whereIn('status', ['rejected', 'draft', 'revision_required'])
+            ->delete();
+
+        $isUmdRequest = $data['payment_type'] === 'umd' && ($data['submission_phase'] ?? null) === 'request';
         $payment = Payment::firstOrCreate(
             ['pengadaan_id' => $pengadaan->id, 'payment_type' => $data['payment_type']],
             ['id' => 'PAY-' . strtoupper(Str::random(10)), 'status' => 'draft', 'requested_by' => $request->user()->id, 'form_data' => []],
         );
-        if ($payment->status === 'draft' || $payment->status === 'revision_required') {
+        if ($isUmdRequest && ! in_array($payment->status, ['draft', 'revision_required', 'rejected'], true)) {
+            return response()->json($payment);
+        }
+        if ($data['payment_type'] === 'umd'
+            && ($data['submission_phase'] ?? null) === 'documents'
+            && $payment->status === 'awaiting_acceptance') {
+            return response()->json(['message' => 'Ajuan Payment Request belum diterima Admin.'], 422);
+        }
+        if ($isUmdRequest && in_array($payment->status, ['draft', 'revision_required', 'rejected'], true)) {
+            $payment->form_data = $data['form_data'] ?? $payment->form_data;
+            $payment->status = 'awaiting_acceptance';
+            $payment->requested_by = $request->user()->id;
+            $payment->save();
+        } elseif (in_array($payment->status, ['draft', 'revision_required', 'rejected', 'documents_required'], true)) {
             $payment->form_data = $data['form_data'] ?? $payment->form_data;
             $payment->status = 'waiting_approval';
             $payment->requested_by = $request->user()->id;
@@ -76,6 +106,41 @@ class PaymentController extends Controller
 
         ProcessHistory::create(['pengadaan_id' => $pengadaan->id, 'verifikasi_id' => $verifikasi->id, 'actor_id' => $request->user()->id, 'actor_name' => $request->user()->name, 'step_id' => 'pembayaran', 'action' => 'submitted', 'from_status' => 'draft', 'to_status' => $payment->status]);
         return response()->json($payment, 201);
+    }
+
+    public function acceptSubmission(Request $request, Payment $payment)
+    {
+        abort_unless($request->user()->is_admin, 403, 'Hanya Admin yang dapat menerima ajuan pembayaran.');
+        abort_unless($payment->payment_type === 'umd', 422, 'Penerimaan ajuan khusus untuk pembayaran UMD.');
+        abort_unless($payment->status === 'awaiting_acceptance', 422, 'Ajuan pembayaran ini sudah diproses.');
+
+        $payment->status = 'documents_required';
+        $payment->processed_by = $request->user()->id;
+        $payment->admin_note = null;
+        $payment->save();
+
+        $verifikasi = Verifikasi::where('pengadaan_id', $payment->pengadaan_id)
+            ->where('tipe', 'umd')
+            ->latest()
+            ->first();
+        if ($verifikasi) {
+            $verifikasi->status = 'pending';
+            $verifikasi->catatan_admin = null;
+            $verifikasi->save();
+        }
+
+        ProcessHistory::create([
+            'pengadaan_id' => $payment->pengadaan_id,
+            'verifikasi_id' => $verifikasi?->id,
+            'actor_id' => $request->user()->id,
+            'actor_name' => $request->user()->name,
+            'step_id' => 'pembayaran',
+            'action' => 'payment_request_accepted',
+            'from_status' => 'awaiting_acceptance',
+            'to_status' => 'documents_required',
+        ]);
+
+        return response()->json($payment->fresh());
     }
 
     public function update(Request $request, Payment $payment)

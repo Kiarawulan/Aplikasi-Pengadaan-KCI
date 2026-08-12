@@ -120,6 +120,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/payments', [PaymentController::class, 'index'])->middleware('module.permission:pembayaran,viewer');
     Route::post('/payments', [PaymentController::class, 'store'])->middleware('module.permission:pembayaran,editor');
     Route::put('/payments/{payment}', [PaymentController::class, 'update'])->middleware('module.permission:pembayaran,editor');
+    Route::post('/payments/{payment}/accept', [PaymentController::class, 'acceptSubmission'])->middleware('module.permission:pembayaran,editor');
     Route::post('/payments/{payment}/process', [PaymentController::class, 'process'])->middleware('module.permission:pembayaran,editor');
     Route::get('/documents/{document}/download', [UploadedDocumentController::class, 'download'])->middleware('module.permission:pengadaan,viewer');
     Route::delete('/documents/{document}', [UploadedDocumentController::class, 'destroy'])->middleware('module.permission:pengadaan,editor');

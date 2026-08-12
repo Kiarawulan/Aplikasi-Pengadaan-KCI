@@ -133,6 +133,23 @@ class VerifikasiController extends Controller
     {
         $this->authorizeType($request, $verifikasi->tipe, 'editor');
 
+        $paymentTypes = ['umd', 'outsource', 'non-outsource', 'payment-request', 'pembayaran'];
+        if (in_array($verifikasi->tipe, $paymentTypes, true)) {
+            $pengadaan = Pengadaan::find($verifikasi->pengadaan_id);
+            if ($pengadaan) {
+                $formData = $pengadaan->form_data ?? [];
+                $deletedTypes = is_array($formData['deleted_payment_types'] ?? null)
+                    ? $formData['deleted_payment_types']
+                    : [];
+                $deletedType = $verifikasi->tipe === 'pembayaran'
+                    ? ($pengadaan->flow_type === 'pd' ? 'umd' : 'outsource')
+                    : $verifikasi->tipe;
+                $formData['deleted_payment_types'] = array_values(array_unique([...$deletedTypes, $deletedType]));
+                $pengadaan->form_data = $formData;
+                $pengadaan->save();
+            }
+        }
+
         if ($verifikasi->tipe === 'rup') {
             Rup::where('id', $verifikasi->pengadaan_id)->delete();
         } else {
@@ -415,6 +432,11 @@ class VerifikasiController extends Controller
             'purchase-requisition' => PurchaseRequisition::class,
             'pengajuan-dana' => PurchaseRequisition::class,
             'pengujian' => Pengujian::class,
+            'umd' => Payment::class,
+            'outsource' => Payment::class,
+            'non-outsource' => Payment::class,
+            'payment-request' => Payment::class,
+            'pembayaran' => Payment::class,
         ];
         $model = $models[$verifikasi->tipe] ?? null;
         if ($model) {

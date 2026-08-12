@@ -1,4 +1,4 @@
-import { FileText, User, Check, Download } from "lucide-react";
+import { FileText, Check, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ParkStep } from "@/types";
 import { FieldInput } from "@/components/common/FieldInput";

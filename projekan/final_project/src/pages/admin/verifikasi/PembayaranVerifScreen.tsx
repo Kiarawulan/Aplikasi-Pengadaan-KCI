@@ -12,9 +12,6 @@ import { StatusBadge } from "../../../components/common/StatusBadge";
 
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
-// Data will be fetched from API
-const INITIAL_PAYMENTS: any[] = [];
-
 // Laporan hanya boleh berisi data yang dibuat pengguna/admin, bukan contoh UI.
 const INITIAL_REPORTS: any[] = [];
 
@@ -979,6 +976,18 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
     return <StatusBadge status={s} />;
   };
 
+  const handleDeleteRejected = async (item: any) => {
+    if (!window.confirm(`Hapus permanen pembayaran yang ditolak: ${item.nama || item.id}?`)) return;
+    try {
+      if (item.verif_id) await api.delete(`/verifikasi/${item.verif_id}`);
+      await api.delete(`/pengadaan/${item.id}`).catch(() => undefined);
+      await fetchPengadaanData();
+      showNotify("Data Dihapus", "Pembayaran yang ditolak berhasil dihapus.", "info");
+    } catch (error: any) {
+      showNotify("Gagal Menghapus", error?.response?.data?.message || "Pembayaran yang ditolak gagal dihapus.", "error");
+    }
+  };
+
   const payColumns = [
     { key: "id", label: "No. Dok", render: (r: any) => <span className="font-mono font-bold text-gray-700 text-[11px]">{r.id}</span> },
     { key: "noSp3", label: "No. SP3", render: (r: any) => <span className="font-mono text-[11px] text-gray-500">{r.noSp3}</span> },
@@ -1038,6 +1047,7 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
           onApprove={(r) => handleAction("approve", r)}
           onRevisi={(r) => handleAction("revisi", r)}
           onReject={(r) => handleAction("reject", r)}
+          onDelete={handleDeleteRejected}
           showVerifActions={true} showCrudActions={true}
           emptyMessage="Tidak ada data pembayaran."
           approveLabel="Setujui"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from "react";
+import { useState, useEffect, Component, ErrorInfo, ReactNode } from "react";
 import type { Screen, PengadaanItem } from "./types";
 import { AuthProvider, useAuth } from "./store/authStore";
 import { LoginPage } from "./pages/auth/LoginPage";

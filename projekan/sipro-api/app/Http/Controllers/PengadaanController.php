@@ -273,11 +273,25 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
             ]);
         }
 
+        $displayStatus = $latestVerif->status;
         $canProceed = ($latestVerif->status === 'approved');
+        if ($stepId === 'pembayaran' && $latestVerif->tipe === 'umd') {
+            $payment = Payment::where('pengadaan_id', $pengadaan->id)
+                ->where('payment_type', 'umd')
+                ->latest()
+                ->first();
+            if ($payment?->status === 'awaiting_acceptance') {
+                $displayStatus = 'pending_acceptance';
+                $canProceed = false;
+            } elseif ($payment?->status === 'documents_required') {
+                $displayStatus = 'accepted';
+                $canProceed = true;
+            }
+        }
 
         return response()->json([
             'stepId'        => $stepId,
-            'status'        => $latestVerif->status,
+            'status'        => $displayStatus,
             'canProceed'    => $canProceed,
             'catatanAdmin'  => $latestVerif->catatan_admin,
             'verifiedBy'    => $latestVerif->verified_by,

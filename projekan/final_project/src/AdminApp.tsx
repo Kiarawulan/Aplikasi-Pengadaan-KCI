@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { CheckCircle2, Edit3, FileWarning, XCircle, Upload, Trash2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { CheckCircle2, Edit3, FileWarning, XCircle, Upload } from "lucide-react";
 import logoImg from "@/imports/UserDashboard/a1d658a5f37b0b6b958626283ef2524233d0a35d.png";
 import group13Svg from "@/imports/Group13/svg-0k0x59k5bp";
 import group14Svg from "@/imports/Group14/svg-sivp8gfyg0";
@@ -17,14 +17,10 @@ import { TambahRupModal } from "./components/admin/verifikasi/TambahRupModal";
 import { NppDetailView } from "./components/admin/verifikasi/NppDetailView";
 import { PengujianDetailView } from "./components/admin/verifikasi/PengujianDetailView";
 import { api } from "./services/api";
-import { getRupList, updateRup, updateVerifRecord } from "./store/dataStore";
-import { PengadaanVerifScreen } from "./pages/admin/verifikasi/PengadaanVerifScreen";
-import { PengujianVerifScreen } from "./pages/admin/verifikasi/PengujianVerifScreen";
-import { PembayaranVerifScreen } from "./pages/admin/verifikasi/PembayaranVerifScreen";
+import { updateRup, updateVerifRecord } from "./store/dataStore";
 import featureUnavailableImage from "./assets/feature-unavailable.png";
 import { DIVISI_LIST } from "./constants/divisi";
 import { useMasterVendors } from "./hooks/useMasterVendors";
-import { getFigmaCaptureConfig } from "./figmaCapture";
 import { StatusBadge } from "./components/common/StatusBadge";
 
 // ─── SVG path data (inlined from Figma exports) ───────────────────────────────
@@ -184,7 +180,11 @@ function mapVerificationRow(verifikasi: any) {
     nilaiEfisiensi: form.nilaiEfisiensi || "-",
     nomorMemoInternal: form.nomorMemoInternal || document.nomor_memo || "-",
     tanggalMemo: form.tanggalMemo || "-",
-    status: verifikasi.status || "pending",
+    status: verifikasi.tipe === "umd" && document.status === "awaiting_acceptance"
+      ? "pending_acceptance"
+      : verifikasi.tipe === "umd" && document.status === "documents_required"
+        ? "accepted"
+        : verifikasi.status || "pending",
     verif_id: verifikasi.id,
   };
 }
@@ -1652,6 +1652,8 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
           ? "Sudah Diverifikasi"
           : s === "revisi" || s === "Perlu Revisi"
             ? "Perlu Revisi"
+            : s === "rejected" || s === "Rejected" || s === "Ditolak"
+              ? "Ditolak"
             : "Belum Diverifikasi";
 
       // 1. Load from DB Verifikasi records (highest priority — real IDs)
@@ -3828,7 +3830,7 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
         <div className="bg-[#252271] rounded-[16px] p-[24px] mb-[20px] flex items-center justify-between">
           <div>
             <p className="text-white/60 text-[12px] font-normal mb-[2px]">Proses PBJ</p>
-            <p className="text-white text-[14px] font-semibold">{row.namaPaket || row.judulPengadaan || "Pengadaan Server CTIT 2024"}</p>
+            <p className="text-white text-[14px] font-semibold">{row.namaPaket || row.judulPengadaan || row.nama || row.judul || "-"}</p>
           </div>
           <button onClick={onBack} className="flex items-center gap-[6px] text-white/80 text-[12px] font-medium hover:text-white transition-colors cursor-pointer">
             <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d="M9 11L5 7L9 3" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>
@@ -4436,8 +4438,8 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
         <div className="bg-[#252271] rounded-[16px] p-[24px] mb-[20px] flex items-center justify-between">
           <div>
             <p className="text-white/60 text-[12px] font-normal mb-[2px]">Proses Contract</p>
-            <p className="text-white text-[14px] font-semibold">{row.namaPaket || "Pengadaan Server CTIT 2024"}</p>
-            <p className="text-white/70 text-[12px] mt-[2px]">{row.noKontrak || row.noSp3 || "SP3-2024-001"} &middot; {row.vendor || "PT Maju Bersama"}</p>
+            <p className="text-white text-[14px] font-semibold">{row.namaPaket || row.nama || row.judul || "-"}</p>
+            <p className="text-white/70 text-[12px] mt-[2px]">{row.noKontrak || row.noSp3 || "-"} &middot; {row.vendor || "-"}</p>
           </div>
           <button onClick={onBack} className="flex items-center gap-[6px] text-white/80 text-[12px] font-medium hover:text-white transition-colors cursor-pointer">
             <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d="M9 11L5 7L9 3" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>
@@ -4858,6 +4860,17 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
     "pembayaran-payment-request": "payment-request",
   };
   const selectedType = typeBySubDoc[subDoc];
+  const deleteRejectedPayment = async (row: any) => {
+    const rowStatus = String(row?.status?.status || row?.status || "").toLowerCase();
+    if (!rowStatus.includes("reject") && rowStatus !== "ditolak") return;
+    if (!row?.verif_id || !window.confirm(`Hapus pembayaran yang ditolak: ${row?.namaPaket || row?.noPembayaran || row?.verif_id}?`)) return;
+    try {
+      await api.delete(`/verifikasi/${row.verif_id}`);
+      await refreshVerification();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Pembayaran yang ditolak gagal dihapus.");
+    }
+  };
   const rows = (verificationItems || [])
     .filter((item) => !selectedType || item?.tipe === selectedType)
     .map(mapVerificationRow)
@@ -5035,6 +5048,19 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
                             <path d={group14Svg.p24092800} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
+                        {(String(r?.status?.status || r?.status || "").toLowerCase().includes("reject") || String(r?.status?.status || r?.status || "").toLowerCase() === "ditolak") && (
+                          <button
+                            onClick={() => deleteRejectedPayment(r)}
+                            className="w-7 h-7 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all flex items-center justify-center"
+                            title="Hapus data ditolak"
+                            aria-label="Hapus pembayaran yang ditolak"
+                          >
+                            <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
+                              <path d={ICONS.trash1} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                              <path d={ICONS.trash2} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -5093,6 +5119,18 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
     return is500Plus ? amount >= 500000000 : amount < 500000000;
   });
   const requestRows = queueRows;
+
+  const deleteRejectedTest = async (row: any) => {
+    const rowStatus = String(row?.status?.status || row?.status || "").toLowerCase();
+    if (!rowStatus.includes("reject") && rowStatus !== "ditolak") return;
+    if (!row?.verif_id || !window.confirm(`Hapus pengujian yang ditolak: ${row?.namaPengujian || row?.nama || row?.verif_id}?`)) return;
+    try {
+      await api.delete(`/verifikasi/${row.verif_id}`);
+      await refresh();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Pengujian yang ditolak gagal dihapus.");
+    }
+  };
 
   const processSelected = async (action: "approve" | "revisi" | "reject", note?: string) => {
     if (!selectedItem?.verif_id) return;
@@ -5199,7 +5237,7 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
                       <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px] whitespace-nowrap">{row.idNpp}</td>
                       <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px] whitespace-nowrap">{row.idRup}</td>
                       <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">
-                        <span className="font-semibold text-gray-800 max-w-[220px] block truncate">{row.nama || row.judul || row.pengadaanNama || "Judul Pengadaan"}</span>
+                        <span className="font-semibold text-gray-800 max-w-[220px] block truncate">{row.nama || row.judul || row.pengadaanNama || "-"}</span>
                       </td>
                       <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.divisi}</td>
                       <td className="px-[14px] py-[14px] text-center">
@@ -5224,6 +5262,14 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
                               <path d={group14Svg.p24092800} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           </button>
+                          {(String(row?.status?.status || row?.status || "").toLowerCase().includes("reject") || String(row?.status?.status || row?.status || "").toLowerCase() === "ditolak") && (
+                            <button onClick={() => deleteRejectedTest(row)} className="p-[5px] rounded-[5px] bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all duration-150" title="Hapus data ditolak">
+                              <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
+                                <path d={ICONS.trash1} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                                <path d={ICONS.trash2} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -5267,6 +5313,14 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
                             <path d={group14Svg.p24092800} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
+                        {(String(r?.status?.status || r?.status || "").toLowerCase().includes("reject") || String(r?.status?.status || r?.status || "").toLowerCase() === "ditolak") && (
+                          <button onClick={() => deleteRejectedTest(r)} className="p-[5px] rounded-[5px] bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all duration-150" title="Hapus data ditolak">
+                            <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
+                              <path d={ICONS.trash1} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                              <path d={ICONS.trash2} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                            </svg>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -5371,12 +5425,24 @@ function DetailPembayaranPage({
 
   // Resolve pengadaanId and verifId once from the row object
   const r = row as any;
-  const isPaymentVerified = ["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(String(r.status || "").toLowerCase());
+  const normalizedPaymentStatus = String(r.status || "").toLowerCase();
+  const isPaymentVerified = ["approved", "final", "closed", "sudah diverifikasi", "selesai", "disetujui"].includes(normalizedPaymentStatus);
+  const isAwaitingUmdAcceptance = isUmd && normalizedPaymentStatus === "pending_acceptance";
+  const isWaitingUmdDocuments = isUmd && normalizedPaymentStatus === "accepted";
   const pengadaanId = r.pengadaan_id || r.pengadaanId || r.id || r.noPembayaran || r.noKontrak || "";
   const existingVerifId = r.verif_id || r.verifId || "";
 
   const fd = r.formData || r.form_data || {};
   const umdFd = fd.umdData || fd['buat-pd'] || fd;
+  const initialPaymentProcess = fd.paymentProcess || fd.statusProsesPembayaran || {};
+  const [paymentProcess, setPaymentProcess] = useState<Record<string, string>>({
+    approvalCfff: initialPaymentProcess.approvalCfff || "",
+    approvalCff: initialPaymentProcess.approvalCff || "",
+    approvalCf: initialPaymentProcess.approvalCf || "",
+    siapBayar: initialPaymentProcess.siapBayar || "",
+    lunas: initialPaymentProcess.lunas || "",
+  });
+  const [savingPaymentProcess, setSavingPaymentProcess] = useState<string | null>(null);
 
   const [pelunasanFileName, setPelunasanFileName] = useState<string>(() => {
     return (
@@ -5447,6 +5513,22 @@ function DetailPembayaranPage({
     }
   };
 
+  const savePaymentProcess = async (key: string) => {
+    if (!pengadaanId) { alert("ID Pengadaan tidak ditemukan."); return; }
+    setSavingPaymentProcess(key);
+    try {
+      const nextProcess = { ...paymentProcess };
+      await api.put(`/pengadaan/${pengadaanId}/form-data`, {
+        form_data: { ...fd, paymentProcess: nextProcess },
+      });
+      if (onSuccess) onSuccess();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Status proses pembayaran gagal disimpan.");
+    } finally {
+      setSavingPaymentProcess(null);
+    }
+  };
+
   const handleViewProof = async () => {
     if (!pengadaanId) return;
     try {
@@ -5481,6 +5563,22 @@ function DetailPembayaranPage({
       onBack();
     } catch (e: any) {
       alert(e?.response?.data?.message || 'Gagal menyetujui. Silakan coba lagi.');
+    }
+  };
+
+  const handleAcceptUmdRequest = async () => {
+    const paymentId = r.id || r.payment_id || r.paymentId;
+    if (!paymentId) {
+      alert("ID Payment UMD tidak ditemukan.");
+      return;
+    }
+    try {
+      await api.post(`/payments/${paymentId}/accept`);
+      alert("Ajuan pembayaran UMD berhasil diterima. User sekarang dapat mengisi Verifikasi Berkas.");
+      if (onSuccess) onSuccess();
+      onBack();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Ajuan pembayaran UMD gagal diterima.");
     }
   };
 
@@ -5523,15 +5621,63 @@ function DetailPembayaranPage({
 
   const paymentActionButtons = (
     <div className="flex items-center gap-2">
-      <button type="button" onClick={() => { setActionNote(""); setShowRejectBox(false); setShowRevisiBox(!showRevisiBox); }} className="h-[30px] px-3 rounded-[9px] border border-[#8f0505] bg-white text-[#8f0505] hover:bg-red-50 text-[11px] font-bold flex items-center gap-1.5">
-        <span className="size-[15px] rounded-full border border-current flex items-center justify-center"><Edit3 size={8} /></span> Revisi
-      </button>
+      {!isAwaitingUmdAcceptance && (
+        <button type="button" onClick={() => { setActionNote(""); setShowRejectBox(false); setShowRevisiBox(!showRevisiBox); }} className="h-[30px] px-3 rounded-[9px] border border-[#8f0505] bg-white text-[#8f0505] hover:bg-red-50 text-[11px] font-bold flex items-center gap-1.5">
+          <span className="size-[15px] rounded-full border border-current flex items-center justify-center"><Edit3 size={8} /></span> Revisi
+        </button>
+      )}
       <button type="button" onClick={() => { setActionNote(""); setShowRevisiBox(false); setShowRejectBox(!showRejectBox); }} className="h-[30px] px-3 rounded-[9px] bg-gradient-to-r from-[#a50000] to-[#e00000] text-white text-[11px] font-bold flex items-center gap-1.5">
         <XCircle size={12} /> Tolak
       </button>
-      <button type="button" disabled={isPaymentVerified} onClick={handleApprove} className={`h-[30px] px-3 rounded-[9px] text-[11px] font-bold flex items-center gap-1.5 ${isPaymentVerified ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] text-white hover:brightness-110"}`}>
-        <CheckCircle2 size={12} /> {isPaymentVerified ? "Sudah Diverifikasi" : "Verifikasi"}
-      </button>
+      {isAwaitingUmdAcceptance ? (
+        <button type="button" onClick={handleAcceptUmdRequest} className="h-[30px] px-3 rounded-[9px] text-[11px] font-bold flex items-center gap-1.5 bg-gradient-to-r from-[#17145e] to-[#2c2785] text-white hover:brightness-110">
+          <CheckCircle2 size={12} /> Terima Ajuan Pembayaran
+        </button>
+      ) : (
+        <button type="button" disabled={isPaymentVerified || isWaitingUmdDocuments} onClick={handleApprove} title={isWaitingUmdDocuments ? "Menunggu User mengirim Verifikasi Berkas" : ""} className={`h-[30px] px-3 rounded-[9px] text-[11px] font-bold flex items-center gap-1.5 ${isPaymentVerified || isWaitingUmdDocuments ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-gradient-to-r from-[#17145e] to-[#2c2785] text-white hover:brightness-110"}`}>
+          <CheckCircle2 size={12} /> {isPaymentVerified ? "Sudah Diverifikasi" : "Verifikasi"}
+        </button>
+      )}
+    </div>
+  );
+
+  const paymentProcessSection = (
+    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+      <div className="border-b border-gray-100 px-4 py-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500">Status Proses Pembayaran</p>
+      </div>
+      <div className="p-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { key: "approvalCfff", label: "Approval CFFF" },
+            { key: "approvalCff", label: "Approval CFF" },
+            { key: "approvalCf", label: "Approval CF" },
+            { key: "siapBayar", label: "Siap Bayar" },
+            { key: "lunas", label: "Lunas" },
+          ].map((step) => (
+            <div key={step.key} className="rounded-lg border border-gray-200 bg-white p-3">
+              <label className="mb-2 block text-center text-[9.5px] font-semibold uppercase text-gray-500">{step.label}</label>
+              <input
+                type="date"
+                value={paymentProcess[step.key] || ""}
+                onChange={(event) => setPaymentProcess((current) => ({ ...current, [step.key]: event.target.value }))}
+                className="h-8 w-full rounded-md border border-gray-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-[#252271]"
+              />
+              <button
+                type="button"
+                disabled={savingPaymentProcess === step.key}
+                onClick={() => savePaymentProcess(step.key)}
+                className="mt-2 h-7 w-full rounded-md bg-[#252271] text-[10px] font-semibold text-white hover:bg-[#1a1753] disabled:opacity-50"
+              >
+                {savingPaymentProcess === step.key ? "Menyimpan..." : "Update"}
+              </button>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 rounded-md bg-blue-50 px-3 py-2 text-[9.5px] text-blue-700">
+          Persetujuan sirkuler: CFFF (&lt; Rp 200 juta), CFF (Rp 200–500 juta), CF (&gt; Rp 500 juta). Setelah sirkuler disetujui, lanjutkan ke “Siap Bayar” dan kemudian “Lunas”.
+        </p>
+      </div>
     </div>
   );
 
@@ -5834,15 +5980,17 @@ function DetailPembayaranPage({
           </div>
         </div>
 
+        {paymentProcessSection}
+
         {/* Finance Verification Form */}
         <div>
           <p className="text-[12px] font-bold text-[#252271] uppercase tracking-wide mb-3 pb-2 border-b border-gray-100">FINANCE VERIFICATION</p>
           <div className="grid grid-cols-3 gap-3">
-            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Unit *</label><select className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]"><option>CUG</option><option>CTR</option><option>CTI</option></select></div>
-            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Date *</label><input type="date" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" /></div>
-            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Currency *</label><select className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]"><option>IDR</option><option>USD</option></select></div>
-            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">No PR *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={row.noKontrak} /></div>
-            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">No PO *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue="PO-2024-001" /></div>
+            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Unit *</label><select defaultValue={fd.financeVerification?.unit || r.departemen || r.dept || ""} className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]"><option value="">— pilih —</option>{DIVISI_LIST.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</select></div>
+            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Date *</label><input type="date" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={fd.financeVerification?.date || ""} /></div>
+            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Currency *</label><select defaultValue={fd.financeVerification?.currency || ""} className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]"><option value="">— pilih —</option><option value="IDR">IDR</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="JPY">JPY</option></select></div>
+            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">No PR *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={fd.financeVerification?.noPr || fd.noPr || r.noPr || ""} /></div>
+            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">No PO *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={fd.financeVerification?.noPo || fd.noPo || r.noPo || ""} /></div>
             <div>
               <label className="block text-[11px] font-semibold text-gray-600 mb-1">Type Vendor *</label>
               <div className="flex gap-3 pt-1">
@@ -5855,12 +6003,12 @@ function DetailPembayaranPage({
             <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nama Vendor *</label><select className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={row.vendor}><option value="">Pilih vendor dari Master Data</option>{row.vendor && !vendorOptions.some((option) => option.value === row.vendor) && <option value={row.vendor}>{row.vendor}</option>}{vendorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
             <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">No Kontrak / SPK / SPB *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={row.noKontrak} /></div>
             <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Judul Kontrak / SPK / SPB / Retensi *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={row.namaPaket} /></div>
-            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">MPPL *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" placeholder="MPPL-2024-001" /></div>
+            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">MPPL *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={fd.financeVerification?.mppl || fd.mppl || r.mppl || ""} placeholder="-" /></div>
           </div>
           <div className="grid grid-cols-3 gap-3 mt-3">
             <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nilai Kontrak *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={row.nilaiTagihan} /></div>
             <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Nilai Invoice *</label><input type="text" className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]" defaultValue={row.nilaiTagihan} /></div>
-            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Tujuan Bank *</label><select className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]"><option>Bank BNI</option><option>Bank Mandiri</option><option>Bank BRI</option></select></div>
+            <div><label className="block text-[11px] font-semibold text-gray-600 mb-1">Tujuan Bank *</label><select defaultValue={fd.financeVerification?.tujuanBank || r.bank || ""} className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[12px]"><option value="">— pilih —</option><option>Bank BNI</option><option>Bank Mandiri</option><option>Bank BRI</option><option>Bank BCA</option><option>Bank BTN</option></select></div>
           </div>
         </div>
 
@@ -6307,7 +6455,7 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
                   <tr key={i} className="border-b border-[#f3f4f6] hover:bg-[#fafafa] transition-colors">
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px] whitespace-nowrap">{row.idNpp}</td>
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px] whitespace-nowrap">{row.idRup}</td>
-                    <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px] font-semibold text-gray-800">{row.nama || row.judul || row.pengadaanNama || "Judul Pengadaan"}</td>
+                    <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px] font-semibold text-gray-800">{row.nama || row.judul || row.pengadaanNama || "-"}</td>
                     <td className="px-[14px] py-[14px] text-[#364153] text-[10.5px]">{row.divisi}</td>
                     <td className="px-[14px] py-[14px] text-center">
                       <span className="inline-flex items-center bg-[#f0f9ff] text-[#0069a8] text-[10.5px] font-medium px-[7px] py-[1.75px] rounded-[3.5px]">

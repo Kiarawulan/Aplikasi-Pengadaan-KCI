@@ -31,8 +31,23 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
       const verifList: any[] = verifResponse.data || [];
 
       const pengadaanById = new Map(pengadaanList.map((entry) => [entry.id, entry]));
+      const paymentPriority = (payment: any) => {
+        const status = String(payment.status || "").toLowerCase();
+        if (["waiting_approval", "pending", "on_progress"].includes(status)) return 3;
+        if (["approved", "completed", "selesai"].includes(status)) return 2;
+        if (["revision_required", "draft"].includes(status)) return 1;
+        return 0;
+      };
+      const canonicalPaymentByPengadaan = new Map<string, any>();
+      paymentList.forEach((payment: any) => {
+        if (String(payment.status || "").toLowerCase() === "rejected") return;
+        const current = canonicalPaymentByPengadaan.get(payment.pengadaan_id);
+        if (!current || paymentPriority(payment) > paymentPriority(current)) {
+          canonicalPaymentByPengadaan.set(payment.pengadaan_id, payment);
+        }
+      });
 
-      const mappedPayments = paymentList
+      const mappedPayments = Array.from(canonicalPaymentByPengadaan.values())
         .filter((payment: any) => payment.payment_type === type)
         .map((payment: any) => {
           const pengadaan = pengadaanById.get(payment.pengadaan_id);
@@ -46,18 +61,34 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
       const extraItems = pengadaanList
         .filter((peng: any) => {
           if (existingPengadaanIds.has(peng.id)) return false;
+          const fd = typeof peng.formData === "string" ? JSON.parse(peng.formData) : (peng.formData || {});
+          const deletedPaymentTypes: string[] = Array.isArray(fd.deleted_payment_types) ? fd.deleted_payment_types : [];
+          if (deletedPaymentTypes.includes(type)) return false;
+
+          // Kompatibilitas untuk data yang telah dihapus sebelum penanda khusus
+          // tersedia: pilihan tersimpan tanpa record payment berarti payment itu
+          // sudah dihapus, bukan data baru yang perlu dimunculkan kembali.
+          const savedPaymentType = String(fd.pelunasan?.jenis || "").toLowerCase();
+          const normalizedSavedType = savedPaymentType === "umd" || savedPaymentType.includes("uang muka")
+            ? "umd"
+            : savedPaymentType.includes("non")
+            ? "non-outsource"
+            : savedPaymentType.includes("payment")
+              ? "payment-request"
+              : savedPaymentType.includes("outsource")
+                ? "outsource"
+                : "";
+          if (normalizedSavedType === type) return false;
+
           if (type === "umd" && peng.flow_type === "pd" && (peng.current_step === "pembayaran" || peng.status === "approved" || peng.status === "completed")) return true;
           if (type === "outsource" && peng.flow_type === "pr" && (peng.current_step === "pembayaran" || peng.status === "approved" || peng.status === "completed")) {
-            const fd = typeof peng.formData === "string" ? JSON.parse(peng.formData) : (peng.formData || {});
             const j = (fd.pelunasan?.jenis || "").toLowerCase();
             return !j.includes("non") && !j.includes("payment");
           }
           if (type === "non-outsource" && peng.flow_type === "pr" && (peng.current_step === "pembayaran" || peng.status === "approved" || peng.status === "completed")) {
-            const fd = typeof peng.formData === "string" ? JSON.parse(peng.formData) : (peng.formData || {});
             return (fd.pelunasan?.jenis || "").toLowerCase().includes("non");
           }
           if (type === "payment-request" && (peng.current_step === "pembayaran" || peng.status === "approved" || peng.status === "completed")) {
-            const fd = typeof peng.formData === "string" ? JSON.parse(peng.formData) : (peng.formData || {});
             return (fd.pelunasan?.jenis || "").toLowerCase().includes("payment");
           }
           return false;

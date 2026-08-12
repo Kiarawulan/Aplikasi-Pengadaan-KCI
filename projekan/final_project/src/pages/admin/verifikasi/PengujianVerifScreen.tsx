@@ -5,7 +5,7 @@ import { VerifTable, FilterConfig } from "../../../components/admin/shared/Verif
 import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/shared/AdminModal";
 import { FileUploadInput } from "../../../components/common/FileUploadInput";
 import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
-import { Plus, CheckCircle2, XCircle, FileWarning, Eye, BarChart3, TrendingUp, ShieldCheck } from "lucide-react";
+import { Plus, CheckCircle2, XCircle, FileWarning, BarChart3, TrendingUp, ShieldCheck } from "lucide-react";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
 import { useMasterVendors } from "../../../hooks/useMasterVendors";
 import { StatusBadge } from "../../../components/common/StatusBadge";
@@ -13,12 +13,6 @@ import { StatusBadge } from "../../../components/common/StatusBadge";
 type ScreenProps = {
   activeSubItem: string;
 };
-
-// We fetch real data from API now.
-const INITIAL_KONTRAK: any[] = [];
-const INITIAL_KONTRAK_OVER: any[] = [];
-const INITIAL_REQUEST_PENGUJIAN: any[] = [];
-const INITIAL_REVIEW_PENGUJIAN: any[] = [];
 
 export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
   const { vendorOptions } = useMasterVendors();
@@ -140,6 +134,17 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
     };
     setRequestList([newR, ...requestList]);
     setShowAddRequest(false);
+  };
+
+  const handleDeleteRejected = async (item: any) => {
+    if (!window.confirm(`Hapus permanen pengujian yang ditolak: ${item.nama || item.id}?`)) return;
+    try {
+      await api.delete(`/pengadaan/${item.id}`);
+      await fetchPengadaanData();
+      showNotify("Data Dihapus", "Pengujian yang ditolak berhasil dihapus.", "info");
+    } catch (error: any) {
+      showNotify("Gagal Menghapus", error?.response?.data?.message || "Pengujian yang ditolak gagal dihapus.", "error");
+    }
   };
 
   const topFiltersConfig: FilterConfig[] = [
@@ -349,6 +354,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
             dateKey="jadwal"
             topFilters={topFiltersConfig}
             onView={(r) => setShowReviewDetail(r)}
+            onDelete={handleDeleteRejected}
             showVerifActions={false}
             showCrudActions={true}
             emptyMessage="Tidak ada pengajuan pengujian untuk direview."

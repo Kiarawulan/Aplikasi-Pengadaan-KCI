@@ -5,7 +5,7 @@ import { VerifTable, FilterConfig } from "../../../components/admin/shared/Verif
 import { AdminModal, ModalField, ModalInput, ModalSelect } from "../../../components/admin/shared/AdminModal";
 import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { DetailDocumentView } from "../../../components/user/pengadaan/DetailDocumentView";
-import { Plus, CheckCircle2, XCircle, FileWarning } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useAuth } from "../../../store/authStore";
 import { getVerifRecords } from "../../../store/dataStore";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
@@ -121,6 +121,18 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
   const [showDetail, setShowDetail] = useState<any | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: "approve" | "reject" | "revisi"; item: any } | null>(null);
   const [catatanText, setCatatanText] = useState("");
+
+  const handleDeleteRejected = async (item: any) => {
+    if (!window.confirm(`Hapus permanen pengajuan yang ditolak: ${item.judulPermohonan || item.id}?`)) return;
+    try {
+      if (item.verif_id) await api.delete(`/verifikasi/${item.verif_id}`);
+      await api.delete(`/pengadaan/${item.id}`).catch(() => undefined);
+      await fetchVerifData();
+      showNotify("Data Dihapus", "Pengajuan yang ditolak berhasil dihapus.", "info");
+    } catch (error: any) {
+      showNotify("Gagal Menghapus", error?.response?.data?.message || "Pengajuan yang ditolak gagal dihapus.", "error");
+    }
+  };
 
   const [form, setForm] = useState({
     emailPic: "",
@@ -255,6 +267,7 @@ export function PengajuanDanaVerifScreen({ activeSubItem }: ScreenProps) {
           onApprove={(r) => handleAction("approve", r)}
           onRevisi={(r) => handleAction("revisi", r)}
           onReject={(r) => handleAction("reject", r)}
+          onDelete={handleDeleteRejected}
           showVerifActions={true}
           showCrudActions={true}
           emptyMessage="Tidak ada data pengajuan."

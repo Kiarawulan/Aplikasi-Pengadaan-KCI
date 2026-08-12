@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { api } from "../../../services/api";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
-import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
-import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/shared/AdminModal";
+import { VerifTable } from "../../../components/admin/shared/VerifTable";
+import { AdminModal } from "../../../components/admin/shared/AdminModal";
 import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
-import { Plus, CheckCircle2, XCircle, FileWarning, Eye, Printer, Download, Trash2, Edit3, ChevronRight } from "lucide-react";
+import { CheckCircle2, FileWarning, Trash2, Edit3 } from "lucide-react";
 import { RupForm, NppForm, VendorForm } from "../../../types/forms";
 import { Sp3DetailView } from "../../../components/admin/verifikasi/Sp3DetailView";
 import { RupDetailView } from "../../../components/admin/verifikasi/RupDetailView";
@@ -23,36 +23,6 @@ type ScreenProps = {
 
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
-const INITIAL_RUP = [
-  { id: "RUP-001", judul: "Pengadaan Server Data Center KCI", bebanBiaya: "CTI - INFORMATION TECHNOLOGY", pbj: "Non-Sarana", sumberDana: "RKAP 2024", jenisKontrak: "Barang", nilaiRkap: "Rp 800.000.000", tahunRkap: "2024", typeTax: "PPN 11%", nilaiTax: "Rp 88.000.000", startDate: "2024-03-01", endDate: "2024-09-30", keterangan: "Pengadaan server untuk Data Center Kantor Pusat", date: "2024-03-01", status: "Submitted", vpDept: "VP Information Technology", capexOpex: "Capex", rkapKat: "Investasi" },
-  { id: "RUP-002", judul: "Jasa Pemeliharaan AC Depo Bukit Duri", bebanBiaya: "CUG - LOGISTIC", pbj: "Non-Sarana", sumberDana: "RKAP 2024", jenisKontrak: "Jasa", nilaiRkap: "Rp 120.000.000", tahunRkap: "2024", typeTax: "PPN 11%", nilaiTax: "Rp 13.200.000", startDate: "2024-03-05", endDate: "2024-12-31", keterangan: "Pemeliharaan AC seluruh unit depo", date: "2024-03-05", status: "Submitted", vpDept: "VP Logistics", capexOpex: "Opex", rkapKat: "Eksploitasi" },
-  { id: "RUP-003", judul: "Pengadaan Suku Cadang Bogie KRL Series 200", bebanBiaya: "CTR - ROLLING STOCK", pbj: "Sarana", sumberDana: "RKAP 2024", jenisKontrak: "Barang", nilaiRkap: "Rp 320.000.000", tahunRkap: "2024", typeTax: "PPN 11%", nilaiTax: "Rp 35.200.000", startDate: "2024-03-10", endDate: "2024-06-30", keterangan: "Suku cadang bogie untuk KRL Series 200 Dipo Depok", date: "2024-03-10", status: "Approved", vpDept: "VP Rolling Stock", capexOpex: "Capex", rkapKat: "Investasi" },
-  { id: "RUP-004", judul: "Perbaikan Kabel Sinyal Lintas Manggarai-Bogor", bebanBiaya: "CTS - INFRASTRUCTURE", pbj: "Sarana", sumberDana: "RKAP 2024", jenisKontrak: "Jasa", nilaiRkap: "Rp 450.000.000", tahunRkap: "2024", typeTax: "PPN 11%", nilaiTax: "Rp 49.500.000", startDate: "2024-03-15", endDate: "2024-08-15", keterangan: "Perbaikan kabel sinyal lintas Manggarai-Bogor", date: "2024-03-15", status: "Submitted", vpDept: "VP Infrastructure", capexOpex: "Opex", rkapKat: "Pemeliharaan" },
-];
-
-const INITIAL_NPP = [
-  { id: "NPP-001", sp3: "SP3-9021", judul: "Pengadaan Lisensi OS Server", rkap: "Rp 150.000.000", dept: "CTIT", tax: "Rp 16.500.000", realisasi: "Timeline", vendor: "PT Software Nusantara", date: "2024-03-02", coa: "5211101", jenisBarang: "IT Software", kurs: "IDR" },
-  { id: "NPP-002", sp3: "SP3-7721", judul: "Pengadaan AC Split 2PK Stasiun", rkap: "Rp 85.000.000", dept: "Logistik", tax: "Rp 9.350.000", realisasi: "Diluar Timeline", vendor: "PT Hawa Dingin", date: "2024-03-08", coa: "5211102", jenisBarang: "Elektronik", kurs: "IDR" },
-  { id: "NPP-003", sp3: "SP3-6612", judul: "Pengadaan Alat Pelindung Diri (APD) Teknisi", rkap: "Rp 120.000.000", dept: "Sarpas", tax: "Rp 13.200.000", realisasi: "Timeline", vendor: "PT Safety Karsa", date: "2024-03-12", coa: "5211103", jenisBarang: "General", kurs: "IDR" },
-];
-
-const INITIAL_SP3 = [
-  { id: "SP3-001", title: "Pengadaan Genset Depo Depok", rkap: "Rp 1.250.000.000", dept: "Prasarana", tax: "Rp 137.500.000", realisasi: "Timeline", status: "Submitted", date: "2024-03-01", vendor: "PT Powerindo", prNo: "PR-9011", rabNo: "RAB-801", kakNo: "KAK-101", miNo: "MI-551" },
-  { id: "SP3-002", title: "Sistem CCTV Stasiun Bogor", rkap: "Rp 780.000.000", dept: "IT & Security", tax: "Rp 85.800.000", realisasi: "Timeline", status: "Contract Release", date: "2024-03-06", vendor: "PT Vision Guard", prNo: "PR-9012", rabNo: "RAB-802", kakNo: "KAK-102", miNo: "MI-552" },
-  { id: "SP3-003", title: "Pengadaan Lampu LED Penerangan Stasiun", rkap: "Rp 95.000.000", dept: "Fasilitas", tax: "Rp 10.450.000", realisasi: "Diluar Timeline", status: "Drafting RKS", date: "2024-03-14", vendor: "PT Terang Utama", prNo: "PR-9013", rabNo: "RAB-803", kakNo: "KAK-103", miNo: "MI-553" },
-];
-
-const INITIAL_PBJ = [
-  { id: "PBJ-001", nama: "Pengadaan Suku Cadang KRL Series 200", prVal: "Rp 320.000.000", pdVal: "Rp 315.000.000", efisiensi: "Rp 5.000.000", realisasi: "Timeline", assignTo: "Staff Logistik 1", date: "2024-03-04", status: "Contract Release" },
-  { id: "PBJ-002", nama: "Sistem Pemantauan CCTV Stasiun Bogor", prVal: "Rp 780.000.000", pdVal: "Rp 750.000.000", efisiensi: "Rp 30.000.000", realisasi: "Timeline", assignTo: "Staff Logistik 2", date: "2024-03-11", status: "Drafting RKS" },
-  { id: "PBJ-003", nama: "Pengadaan Roda KRL Series 205", prVal: "Rp 890.000.000", pdVal: "Rp 870.000.000", efisiensi: "Rp 20.000.000", realisasi: "Timeline", assignTo: "Staff Logistik 3", date: "2024-03-19", status: "Undangan RKS" },
-];
-
-const INITIAL_CONTRACTS = [
-  { id: "CTR-001", paket: "Pengadaan Server Data Center", nilai: "Rp 800.000.000", dept: "CTIT", pbj: "Sarana", performanceBond: "Verified", status: "Contract Release", date: "2024-03-05", startDate: "2024-03-01", endDate: "2024-09-01", totalHari: "184", hariLibur: "24", uncontrollDays: "0", totalHariKerja: "160" },
-  { id: "CTR-002", paket: "Jasa Pemeliharaan AC Depo Bukit Duri", nilai: "Rp 120.000.000", dept: "Logistik", pbj: "Non-Sarana", performanceBond: "Verified", status: "Drafting", date: "2024-03-12", startDate: "2024-03-15", endDate: "2024-12-31", totalHari: "291", hariLibur: "40", uncontrollDays: "0", totalHariKerja: "251" },
-];
-
 const INITIAL_JAMLAK: any[] = [];
 const INITIAL_VENDORS: any[] = [];
 
@@ -347,7 +317,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
   const nppColumns = [
     { key: "judul", label: "Judul Pengadaan", render: (r: any) => (
       <div>
-        <p className="font-semibold text-gray-800 text-[11.5px] max-w-[240px] truncate">{r.judul || r.nama || r.pengadaanNama || r.title || "Judul Pengadaan"}</p>
+        <p className="font-semibold text-gray-800 text-[11.5px] max-w-[240px] truncate">{r.judul || r.nama || r.pengadaanNama || r.title || "-"}</p>
         <p className="text-gray-400 text-[10px]">{r.id} • {r.vendor || "N/A"}</p>
       </div>
     )},
@@ -367,8 +337,8 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
   const pbjColumns = activeSubItem === 'pbj-task-approval-pbj' ? [
     { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id || r.sp3 || "SP3-2024-001"}</span> },
     { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[200px] truncate">{r.nama || r.judul}</p> },
-    { key: "pr", label: "Nilai PR (NPEI)", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nilaiPr || r.nominal || "Rp 500.000.000"}</span> },
-    { key: "po", label: "Nilai PO", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nilaiPo || "Rp 485.000.000"}</span> },
+    { key: "pr", label: "Nilai PR (NPEI)", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nilaiPr || r.nominal || "-"}</span> },
+    { key: "po", label: "Nilai PO", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nilaiPo || "-"}</span> },
     { key: "efisiensi", label: "Nilai Efisiensi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.nilaiEfisiensi || "Rp 15.000.000"}</span> },
     { key: "realisasi", label: "Realisasi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.realisasi || "100%"}</span> },
     { key: "assign", label: "Assign to", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.assignTo || "Tim PBJ 1"}</span> },
@@ -382,22 +352,22 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
   ] : [
     { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id || r.sp3 || "SP3-2024-001"}</span> },
     { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama || r.judul}</p> },
-    { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.nilaiKontrak || "Rp 485.000.000"}</span> },
+    { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.nilaiKontrak || "-"}</span> },
     { key: "status", label: "Status", render: (r: any) => <StatusBadge status={r.status || "Contract Release"} /> },
   ];
 
   const contractColumns = activeSubItem === 'contract-task-approval-contract' ? [
     { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id || r.sp3 || "SP3-2024-001"}</span> },
     { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[200px] truncate">{r.nama || r.paket}</p> },
-    { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.nilai || "Rp 485.000.000"}</span> },
-    { key: "dept", label: "Divisi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen || r.dept || "CTIT"}</span> },
-    { key: "pbj", label: "PBJ", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.pbj || "Sarana"}</span> },
+    { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.nilai || "-"}</span> },
+    { key: "dept", label: "Divisi", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.departemen || r.dept || "-"}</span> },
+    { key: "pbj", label: "PBJ", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.pbj || "-"}</span> },
     { key: "bond", label: "Performance Bond", render: (r: any) => <span className="text-gray-600 text-[11.5px]">{r.performanceBond || "Rp 24.250.000"}</span> },
     { key: "status", label: "Status", render: (r: any) => <StatusBadge status={r.status || "Contract Release"} /> },
   ] : [
     { key: "id", label: "No. SP3", render: (r: any) => <span className="font-mono font-bold text-[#252271] text-[11.5px]">{r.id || r.sp3 || "SP3-2024-001"}</span> },
     { key: "nama", label: "Nama Paket Pengadaan", render: (r: any) => <p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama || r.paket}</p> },
-    { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.nilai || "Rp 485.000.000"}</span> },
+    { key: "nominal", label: "Nilai Kontrak", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.nilai || "-"}</span> },
     { key: "status", label: "Status", render: (r: any) => <StatusBadge status={r.status || "Active"} /> },
   ];
 

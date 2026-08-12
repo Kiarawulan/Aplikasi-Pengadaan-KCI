@@ -122,6 +122,10 @@ export function VerifTable<T extends { id: string }>({
   const handleEnd = (v: string) => { setEndDate(v); setPage(1); };
   const clearFilters = () => { setSearch(""); setFilters({}); setStartDate(""); setEndDate(""); setPage(1); };
   const hasActiveFilters = !!(search || startDate || endDate || Object.values(filters).some(Boolean));
+  const isRejected = (row: T) => {
+    const status = String((row as Record<string, unknown>).status || "").trim().toLowerCase();
+    return status === "rejected" || status === "ditolak" || status.includes("rejected");
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
@@ -265,7 +269,7 @@ export function VerifTable<T extends { id: string }>({
                             <Pencil size={11} className="text-amber-600" />
                           </button>
                         )}
-                        {showCrudActions && onDelete && (
+                        {showCrudActions && onDelete && isRejected(row) && (
                           <button onClick={() => onDelete(row)} className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors" title="Hapus">
                             <Trash2 size={11} className="text-red-500" />
                           </button>

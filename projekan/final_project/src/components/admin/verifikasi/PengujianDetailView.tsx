@@ -39,28 +39,28 @@ export const PengujianDetailView: React.FC<PengujianDetailViewProps> = ({
 
   // Extract authentic fields from the Pengujian screenshot
   const infoFields: DetailDocumentField[] = [
-    { label: "Nomor Kontrak", value: item?.nomorKontrak || item?.noSp3 || item?.id || '221/REN-LOG/KCI/X/2022' },
-    { label: "Tanggal SPR", value: item?.tanggalSpr || '13 Sep 2023' },
+    { label: "Nomor Kontrak", value: item?.nomorKontrak || item?.noKontrak || item?.noSp3 || item?.id || '-' },
+    { label: "Tanggal SPR", value: item?.tanggalSpr || item?.tanggalRequest || item?.tanggal || '-' },
     { label: "Total Hari MPPL", value: item?.totalHariMppl || '-' },
     { label: "Start Date MPPL", value: item?.startDateMppl || '-' },
     { label: "No PR", value: item?.noPr || '-' },
     { label: "No Jamlak", value: item?.noJamlak || '-' },
     { label: "Nomor Contract", value: item?.nomorContract || '-' },
     { label: "Tanggal Contract", value: item?.tanggalContract || '-' },
-    { label: "Judul Pengadaan", value: item?.judulPengadaan || item?.judul || item?.nama || 'Pengadaan CCTV Analytics' },
+    { label: "Judul Pengadaan", value: item?.judulPengadaan || item?.judul || item?.nama || item?.namaPaket || '-' },
     { label: "Vendor Name", value: item?.vendorName || item?.vendor || '-' },
-    { label: "Metode", value: item?.metode || 'Tender Terbuka' },
-    { label: "Jenis Barang", value: item?.jenisBarang || 'Non-Import' },
-    { label: "Nilai Kontrak", value: item?.nilaiKontrak || item?.nilai || 'Rp. 450,000,000.00' },
+    { label: "Metode", value: item?.metode || item?.formData?.metode || '-' },
+    { label: "Jenis Barang", value: item?.jenisBarang || item?.kategori || item?.formData?.jenisBarang || '-' },
+    { label: "Nilai Kontrak", value: item?.nilaiKontrak || item?.nilai || item?.nominal || '-' },
     { label: "Status Kontrak", value: item?.statusKontrak || '-' },
-    { label: "No KAK", value: item?.noKak || 'NO/KAK/IP003' },
+    { label: "No KAK", value: item?.noKak || item?.formData?.noKak || '-' },
     { label: "Tanggal KAK", value: item?.tanggalKak || '-' },
-    { label: "Tanggal Permohonan Pengujian", value: item?.tanggalPermohonanPengujian || '2023-10-27 08:51:34' },
-    { label: "Nomor MI Pengujian", value: item?.nomorMiPengujian || 'NO/MI/IP003' },
-    { label: "PIC Penguji", value: item?.picPenguji || 'Organization Planning and Development Manager', colSpan: 'col-span-2' },
+    { label: "Tanggal Permohonan Pengujian", value: item?.tanggalPermohonanPengujian || item?.tanggalRequest || item?.tanggal || '-' },
+    { label: "Nomor MI Pengujian", value: item?.nomorMiPengujian || item?.nomorMemoInternal || '-' },
+    { label: "PIC Penguji", value: item?.picPenguji || item?.assignTo || item?.pemohon || '-', colSpan: 'col-span-2' },
     { label: "Catatan Hasil Pengujian", value: item?.catatanHasilPengujian || '-' },
     { label: "Nomor Dokumen Pengujian", value: item?.nomorDokumenPengujian || '-' },
-    { label: "Tanggal Pengujian", value: item?.tanggalPengujian || 'Belum ada tanggal pengujian' },
+    { label: "Tanggal Pengujian", value: item?.tanggalPengujian || item?.jadwal || '-' },
   ];
 
   // Authentic document files from the Pengujian screenshot
@@ -160,7 +160,7 @@ export const PengujianDetailView: React.FC<PengujianDetailViewProps> = ({
   return (
     <DetailDocumentView
       title="Detail Berkas Permohonan Pengujian"
-      subtitle={`Pengujian - ${item?.nomorKontrak || item?.noSp3 || item?.id || '221/REN-LOG/KCI/X/2022'}`}
+      subtitle={`Pengujian - ${item?.nomorKontrak || item?.noKontrak || item?.noSp3 || item?.id || '-'}`}
       status={item?.statusPengujian || item?.status || "Request Pengujian"}
       infoFields={infoFields}
       files={files}

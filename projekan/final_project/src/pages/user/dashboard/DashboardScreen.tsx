@@ -6,7 +6,7 @@ import {
   ClipboardList, Clock3, FileText, FlaskConical, Wallet,
 } from "lucide-react";
 import {
-  Area, AreaChart, Cell, Legend, Pie, PieChart, ResponsiveContainer,
+  Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from "recharts";
 import { api } from "@/services/api";

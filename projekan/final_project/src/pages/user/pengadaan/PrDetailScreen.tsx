@@ -10,7 +10,7 @@ import { PengajuanDanaAttachments, FILES, stageFor } from "@/components/user/pen
 import { WarningModal } from "@/components/common/WarningModal";
 import { PembelianBaruPopup } from "@/components/user/pengadaan/PembelianBaruPopup";
 import { api } from "@/services/api";
-import { getVerifRecords, addVerifRecord, generateId, getPengujianList, savePengujianList, updatePengadaanItem } from "@/store/dataStore";
+import { generateId, getPengujianList, savePengujianList, updatePengadaanItem } from "@/store/dataStore";
 import { useAuth } from "@/store/authStore";
 import { remindIncompleteFields } from "@/utils/formValidation";
 
@@ -58,6 +58,8 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   const [showPrPaymentModal, setShowPrPaymentModal] = useState(false);
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [selectedPaymentType, setSelectedPaymentType] = useState<"Outsource" | "Non-outsource">("Outsource");
+  const [lockedPaymentType, setLockedPaymentType] = useState<"Outsource" | "Non-outsource" | null>(null);
+  const [loadingPaymentType, setLoadingPaymentType] = useState(false);
 
   // Load initial sub-step completions from item state or meta
   const [completedSubs, setCompletedSubs] = useState<Set<string>>(() => {
@@ -99,6 +101,49 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     message: "",
     variant: "warning",
   });
+
+  useEffect(() => {
+    if (!showPrPaymentModal) return;
+    let subscribed = true;
+    setLoadingPaymentType(true);
+
+    api.get(`/payments?pengadaan_id=${item.id}`)
+      .then((response) => {
+        if (!subscribed) return;
+        const payments = Array.isArray(response.data) ? response.data : [];
+        const formData: any = allFd || {};
+        const savedFormType = String(formData.pelunasan?.jenis || "").toLowerCase();
+        const normalizedFormType = savedFormType.includes("non") ? "non-outsource" : savedFormType.includes("outsource") ? "outsource" : "";
+        const paymentPriority = (payment: any) => {
+          const status = String(payment.status || "").toLowerCase();
+          if (["waiting_approval", "pending", "on_progress"].includes(status)) return 3;
+          if (["approved", "completed", "selesai"].includes(status)) return 2;
+          return 1;
+        };
+        const activePayments = payments.filter((payment: any) => {
+          const paymentStatus = String(payment.status || "").toLowerCase();
+          return payment.pengadaan_id === item.id && !["rejected", "revision_required", "draft"].includes(paymentStatus);
+        }).sort((left: any, right: any) => paymentPriority(right) - paymentPriority(left));
+        const activePayment = activePayments[0];
+
+        const deletedTypes: string[] = Array.isArray(formData.deleted_payment_types) ? formData.deleted_payment_types : [];
+        const savedType = String(activePayment?.payment_type || normalizedFormType || "").toLowerCase();
+        const normalizedType = savedType.includes("non") ? "non-outsource" : savedType.includes("outsource") ? "outsource" : "";
+        const isDeleted = normalizedType && deletedTypes.includes(normalizedType);
+        const locked = !isDeleted && normalizedType
+          ? (normalizedType === "non-outsource" ? "Non-outsource" : "Outsource")
+          : null;
+
+        setLockedPaymentType(locked);
+        if (locked) setSelectedPaymentType(locked);
+      })
+      .catch(() => setLockedPaymentType(null))
+      .finally(() => {
+        if (subscribed) setLoadingPaymentType(false);
+      });
+
+    return () => { subscribed = false; };
+  }, [showPrPaymentModal, item.id, allFd]);
 
   // Fetch latest item data on mount
   useEffect(() => {
@@ -178,6 +223,19 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           setVerifStatus(matched.status || "pending");
           setCatatanAdmin(matched.catatan_admin || matched.catatan || null);
           setVerifId(matched.id);
+          if (matched.status === "revisi" || matched.status === "rejected") {
+            const revisionSubStepByStage: Record<string, string> = {
+              npp: "buat-npp",
+              "pengajuan-dana": "buat-pr",
+              pengujian: "request-pengujian",
+              pembayaran: "pelunasan",
+            };
+            const targetSubStep = revisionSubStepByStage[activeStep.id];
+            if (targetSubStep) {
+              const targetIndex = activeStep.subSteps.findIndex((sub) => sub.id === targetSubStep);
+              if (targetIndex !== -1) setActiveSubIdx(targetIndex);
+            }
+          }
           if (matched.status === "approved") {
             setCompletedStepIds(prev => new Set([...prev, activeStep.id]));
           }
@@ -311,6 +369,34 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       return; // Do not advance step yet!
     }
 
+    if (activeStep.id === "pembayaran"
+      && activeSubStep?.id === "pelunasan"
+      && (verifStatus === "not_submitted" || verifStatus === "revisi" || verifStatus === "rejected")) {
+      const savedType = String(allFd.pelunasan?.jenis || "").toLowerCase();
+      const paymentType = lockedPaymentType === "Non-outsource" || savedType.includes("non")
+        ? "non-outsource"
+        : "outsource";
+      try {
+        await api.post("/payments", {
+          pengadaan_id: item.id,
+          payment_type: paymentType,
+          submission_phase: "documents",
+          form_data: allFd,
+        });
+        setVerifStatus("pending");
+        setCatatanAdmin(null);
+        flashSave();
+      } catch (error: any) {
+        setDocWarningModal({
+          isOpen: true,
+          title: "Gagal Mengirim Revisi Pembayaran",
+          message: error?.response?.data?.message || "Berkas pembayaran yang direvisi gagal dikirim ulang.",
+          variant: "error",
+        });
+      }
+      return;
+    }
+
     const isAdminStepApproved = verifStatus === "approved" || item.status?.toLowerCase() === "approved" || completedStepIds.has(activeStep.id);
     if (adminOnlySteps.includes(activeStep.id) && !isAdminStepApproved) return;
 
@@ -436,14 +522,30 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   };
 
   const handleConfirmPrPayment = async (paymentChoice: "Outsource" | "Non-outsource" = selectedPaymentType) => {
-    const paymentType = paymentChoice === "Outsource" ? "outsource" : "non-outsource";
+    let paymentType = paymentChoice === "Outsource" ? "outsource" : "non-outsource";
     try {
-      // Endpoint pembayaran membuat antrean verifikasi Admin dari data yang sama.
-      await api.post("/payments", {
-        pengadaan_id: item.id,
-        payment_type: paymentType,
-        form_data: { jenis: paymentChoice },
+      // Proses yang sudah selesai (atau antrean verifikasinya sudah dihapus Admin)
+      // dapat memiliki payment aktif. Gunakan record tersebut dan jangan submit ulang.
+      const existingResponse = await api.get(`/payments?pengadaan_id=${item.id}`).catch(() => ({ data: [] }));
+      const existingPayments = Array.isArray(existingResponse.data) ? existingResponse.data : [];
+      const existingPayment = existingPayments.find((payment: any) => {
+        const status = String(payment.status || "").toLowerCase();
+        return payment.pengadaan_id === item.id
+          && payment.payment_type === paymentType
+          && !["rejected", "revision_required", "draft"].includes(status);
       });
+
+      if (existingPayment) {
+        paymentType = existingPayment.payment_type === "non-outsource" ? "non-outsource" : "outsource";
+        paymentChoice = paymentType === "non-outsource" ? "Non-outsource" : "Outsource";
+      } else {
+        // Hanya membuat antrean pembayaran jika memang belum pernah dibuat.
+        await api.post("/payments", {
+          pengadaan_id: item.id,
+          payment_type: paymentType,
+          form_data: { jenis: paymentChoice },
+        });
+      }
       setAllFd((previous) => ({
         ...previous,
         pelunasan: { ...(previous.pelunasan || {}), jenis: paymentChoice },
@@ -453,21 +555,35 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       alert(error?.response?.data?.message || "Pembayaran belum dapat dibuat. Pastikan pengujian telah diselesaikan Admin.");
       return;
     }
-    const targetBack = paymentChoice === "Outsource" ? "pembayaran-outsource" : "pembayaran-non-outsource";
+    const targetBack = paymentType === "outsource" ? "pembayaran-outsource" : "pembayaran-non-outsource";
     const paymentStepIndex = steps.findIndex((step) => step.id === "pembayaran");
     if (paymentStepIndex !== -1) {
       setActiveStepIdx(paymentStepIndex);
       setActiveSubIdx(0);
     }
-    if (onSelectItem) {
-      onSelectItem(item, "pr-detail", targetBack as any);
-    } else {
-      onNavigate(targetBack as any);
-    }
+    onNavigate(targetBack as any);
   };
 
   const openEdit = () => {
-    setShowEditPopup(true);
+    if (activeStep.id === "pengajuan-dana") {
+      const formIndex = activeStep.subSteps.findIndex((sub) => sub.id === "buat-pr");
+      if (formIndex !== -1) setActiveSubIdx(formIndex);
+      setShowEditPopup(true);
+      return;
+    }
+
+    const revisionSubStepByStage: Record<string, string> = {
+      npp: "buat-npp",
+      pengujian: "request-pengujian",
+      pembayaran: "pelunasan",
+    };
+    const targetSubStep = revisionSubStepByStage[activeStep.id];
+    if (targetSubStep) {
+      const targetIndex = activeStep.subSteps.findIndex((sub) => sub.id === targetSubStep);
+      if (targetIndex !== -1) setActiveSubIdx(targetIndex);
+    }
+    setVerifStatus("not_submitted");
+    setCatatanAdmin(null);
   };
 
   const handleRevisionSubmit = async (newItem: any) => {
@@ -545,7 +661,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                     <p className="text-[11.5px] text-rose-700 mt-0.5">{catatanAdmin || "Silakan perbaiki data yang diajukan, lalu klik Kirim/Submit kembali."}</p>
                   </div>
                   <button onClick={openEdit} className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-red-600 to-rose-500 text-white rounded-lg text-[11px] font-bold hover:from-red-700 hover:to-rose-600 transition-colors shrink-0">
-                    <Edit2 size={12} /> Edit
+                    <Edit2 size={12} /> {activeStep.id === "pengajuan-dana" ? "Edit Pengajuan Dana" : activeStep.id === "npp" ? "Perbaiki NPP" : activeStep.id === "pembayaran" ? "Perbaiki Berkas Pembayaran" : "Perbaiki Berkas Ini"}
                   </button>
                 </div>
               )}
@@ -557,7 +673,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                     <p className="text-[11.5px] text-red-700 mt-0.5">{catatanAdmin || "Pengajuan Anda ditolak oleh Admin."}</p>
                   </div>
                   <button onClick={openEdit} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-[11px] font-bold hover:bg-red-700 transition-colors shrink-0">
-                    <Edit2 size={12} /> Edit
+                    <Edit2 size={12} /> {activeStep.id === "pengajuan-dana" ? "Edit Pengajuan Dana" : activeStep.id === "npp" ? "Perbaiki NPP" : activeStep.id === "pembayaran" ? "Perbaiki Berkas Pembayaran" : "Perbaiki Berkas Ini"}
                   </button>
                 </div>
               )}
@@ -684,34 +800,34 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             <div className="grid grid-cols-2 gap-3.5 mb-6">
               <button
                 type="button"
+                disabled={loadingPaymentType || (!!lockedPaymentType && lockedPaymentType !== "Outsource")}
                 onClick={() => handleConfirmPrPayment("Outsource")}
-                className={`flex flex-col items-center justify-center text-center p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                  selectedPaymentType === "Outsource"
-                    ? "border-[#252271] bg-[#252271]/5 shadow-sm ring-2 ring-[#252271]/20"
+                className={`box-border flex min-h-[148px] w-full flex-col items-center justify-center rounded-2xl border-2 p-4 text-center cursor-pointer transition-all ${
+                  lockedPaymentType && lockedPaymentType !== "Outsource"
+                    ? "border-gray-200 bg-gray-100 text-gray-400 opacity-60 cursor-not-allowed"
+                    : selectedPaymentType === "Outsource"
+                    ? "border-[#252271] bg-[#252271]/5 shadow-sm"
                     : "border-gray-200 hover:border-gray-300 hover:bg-gray-50/80"
                 }`}
               >
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#252271] flex items-center justify-center mb-2 font-bold text-sm">
-                  OS
-                </div>
-                <p className="text-[13px] font-bold text-gray-900">Outsource</p>
-                <p className="text-[10.5px] text-gray-500 mt-1 leading-snug">Pembayaran untuk jasa outsource</p>
+                <p className={`text-[13px] font-bold ${lockedPaymentType && lockedPaymentType !== "Outsource" ? "text-gray-400" : "text-gray-900"}`}>Outsource</p>
+                <p className={`text-[10.5px] mt-1 leading-snug ${lockedPaymentType && lockedPaymentType !== "Outsource" ? "text-gray-400" : "text-gray-500"}`}>Pembayaran untuk jasa outsource</p>
               </button>
 
               <button
                 type="button"
+                disabled={loadingPaymentType || (!!lockedPaymentType && lockedPaymentType !== "Non-outsource")}
                 onClick={() => handleConfirmPrPayment("Non-outsource")}
-                className={`flex flex-col items-center justify-center text-center p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                  selectedPaymentType === "Non-outsource"
-                    ? "border-[#252271] bg-[#252271]/5 shadow-sm ring-2 ring-[#252271]/20"
+                className={`box-border flex min-h-[148px] w-full flex-col items-center justify-center rounded-2xl border-2 p-4 text-center cursor-pointer transition-all ${
+                  lockedPaymentType && lockedPaymentType !== "Non-outsource"
+                    ? "border-gray-200 bg-gray-100 text-gray-400 opacity-60 cursor-not-allowed"
+                    : selectedPaymentType === "Non-outsource"
+                    ? "border-[#252271] bg-[#252271]/5 shadow-sm"
                     : "border-gray-200 hover:border-gray-300 hover:bg-gray-50/80"
                 }`}
               >
-                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center mb-2 font-bold text-sm">
-                  NOS
-                </div>
-                <p className="text-[13px] font-bold text-gray-900">Non Outsource</p>
-                <p className="text-[10.5px] text-gray-500 mt-1 leading-snug">Pembayaran barang / non-outsource</p>
+                <p className={`text-[13px] font-bold ${lockedPaymentType && lockedPaymentType !== "Non-outsource" ? "text-gray-400" : "text-gray-900"}`}>Non Outsource</p>
+                <p className={`text-[10.5px] mt-1 leading-snug ${lockedPaymentType && lockedPaymentType !== "Non-outsource" ? "text-gray-400" : "text-gray-500"}`}>Pembayaran barang / non-outsource</p>
               </button>
             </div>
 

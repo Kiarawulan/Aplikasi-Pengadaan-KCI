@@ -1,11 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/store/authStore";
 import { api } from "@/services/api";
-import { AdminTopBar } from "@/components/admin/layout/AdminTopBar";
 import {
   BarChart3, TrendingUp, FileText, ClipboardList, FlaskConical, Wallet,
-  Filter, Download, Search, ChevronRight, PieChart, Calendar, Users,
-  CheckCircle2, Clock, XCircle, AlertTriangle, ArrowRight, Building2
+  Filter, Download, Search, PieChart, Calendar, Users,
+  CheckCircle2, Clock, AlertTriangle, Building2
 } from "lucide-react";
 import { DIVISI_LIST } from "@/constants/divisi";
 import { getFigmaCaptureConfig } from "@/figmaCapture";

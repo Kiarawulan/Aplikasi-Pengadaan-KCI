@@ -1,4 +1,4 @@
-import { Bell, LogOut, Settings } from "lucide-react";
+import { Bell, LogOut } from "lucide-react";
 import { useAuth } from "../../store/authStore";
 import { getRoleById } from "../../store/authStore";
 

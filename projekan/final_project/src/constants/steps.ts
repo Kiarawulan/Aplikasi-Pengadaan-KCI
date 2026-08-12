@@ -24,7 +24,7 @@ export const PD_MAIN_STEPS: MainStep[] = [
     label: "Pembayaran (UMD)",
     subSteps: [
       { id: "payment-request", label: "Payment Request" },
-      { id: "pelunasan", label: "Pelunasan" },
+      { id: "pelunasan", label: "Verifikasi Berkas" },
       { id: "proses-selesai", label: "Proses Selesai" },
     ],
   },

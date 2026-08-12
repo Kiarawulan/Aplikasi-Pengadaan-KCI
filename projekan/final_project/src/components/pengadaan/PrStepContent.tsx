@@ -1,4 +1,4 @@
-import { FileText, User, Check, Download } from "lucide-react";
+import { FileText, Check, Download } from "lucide-react";
 import type { ParkStep } from "../../types";
 import { FieldInput } from "../common/FieldInput";
 import { FileUploadInput } from "../common/FileUploadInput";
@@ -133,10 +133,10 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
       <div>
         <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">PBJ Details</p>{pbjStatus}</div>
         <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
-          <SummaryRow label="Nomor PBJ" value={fdFrom("pbj").noPbj || "PBJ-2024-001"} />
-          <SummaryRow label="Tanggal PBJ" value={fdFrom("pbj").tglPbj || "12 Okt 2024"} />
-          <SummaryRow label="Pemenang Tender" value={fdFrom("pbj").pemenang || "PT Vendor IT Sukses"} />
-          <SummaryRow label="Nilai Kontrak" value={fdFrom("pbj").nilaiKontrak || "Rp 95.000.000"} />
+          <SummaryRow label="Nomor PBJ" value={fdFrom("pbj").noPbj || "-"} />
+          <SummaryRow label="Tanggal PBJ" value={fdFrom("pbj").tglPbj || "-"} />
+          <SummaryRow label="Pemenang Tender" value={fdFrom("pbj").pemenang || "-"} />
+          <SummaryRow label="Nilai Kontrak" value={fdFrom("pbj").nilaiKontrak || "-"} />
         </div>
       </div>
     );

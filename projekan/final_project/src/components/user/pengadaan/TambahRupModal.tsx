@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, FileText, DollarSign, Calendar, Building2 } from 'lucide-react';
+import { FileText, DollarSign, Calendar } from 'lucide-react';
 import { WarningModal, WarningVariant } from '@/components/common/WarningModal';
 
 interface TambahRupModalProps {

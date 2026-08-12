@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronRight, Check, ChevronLeft, Trash2, Download, AlertCircle, Clock, AlertTriangle, Edit2 } from "lucide-react";
+import { ChevronRight, Check, ChevronLeft, AlertCircle, Clock, AlertTriangle, Edit2 } from "lucide-react";
 import type { Screen, PengadaanItem, VerifStatus } from "@/types";
 import { PD_MAIN_STEPS } from "@/constants/steps";
 import { Breadcrumb } from "@/components/user/layout/Breadcrumb";
@@ -149,6 +149,26 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     }
   };
 
+  const openRevisionForCurrentStep = () => {
+    if (activeStep.id === "pengajuan-dana") {
+      setActiveSubIdx(0);
+      setShowEditPopup(true);
+      return;
+    }
+
+    if (activeStep.id === "pembayaran") {
+      const verificationFilesIndex = activeStep.subSteps.findIndex((sub) => sub.id === "pelunasan");
+      if (verificationFilesIndex !== -1) setActiveSubIdx(verificationFilesIndex);
+      setSubmittedSubs((current) => {
+        const next = new Set(current);
+        next.delete("pembayaran.pelunasan");
+        next.delete("pembayaran.proses-selesai");
+        return next;
+      });
+      setVerifState({ status: "not_submitted", canProceed: true, loading: false });
+    }
+  };
+
   // Fetch latest item data on mount to avoid stale localStorage data
   useEffect(() => {
     api.get(`/pengadaan/${item.id}`).then(res => {
@@ -197,7 +217,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
   // Sync state with Admin Verifikasi backend
   const [verifState, setVerifState] = useState<{
-    status: VerifStatus | "not_submitted";
+    status: VerifStatus | "not_submitted" | "pending_acceptance" | "accepted";
     canProceed: boolean;
     catatanAdmin?: string;
     loading: boolean;
@@ -235,6 +255,19 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         if (stepId === "pembayaran") {
           setSubmittedSubs(prev => new Set([...prev, "pembayaran.payment-request", "pembayaran.pelunasan", "pembayaran.proses-selesai"]));
         }
+      } else if (res.data.status === "revisi" || res.data.status === "rejected") {
+        if (stepId === "pembayaran") {
+          const verificationFilesIndex = steps.find((step) => step.id === "pembayaran")?.subSteps.findIndex((sub) => sub.id === "pelunasan") ?? -1;
+          if (verificationFilesIndex !== -1) setActiveSubIdx(verificationFilesIndex);
+          setSubmittedSubs((current) => {
+            const next = new Set(current);
+            next.delete("pembayaran.pelunasan");
+            next.delete("pembayaran.proses-selesai");
+            return next;
+          });
+        } else if (stepId === "pengajuan-dana") {
+          setActiveSubIdx(0);
+        }
       }
     } catch {
       // Fallback
@@ -244,6 +277,9 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
   useEffect(() => {
     fetchStepVerifStatus(activeStep.id);
+    if (activeStep.id !== "pembayaran") return;
+    const timer = window.setInterval(() => fetchStepVerifStatus(activeStep.id), 10000);
+    return () => window.clearInterval(timer);
   }, [item.id, activeStepIdx]);
 
   const canAccessStep = (idx: number): boolean => {
@@ -275,8 +311,11 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   const fd = (subId: string): Record<string, string> => allFd[subId] ?? {};
 
   const isDetailPd = activeSub.id === "detail-pd";
-  const isCurrentSubmitted = isSubSubmitted(activeStep.id, activeSub.id)
-    || (activeSub.id === "pelunasan" && (verifState.status === "pending" || verifState.status === "approved"));
+  const isRevisionState = verifState.status === "revisi" || verifState.status === "rejected";
+  const isCurrentSubmitted = !isRevisionState && (
+    isSubSubmitted(activeStep.id, activeSub.id)
+    || (activeSub.id === "pelunasan" && (verifState.status === "pending" || verifState.status === "approved"))
+  );
   const isLastSub = activeStepIdx === steps.length - 1 && activeSubIdx === activeStep.subSteps.length - 1;
   const isFirstSub = activeStepIdx === 0 && activeSubIdx === 0;
 
@@ -317,11 +356,13 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         return;
       }
       // Check if user is allowed to proceed by Admin
-      if (!verifState.canProceed && verifState.status === "pending") {
+      if (!verifState.canProceed && (verifState.status === "pending" || verifState.status === "pending_acceptance")) {
         setDocWarningModal({
           isOpen: true,
-          title: "Menunggu Verifikasi Admin",
-          message: "Pengajuan sedang menunggu verifikasi Admin. Anda belum bisa melanjutkan ke tahap berikutnya.",
+          title: verifState.status === "pending_acceptance" ? "Menunggu Penerimaan Admin" : "Menunggu Verifikasi Admin",
+          message: verifState.status === "pending_acceptance"
+            ? "Payment Request sedang menunggu diterima Admin. Verifikasi Berkas belum dapat diisi."
+            : "Pengajuan sedang menunggu verifikasi Admin. Anda belum bisa melanjutkan ke tahap berikutnya.",
           variant: "warning",
         });
         return;
@@ -343,16 +384,34 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     } else {
       if (!remindIncompleteFields(document.getElementById("pd-active-form"))) return;
       if (activeStep.id === "pembayaran" && activeSub.id === "payment-request") {
-        const nextSubs = new Set([...submittedSubs, subKey(activeStep.id, activeSub.id)]);
-        setSubmittedSubs(nextSubs);
-        setActiveSubIdx(1);
-        flashSave(nextSubs);
+        try {
+          await api.post('/payments', {
+            pengadaan_id: item.id,
+            payment_type: 'umd',
+            submission_phase: 'request',
+            form_data: {
+              ...allFd,
+              paymentRequest: { ...(fd("buat-pd") || {}), requestedAt: new Date().toISOString() },
+            },
+          });
+          const nextSubs = new Set([...submittedSubs, subKey(activeStep.id, activeSub.id)]);
+          setSubmittedSubs(nextSubs);
+          setVerifState({ status: "pending_acceptance", canProceed: false, loading: false });
+          flashSave(nextSubs);
+        } catch (error: any) {
+          setDocWarningModal({
+            isOpen: true,
+            title: "Gagal Mengirim Payment Request",
+            message: error?.response?.data?.message || "Payment Request gagal dikirim ke Admin.",
+            variant: "error",
+          });
+        }
         return;
       }
       try {
         if (activeStep.id === 'pembayaran') {
           const umdFormData = { ...allFd, umdData: allFd['umdData'] || {} };
-          await api.post('/payments', { pengadaan_id: item.id, payment_type: 'umd', form_data: umdFormData });
+          await api.post('/payments', { pengadaan_id: item.id, payment_type: 'umd', submission_phase: 'documents', form_data: umdFormData });
         } else {
           await api.post(`/pengadaan/${item.id}/submit-step`, {
             stepId: activeStep.id,
@@ -392,6 +451,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     }
     const labels: Record<string, string> = {
       "payment-request": "Payment Request",
+      "pelunasan": "Verifikasi Berkas",
       "nota-dokumen": "Nota Dokumen",
       "dokumen-tutupan": "Dokumen Tutupan",
       "pengembalian-dana": "Pengembalian Dana",
@@ -399,7 +459,9 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     return labels[activeSub.id] ?? "Pembayaran";
   };
 
-  const showStatusView = (isCurrentSubmitted || isDetailPd) && activeSub.id !== "pengembalian-dana";
+  const showStatusView = (isCurrentSubmitted || isDetailPd)
+    && activeSub.id !== "pengembalian-dana"
+    && activeSub.id !== "payment-request";
   const showSelesai = activeSub.id === "proses-selesai";
 
   const renderContent = () => {
@@ -491,9 +553,37 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       );
     }
     if (activeStep.id === "pembayaran" && activeSub.id === "payment-request") {
-      const d = fd("payment-request");
-      const u = (k: string) => (v: string) => upd("payment-request", k, v);
-      return <div className="space-y-3"><FileUploadInput label="Input File Payment Request" required value={d["filePaymentRequest"] || ""} onChange={(val) => { u("filePaymentRequest")(val); flashSave(); }} pengadaanId={item.id} stage="payment-request" /><FieldInput label="Keterangan" type="textarea" required value={d["keterangan"] || ""} onChange={u("keterangan")} /></div>;
+      const source = { ...(item.formData || {}), ...(fd("buat-pd") || {}), ...(allFd || {}) } as any;
+      return (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3">
+            <p className="text-[12px] font-bold text-blue-900">Detail Payment Request UMD</p>
+            <p className="mt-0.5 text-[10.5px] text-blue-700">Data berikut berasal dari pengajuan User dan akan menjadi referensi Admin pada proses pembayaran.</p>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs">
+            <p className="mb-3 border-b border-gray-100 pb-2 text-[11px] font-bold uppercase tracking-wide text-[#252271]">Informasi Pengajuan</p>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+              <SummaryRow label="Nomor Pengajuan" value={item.id || "—"} />
+              <SummaryRow label="Judul Permohonan" value={source.judulPermohonan || item.nama || "—"} />
+              <SummaryRow label="Email PIC" value={source.emailPic || currentUser?.email || "—"} />
+              <SummaryRow label="Divisi / Sub Unit" value={source.subUnit || source.divisi || item.departemen || "—"} />
+              <SummaryRow label="Jenis Permohonan" value={source.jenisPermohonan || "—"} />
+              <SummaryRow label="Tahun" value={source.tahun || (item.tanggal ? new Date(item.tanggal).getFullYear().toString() : "—")} />
+              <SummaryRow label="Nominal Permohonan" value={source.nominalPermohonan || source.nominal || item.nominal || "—"} />
+              <SummaryRow label="Nominal Konversi" value={source.nominalKonversi || item.nominal || "—"} />
+              <SummaryRow label="Kurs" value={source.kurs || "—"} />
+              <SummaryRow label="Detail Permohonan" value={source.detailPermohonan || "—"} />
+            </div>
+          </div>
+          <p className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-[10.5px] text-gray-500">
+            {verifState.status === "pending_acceptance"
+              ? "Payment Request sudah dikirim dan sedang menunggu diterima Admin."
+              : verifState.status === "accepted"
+                ? "Ajuan telah diterima Admin. Anda dapat melanjutkan ke tahap Verifikasi Berkas."
+                : "Unggahan dokumen dilakukan setelah Payment Request diterima Admin."}
+          </p>
+        </div>
+      );
     }
     if (activeStep.id === "pembayaran" || activeSub.id === "pelunasan") {
       const d = fd("umdData") || fd("pembayaran") || fd("buat-pd") || {};
@@ -673,10 +763,10 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             </div>
           </div>
           <button
-            onClick={() => setShowEditPopup(true)}
+            onClick={openRevisionForCurrentStep}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[11px] font-bold hover:bg-blue-700 transition-colors shadow-xs shrink-0"
           >
-            <Edit2 size={12} /> Edit & Kirim Revisi
+            <Edit2 size={12} /> {activeStep.id === "pembayaran" ? "Perbaiki Verifikasi Berkas" : "Edit & Kirim Revisi"}
           </button>
         </div>
       )}
@@ -688,10 +778,10 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             <p className="text-[12px] font-semibold text-red-800">❌ Pengajuan Ditolak Admin</p>
             <p className="text-[11px] text-red-700 font-medium mt-0.5">Alasan: "{verifState.catatanAdmin}"</p>
             <button
-              onClick={() => setShowEditPopup(true)}
+              onClick={openRevisionForCurrentStep}
               className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-[11px] font-bold hover:bg-red-700 transition-colors shadow-xs"
             >
-              <Edit2 size={12} /> Edit & Kirim Ulang
+              <Edit2 size={12} /> {activeStep.id === "pembayaran" ? "Perbaiki Verifikasi Berkas" : "Edit & Kirim Ulang"}
             </button>
           </div>
         </div>
@@ -738,7 +828,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             <div className="bg-[#252271] px-4 py-2.5 flex items-center justify-between">
               <p className="text-white font-semibold text-[11.5px]">{cardHeader()}</p>
               {isCurrentSubmitted && activeSub.id !== "detail-pd" && (
-                <StatusBadge status={verifState.status === "approved" || item.status === "Selesai" || item.status?.toLowerCase() === "approved" ? "Selesai" : verifState.status === "revisi" ? "Revisi" : "Menunggu Verifikasi"} />
+                <StatusBadge status={verifState.status === "approved" || item.status === "Selesai" || item.status?.toLowerCase() === "approved" ? "Selesai" : verifState.status === "revisi" ? "Revisi" : verifState.status === "pending_acceptance" ? "pending_acceptance" : verifState.status === "accepted" ? "accepted" : "Menunggu Verifikasi"} />
               )}
             </div>
             <div id="pd-active-form" className="p-4">{renderContent()}{activeStep.id === "pengajuan-dana" && <PengajuanDanaAttachments pengadaanId={item.id} flow="pd" />}</div>
@@ -752,11 +842,11 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
                   {showSubmitBtn && (
                     <button onClick={handleSubmit} className="px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-[#252271] hover:bg-[#1a1860]">
-                      Submit Berkas
+                      {activeStep.id === "pembayaran" && activeSub.id === "payment-request" ? "Ajukan Payment Request" : "Submit Berkas"}
                     </button>
                   )}
 
-                  {activeStep.id === "pembayaran" ? (
+                  {activeStep.id === "pembayaran" && activeSub.id !== "payment-request" ? (
                     <button
                       disabled={verifState.status !== "approved" && item.status?.toLowerCase() !== "approved" && item.status !== "Selesai"}
                       onClick={async () => {
@@ -779,14 +869,14 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                   ) : showLanjutBtn && (
                     <button
                       onClick={handleSubmit}
-                      disabled={!verifState.canProceed && verifState.status === "pending"}
-                      className={`flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium transition-all ${!verifState.canProceed && verifState.status === "pending"
+                      disabled={!verifState.canProceed && (verifState.status === "pending" || verifState.status === "pending_acceptance")}
+                      className={`flex items-center gap-1.5 px-4 h-[30px] rounded text-[11.5px] text-white font-medium transition-all ${!verifState.canProceed && (verifState.status === "pending" || verifState.status === "pending_acceptance")
                           ? "bg-gray-300 cursor-not-allowed opacity-60"
                           : "bg-[#252271] hover:bg-[#1a1860]"
                         }`}
-                      title={!verifState.canProceed && verifState.status === "pending" ? "Menunggu persetujuan Admin" : ""}
+                      title={!verifState.canProceed ? "Menunggu penerimaan Admin" : ""}
                     >
-                      Lanjut <ChevronRight size={12} />
+                      {activeStep.id === "pembayaran" && activeSub.id === "payment-request" && verifState.status === "pending_acceptance" ? "Menunggu Penerimaan Admin" : "Lanjut"} <ChevronRight size={12} />
                     </button>
                   )}
                 </div>

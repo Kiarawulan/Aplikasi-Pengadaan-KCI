@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, X, Check, Edit2, Eye } from "lucide-react";
+import { Search, Plus, X, Eye } from "lucide-react";
 import { TopBar } from "@/components/user/layout/TopBar";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { useAuth } from "@/store/authStore";
 import { getRupList, addRup, updateRup, addVerifRecord, generateId, getVerifRecords, updateVerifRecord } from "@/store/dataStore";
-import { PARK_STEPS } from "@/constants/steps";
 import { api } from "@/services/api";
 import type { RupItem } from "@/types";
 import { TambahRupModal } from "@/components/user/pengadaan/TambahRupModal";
