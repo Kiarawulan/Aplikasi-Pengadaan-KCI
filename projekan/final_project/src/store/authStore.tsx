@@ -51,6 +51,18 @@ export const DEFAULT_ROLES: AppRole[] = [
     },
   },
   {
+    id: "role-admin-anggaran", name: "Admin Anggaran", description: "Administrator khusus modul Pengajuan Dana.", isSystem: true, roleType: "admin", color: "#7c3aed", createdAt: "2026-08-12", active: true,
+    permissions: { dashboard: "editor", pengajuanDana: "editor", pengadaan: "no-access", pengujian: "no-access", pembayaran: "no-access", templateDokumen: "editor", masterData: "editor", userManagement: "no-access", roleManagement: "no-access" },
+  },
+  {
+    id: "role-admin-penguji", name: "Admin Penguji", description: "Administrator khusus modul Pengujian.", isSystem: true, roleType: "admin", color: "#059669", createdAt: "2026-08-12", active: true,
+    permissions: { dashboard: "editor", pengajuanDana: "no-access", pengadaan: "no-access", pengujian: "editor", pembayaran: "no-access", templateDokumen: "editor", masterData: "editor", userManagement: "no-access", roleManagement: "no-access" },
+  },
+  {
+    id: "role-admin-keuangan", name: "Admin Keuangan", description: "Administrator khusus modul Pembayaran.", isSystem: true, roleType: "admin", color: "#d97706", createdAt: "2026-08-12", active: true,
+    permissions: { dashboard: "editor", pengajuanDana: "no-access", pengadaan: "no-access", pengujian: "no-access", pembayaran: "editor", templateDokumen: "editor", masterData: "editor", userManagement: "no-access", roleManagement: "no-access" },
+  },
+  {
     id: "role-staff-pengadaan",
     name: "Staff Pengadaan (user)",
     description: "Staff pengguna/pemohon untuk membuat pengajuan Park Document (PD), Purchase Requisition (PR), mengajukan request pengujian, dan mengunggah dokumen pembayaran.",
@@ -86,6 +98,9 @@ export const DEFAULT_USERS: AppUser[] = [
   { id: "user-admin", email: "admin@sipro.com", name: "Super Admin", password: "admin123", roleId: "role-admin", departemen: "Management", isActive: true, isAdmin: true, createdAt: "2024-01-01" },
   { id: "user-admin-pengadaan", email: "admin.pengadaan@sipro.com", name: "Admin Pengadaan", password: "pengadaan123", roleId: "role-admin-pengadaan", departemen: "Pengadaan", isActive: true, isAdmin: true, createdAt: "2024-01-01" },
   { id: "user-admin-logistik", email: "admin.logistik@sipro.com", name: "Admin Logistik", password: "logistik123", roleId: "role-admin-logistik", departemen: "Logistik", isActive: true, isAdmin: true, createdAt: "2024-01-01" },
+  { id: "user-admin-anggaran", email: "admin.anggaran@kci.com", name: "Admin Anggaran", password: "Kci@2026!", roleId: "role-admin-anggaran", departemen: "Anggaran", isActive: true, isAdmin: true, createdAt: "2026-08-12" },
+  { id: "user-admin-penguji", email: "admin.penguji@kci.com", name: "Admin Penguji", password: "Kci@2026!", roleId: "role-admin-penguji", departemen: "Pengujian", isActive: true, isAdmin: true, createdAt: "2026-08-12" },
+  { id: "user-admin-keuangan", email: "admin.keuangan@kci.com", name: "Admin Keuangan", password: "Kci@2026!", roleId: "role-admin-keuangan", departemen: "Keuangan", isActive: true, isAdmin: true, createdAt: "2026-08-12" },
   { id: "user-staff-pengadaan", email: "staff.pengadaan@sipro.com", name: "Staff Pengadaan", password: "staff123", roleId: "role-staff-pengadaan", departemen: "Pengadaan", isActive: true, isAdmin: false, createdAt: "2024-01-01" },
   { id: "user-it", email: "it@sipro.com", name: "User IT", password: "it123", roleId: "role-it", departemen: "CTIT", isActive: true, isAdmin: false, createdAt: "2024-01-12" },
 ];
@@ -106,12 +121,18 @@ function normalizePermissions(permissions: Partial<RolePermissions> | undefined)
 }
 
 export function getUsers(): AppUser[] {
-  try { return JSON.parse(localStorage.getItem(LS_USERS) || JSON.stringify(DEFAULT_USERS)); }
+  try {
+    const stored: AppUser[] = JSON.parse(localStorage.getItem(LS_USERS) || "[]");
+    return [...stored, ...DEFAULT_USERS.filter(defaultUser => !stored.some(user => user.id === defaultUser.id))];
+  }
   catch { return DEFAULT_USERS; }
 }
 
 export function getRoles(): AppRole[] {
-  try { return JSON.parse(localStorage.getItem(LS_ROLES) || JSON.stringify(DEFAULT_ROLES)); }
+  try {
+    const stored: AppRole[] = JSON.parse(localStorage.getItem(LS_ROLES) || "[]");
+    return [...stored, ...DEFAULT_ROLES.filter(defaultRole => !stored.some(role => role.id === defaultRole.id))];
+  }
   catch { return DEFAULT_ROLES; }
 }
 

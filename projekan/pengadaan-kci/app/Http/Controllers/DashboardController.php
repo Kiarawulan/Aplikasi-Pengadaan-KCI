@@ -84,6 +84,17 @@ class DashboardController extends Controller
             });
 
         return response()->json([
+            'records' => [
+                'pengadaan' => $records->map(fn ($record) => [
+                    'id' => $record->id, 'nama' => $record->nama, 'departemen' => $record->departemen,
+                    'tanggal' => $record->tanggal, 'status' => $record->status, 'flowType' => $record->flow_type,
+                    'currentStep' => $record->current_step, 'formData' => $record->form_data ?? [],
+                    'created_at' => $record->created_at,
+                ])->values(),
+                'pengujian' => $pengujianRecords->values(),
+                'pembayaran' => $paymentRecords->values(),
+                'verifikasi' => (clone $verifikasi)->get()->values(),
+            ],
             'summary' => [
                 'totalPengadaan' => $records->count(),
                 'dalamProses' => $statusDistribution[1]['value'],

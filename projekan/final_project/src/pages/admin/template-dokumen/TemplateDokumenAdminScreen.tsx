@@ -6,6 +6,7 @@ import { useAuth } from "@/store/authStore";
 import { api } from "@/services/api";
 import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { getFigmaCaptureConfig } from "@/figmaCapture";
+import { getAdminBusinessModules } from "@/utils/adminModuleAccess";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -85,17 +86,19 @@ const SUB_BADGE_COLORS: Record<string, string> = {
 };
 
 // ─── Add/Edit Modal ────────────────────────────────────────────────────────────
-function TemplateModal({ title, initial, existingTemplates = [], onSave, onClose }: {
+function TemplateModal({ title, initial, existingTemplates = [], allowedCategories, onSave, onClose }: {
   title: string;
   initial?: Template;
   existingTemplates?: Template[];
+  allowedCategories: KategoriUtama[];
   onSave: (data: Omit<Template, "id" | "uploadedBy" | "uploadedAt">) => void;
   onClose: () => void;
 }) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [judul, setJudul] = useState(initial?.judul || "");
-  const [kategoriUtama, setKategoriUtama] = useState<KategoriUtama>(initial?.kategoriUtama || "Pengadaan");
-  const [subkategori, setSubkategori] = useState(initial?.subkategori || SUBKATEGORI_MAP["Pengadaan"][0]);
+  const initialCategory = initial?.kategoriUtama || allowedCategories[0] || "Pengadaan";
+  const [kategoriUtama, setKategoriUtama] = useState<KategoriUtama>(initialCategory);
+  const [subkategori, setSubkategori] = useState(initial?.subkategori || SUBKATEGORI_MAP[initialCategory][0]);
   const [tipeFile, setTipeFile] = useState(initial?.tipeFile || "DOCX");
   const [ukuran, setUkuran] = useState(initial?.ukuran || "—");
   const [deskripsi, setDeskripsi] = useState(initial?.deskripsi || "");
@@ -240,7 +243,7 @@ function TemplateModal({ title, initial, existingTemplates = [], onSave, onClose
           <div>
             <label className="text-[11.5px] font-semibold text-gray-500 mb-1.5 block">Kategori Utama</label>
             <div className="flex gap-2">
-              {(["Pengadaan", "Pengajuan Dana", "Pengujian", "Pembayaran"] as KategoriUtama[]).map(k => (
+              {allowedCategories.map(k => (
                 <button
                   key={k}
                   onClick={() => handleKategoriChange(k)}
@@ -384,6 +387,8 @@ function ConfirmDeleteModal({ onConfirm, onClose }: { onConfirm: () => void; onC
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export function TemplateDokumenAdminScreen() {
   const { currentUser } = useAuth();
+  const moduleToCategory: Partial<Record<string, KategoriUtama>> = { "pengajuan-dana": "Pengajuan Dana", pengadaan: "Pengadaan", pengujian: "Pengujian", pembayaran: "Pembayaran" };
+  const allowedCategories = getAdminBusinessModules(currentUser).map(module => moduleToCategory[module]).filter(Boolean) as KategoriUtama[];
   const [templates, setTemplates] = useState<Template[]>([]);
   const [activeTab, setActiveTab] = useState<KategoriUtama>(getFigmaCaptureConfig()?.templateTab || "Pengadaan");
   const [search, setSearch] = useState("");
@@ -392,6 +397,10 @@ export function TemplateDokumenAdminScreen() {
   const [showEdit, setShowEdit] = useState<Template | null>(null);
   const [showDetail, setShowDetail] = useState<Template | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!allowedCategories.includes(activeTab) && allowedCategories[0]) setActiveTab(allowedCategories[0]);
+  }, [currentUser?.roleId, activeTab]);
 
   const loadTemplates = async () => {
     const response = await api.get("/templates");
@@ -464,9 +473,9 @@ export function TemplateDokumenAdminScreen() {
         <div className="grid grid-cols-5 gap-4 mb-6">
           <div className="bg-gradient-to-br from-[#252271] to-[#3b3baa] rounded-2xl p-5 text-white shadow-lg">
             <p className="text-white/65 text-[11px] font-medium uppercase tracking-wider">Total Template</p>
-            <p className="text-[30px] font-extrabold leading-tight mt-1">{templates.length}</p>
+            <p className="text-[30px] font-extrabold leading-tight mt-1">{templates.filter(template => allowedCategories.includes(template.kategoriUtama)).length}</p>
           </div>
-          {(["Pengadaan", "Pengajuan Dana", "Pengujian", "Pembayaran"] as KategoriUtama[]).map(k => (
+          {allowedCategories.map(k => (
             <div key={k} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
               <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">{k}</p>
               <p className="text-[28px] font-extrabold text-gray-800 leading-tight mt-1">{tabCounts[k]}</p>
@@ -477,7 +486,7 @@ export function TemplateDokumenAdminScreen() {
 
         {/* Tab Switcher */}
         <div className="flex items-center gap-3 mb-5">
-          {(["Pengadaan", "Pengajuan Dana", "Pengujian", "Pembayaran"] as KategoriUtama[]).map(k => (
+          {allowedCategories.map(k => (
             <button
               key={k}
               onClick={() => { setActiveTab(k); setSubFilter("Semua"); }}
@@ -603,8 +612,8 @@ export function TemplateDokumenAdminScreen() {
       </div>
 
       {/* Modals */}
-      {showAdd && <TemplateModal title="Upload Template Baru" existingTemplates={templates} onSave={handleAdd} onClose={() => setShowAdd(false)} />}
-      {showEdit && <TemplateModal title="Edit Template" initial={showEdit} existingTemplates={templates} onSave={handleEdit} onClose={() => setShowEdit(null)} />}
+      {showAdd && <TemplateModal title="Upload Template Baru" existingTemplates={templates} allowedCategories={allowedCategories} onSave={handleAdd} onClose={() => setShowAdd(false)} />}
+      {showEdit && <TemplateModal title="Edit Template" initial={showEdit} existingTemplates={templates} allowedCategories={allowedCategories} onSave={handleEdit} onClose={() => setShowEdit(null)} />}
       {showDetail && <DetailModal template={showDetail} onClose={() => setShowDetail(null)} />}
       {deleteId && <ConfirmDeleteModal onConfirm={handleDelete} onClose={() => setDeleteId(null)} />}
     </div>

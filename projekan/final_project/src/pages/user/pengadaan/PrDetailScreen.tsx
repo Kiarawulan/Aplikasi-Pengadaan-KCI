@@ -288,6 +288,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   };
 
   const flashSave = (newCompletedSubs?: Set<string>, updatedFd?: Record<string, any>) => {
+    if (verifStatus !== "not_submitted" && verifStatus !== "revisi" && verifStatus !== "rejected") return;
     setFlash(true);
     const subsToSave = newCompletedSubs || completedSubs;
     const currentFd = updatedFd || allFd;
@@ -304,6 +305,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     });
   };
   const fd = allFd[subId] ?? {};
+  const isFormLocked = (!["not_submitted", "revisi", "rejected"].includes(verifStatus) || isSubDone(activeStep.id, subId) || ["sp3", "pbj", "contract"].includes(activeStep.id));
 
   let isSubmitPoint = hasSubSteps ? activeSubIdx === activeStep.subSteps.length - 1 : true;
   if (activeStep.id === "pembayaran") {
@@ -653,7 +655,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         <div className="flex-1 min-w-0">
           <div className="rounded-[10px] border border-[#e2e2e2] bg-white overflow-hidden shadow-sm">
             <div className="bg-[#252271] px-4 py-2.5"><p className="text-white font-semibold text-[11.5px]">{cardHeader()}</p></div>
-            <div id="pr-active-form" className="p-4">
+            <div id="pr-active-form" aria-disabled={isFormLocked} className={`p-4 ${isFormLocked ? "[&_input]:pointer-events-none [&_select]:pointer-events-none [&_textarea]:pointer-events-none [&_label]:pointer-events-none [&_input]:bg-slate-50 [&_select]:bg-slate-50 [&_textarea]:bg-slate-50" : ""}`}>
               {verifStatus === "revisi" && (
                 <div className="mb-4 bg-rose-50 border border-rose-200 rounded-xl p-3.5 flex items-start justify-between gap-3">
                   <FileWarning className="text-red-600 shrink-0 mt-0.5" size={16} />

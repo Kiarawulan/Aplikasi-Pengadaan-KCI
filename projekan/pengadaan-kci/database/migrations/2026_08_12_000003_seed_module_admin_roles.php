@@ -33,7 +33,7 @@ return new class extends Migration
             foreach ($modules as $module) {
                 RolePermission::updateOrCreate(
                     ['role_id' => $roleId, 'module' => $module],
-                    ['access_level' => $module === $definition['module'] ? 'editor' : ($module === 'dashboard' ? 'viewer' : 'no-access')],
+                    ['access_level' => $module === $definition['module'] || in_array($module, ['templateDokumen', 'masterData'], true) ? 'editor' : ($module === 'dashboard' ? 'viewer' : 'no-access')],
                 );
             }
             DB::table('users')->updateOrInsert(['email' => $definition['email']], [

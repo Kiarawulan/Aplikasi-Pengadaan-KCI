@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { DIVISI_LIST } from "@/constants/divisi";
 import { getFigmaCaptureConfig } from "@/figmaCapture";
+import { getAdminBusinessModules } from "@/utils/adminModuleAccess";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -216,17 +217,13 @@ function useAdminDashboardData() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      api.get("/pengadaan"),
-      api.get("/pengujian"),
-      api.get("/payments"),
-      api.get("/verifikasi"),
-    ]).then(([pengadaan, pengujian, pembayaran, verifikasi]) => {
+    api.get("/dashboard").then((response) => {
+      const records = response.data?.records || {};
       if (active) setData({
-        pengadaan: Array.isArray(pengadaan.data) ? pengadaan.data : [],
-        pengujian: Array.isArray(pengujian.data) ? pengujian.data : [],
-        pembayaran: Array.isArray(pembayaran.data) ? pembayaran.data : [],
-        verifikasi: Array.isArray(verifikasi.data) ? verifikasi.data : [],
+        pengadaan: Array.isArray(records.pengadaan) ? records.pengadaan : [],
+        pengujian: Array.isArray(records.pengujian) ? records.pengujian : [],
+        pembayaran: Array.isArray(records.pembayaran) ? records.pembayaran : [],
+        verifikasi: Array.isArray(records.verifikasi) ? records.verifikasi : [],
       });
     }).catch(() => {
       if (active) setData({ pengadaan: [], pengujian: [], pembayaran: [], verifikasi: [] });
@@ -806,7 +803,14 @@ function PembayaranDashboard() {
 // ═══════════════════════════════════════════════════════════════════════════════
 export function AdminDashboardScreen() {
   const { currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<DashboardTab>(getFigmaCaptureConfig()?.dashboardTab || "pengajuan-dana");
+  const allowedDashboardTabs = getAdminBusinessModules(currentUser).filter(module => module !== "umum") as DashboardTab[];
+  const visibleDashboardTabs = DASHBOARD_TABS.filter(tab => allowedDashboardTabs.includes(tab.id));
+  const requestedTab = getFigmaCaptureConfig()?.dashboardTab as DashboardTab | undefined;
+  const [activeTab, setActiveTab] = useState<DashboardTab>(requestedTab || visibleDashboardTabs[0]?.id || "pengajuan-dana");
+
+  useEffect(() => {
+    if (!visibleDashboardTabs.some(tab => tab.id === activeTab) && visibleDashboardTabs[0]) setActiveTab(visibleDashboardTabs[0].id);
+  }, [currentUser?.roleId, activeTab]);
 
   return (
     <div className="flex-1 min-h-0 overflow-auto bg-[#f8fafc] select-none">
@@ -822,7 +826,7 @@ export function AdminDashboardScreen() {
 
         {/* Tab Switcher */}
         <div className="flex items-center gap-3 mb-6">
-          {DASHBOARD_TABS.map(tab => {
+          {visibleDashboardTabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (

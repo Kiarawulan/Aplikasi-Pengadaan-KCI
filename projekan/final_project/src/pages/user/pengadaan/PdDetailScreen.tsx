@@ -294,6 +294,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   };
 
   const flashSave = (newSubmittedSubs?: Set<string>, updatedFd?: Record<string, any>) => {
+    if (verifState.status !== "not_submitted" && verifState.status !== "revisi" && verifState.status !== "rejected") return;
     setFlash(true);
     const subsToSave = newSubmittedSubs || submittedSubs;
     const currentFd = updatedFd || allFd;
@@ -832,7 +833,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                 <StatusBadge status={verifState.status === "approved" || item.status === "Selesai" || item.status?.toLowerCase() === "approved" ? "Selesai" : verifState.status === "revisi" ? "Revisi" : verifState.status === "pending_acceptance" ? "pending_acceptance" : verifState.status === "accepted" ? "accepted" : "Menunggu Verifikasi"} />
               )}
             </div>
-            <div id="pd-active-form" className="p-4">{renderContent()}{activeStep.id === "pengajuan-dana" && <PengajuanDanaAttachments pengadaanId={item.id} flow="pd" />}</div>
+            <div id="pd-active-form" aria-disabled={isCurrentSubmitted} className={`p-4 ${isCurrentSubmitted ? "[&_input]:pointer-events-none [&_select]:pointer-events-none [&_textarea]:pointer-events-none [&_label]:pointer-events-none [&_input]:bg-slate-50 [&_select]:bg-slate-50 [&_textarea]:bg-slate-50" : ""}`}>{renderContent()}{activeStep.id === "pengajuan-dana" && <PengajuanDanaAttachments pengadaanId={item.id} flow="pd" />}</div>
             {!showSelesai && (
               <div className="px-4 pb-3.5 pt-3.5 border-t border-[#e2e2e2] flex items-center justify-between">
                 <button onClick={goPrev} disabled={isFirstSub} className="flex items-center gap-1.5 px-4 h-[30px] rounded border border-gray-200 text-[11.5px] text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"><ChevronLeft size={12} /> Kembali</button>

@@ -4,6 +4,9 @@ import { Plus, Search, Edit3, Trash2, X, Database, Building2, Briefcase, Users, 
 import { api } from "@/services/api";
 import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { getFigmaCaptureConfig } from "@/figmaCapture";
+import { createPortal } from "react-dom";
+import { useAuth } from "@/store/authStore";
+import { getAdminBusinessModules } from "@/utils/adminModuleAccess";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -36,19 +39,19 @@ const TABS: TabDef[] = [
   { id: "metode-pengadaan", label: "Metode Pengadaan", icon: FileStack, group: "Pengadaan" },
   { id: "kategori-barang", label: "Kategori Barang/Jasa", icon: Database, group: "Pengadaan" },
   { id: "jenis-kontrak", label: "Jenis Kontrak", icon: Briefcase, group: "Pengadaan" },
-  { id: "tahun-anggaran", label: "Tahun Anggaran", icon: CalendarDays, group: "Keuangan" },
-  { id: "mata-uang", label: "Mata Uang", icon: Banknote, group: "Keuangan" },
-  { id: "pajak", label: "Pajak", icon: Percent, group: "Keuangan" },
-  { id: "bank", label: "Bank", icon: CreditCard, group: "Keuangan" },
-  { id: "lokasi", label: "Lokasi", icon: MapPin, group: "Referensi" },
-  { id: "penguji", label: "Penguji", icon: FlaskConical, group: "Referensi" },
-  { id: "jabatan-ttd", label: "Jabatan Penandatangan", icon: PenTool, group: "Referensi" },
-  { id: "status-pengadaan", label: "Status Pengadaan", icon: Activity, group: "Status" },
-  { id: "status-pengujian", label: "Status Pengujian", icon: Activity, group: "Status" },
-  { id: "status-pembayaran", label: "Status Pembayaran", icon: Activity, group: "Status" },
+  { id: "tahun-anggaran", label: "Tahun Anggaran", icon: CalendarDays, group: "Pengajuan Dana" },
+  { id: "mata-uang", label: "Mata Uang", icon: Banknote, group: "Pengajuan Dana" },
+  { id: "pajak", label: "Pajak", icon: Percent, group: "Pembayaran" },
+  { id: "bank", label: "Bank", icon: CreditCard, group: "Pembayaran" },
+  { id: "lokasi", label: "Lokasi Pengujian", icon: MapPin, group: "Pengujian" },
+  { id: "penguji", label: "Penguji", icon: FlaskConical, group: "Pengujian" },
+  { id: "jabatan-ttd", label: "Jabatan Penandatangan", icon: PenTool, group: "Pengadaan" },
+  { id: "status-pengadaan", label: "Status Pengadaan", icon: Activity, group: "Pengadaan" },
+  { id: "status-pengujian", label: "Status Pengujian", icon: Activity, group: "Pengujian" },
+  { id: "status-pembayaran", label: "Status Pembayaran", icon: Activity, group: "Pembayaran" },
 ];
 
-const TAB_GROUPS = ["Umum", "Pengadaan", "Keuangan", "Referensi", "Status"];
+const TAB_GROUPS = ["Umum", "Pengajuan Dana", "Pengadaan", "Pengujian", "Pembayaran"];
 
 // ─── Mock Data for each tab ────────────────────────────────────────────────────
 const MOCK_DATA: Record<TabId, MasterItem[]> = {
@@ -356,7 +359,7 @@ function MasterModal({ title, fields, initial, onSave, onClose }: {
 
   const canSubmit = fields.filter(f => f.required).every(f => form[f.key]?.toString().trim());
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
@@ -402,13 +405,13 @@ function MasterModal({ title, fields, initial, onSave, onClose }: {
           </button>
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 }
 
 // ─── Confirm Delete ────────────────────────────────────────────────────────────
 function ConfirmDeleteModal({ onConfirm, onClose }: { onConfirm: () => void; onClose: () => void }) {
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-6 text-center" onClick={e => e.stopPropagation()}>
         <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
@@ -421,12 +424,16 @@ function ConfirmDeleteModal({ onConfirm, onClose }: { onConfirm: () => void; onC
           <button onClick={onConfirm} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-[12.5px] font-semibold hover:bg-red-600">Ya, Hapus</button>
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 }
 
 // ─── Master Data Screen ────────────────────────────────────────────────────────
 export function MasterDataScreen() {
+  const { currentUser } = useAuth();
+  const allowedModules = getAdminBusinessModules(currentUser);
+  const allowedGroups = new Set(allowedModules.map(module => module === "pengajuan-dana" ? "Pengajuan Dana" : module.charAt(0).toUpperCase() + module.slice(1)));
+  const visibleTabs = TABS.filter(tab => allowedGroups.has(tab.group));
   const [activeTab, setActiveTab] = useState<TabId>((getFigmaCaptureConfig()?.masterTab as TabId) || "vendor");
   const [allData, setAllData] = useState<Record<TabId, MasterItem[]>>(MOCK_DATA);
   const [search, setSearch] = useState("");
@@ -445,6 +452,10 @@ export function MasterDataScreen() {
     message: "",
     variant: "warning",
   });
+
+  useEffect(() => {
+    if (!visibleTabs.some(tab => tab.id === activeTab) && visibleTabs[0]) setActiveTab(visibleTabs[0].id);
+  }, [currentUser?.roleId, activeTab]);
 
   const loadVendors = async () => {
     const response = await api.get("/vendors");
@@ -611,8 +622,8 @@ export function MasterDataScreen() {
 
         {/* Tab Groups */}
         <div className="space-y-3 mb-6">
-          {TAB_GROUPS.map(group => {
-            const groupTabs = TABS.filter(t => t.group === group);
+          {TAB_GROUPS.filter(group => allowedGroups.has(group)).map(group => {
+            const groupTabs = visibleTabs.filter(t => t.group === group);
             return (
               <div key={group}>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 pl-1">{group}</p>

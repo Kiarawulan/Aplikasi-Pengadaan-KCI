@@ -23,6 +23,7 @@ import featureUnavailableImage from "./assets/feature-unavailable.png";
 import { DIVISI_LIST } from "./constants/divisi";
 import { useMasterVendors } from "./hooks/useMasterVendors";
 import { StatusBadge } from "./components/common/StatusBadge";
+import { PembayaranVerifScreen } from "./pages/admin/verifikasi/PembayaranVerifScreen";
 
 // ─── SVG path data (inlined from Figma exports) ───────────────────────────────
 const ICONS = {
@@ -1334,6 +1335,8 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
   );
   const [showRevisionBox, setShowRevisionBox] = useState(false);
   const [revisionNote, setRevisionNote] = useState("");
+  const [showRejectBox, setShowRejectBox] = useState(false);
+  const [rejectNote, setRejectNote] = useState("");
 
   const [berkasItems, setBerkasItems] = useState<any[]>([]);
 
@@ -1402,9 +1405,8 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
   };
 
   const handleTolak = async () => {
-    const catatan = window.prompt("Tuliskan alasan penolakan Pengajuan Dana:");
-    if (catatan === null) return;
-    if (!catatan.trim()) {
+    const catatan = rejectNote.trim();
+    if (!catatan) {
       alert("Harap isi alasan penolakan terlebih dahulu.");
       return;
     }
@@ -1416,6 +1418,8 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
       await api.post(`/verifikasi/${row.verif_id}/reject`, { catatan });
       updateVerifRecord(row.verif_id, { status: "rejected", catatanAdmin: catatan });
       setDocStatus("Ditolak");
+      setShowRejectBox(false);
+      setRejectNote("");
       alert("Pengajuan Dana berhasil ditolak.");
       onBack();
     } catch (e) {
@@ -1465,7 +1469,7 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
             </button>
 
             <button
-              onClick={handleTolak}
+              onClick={() => { setShowRevisionBox(false); setShowRejectBox(true); setRejectNote(""); }}
               className="h-[30px] px-3 rounded-[9px] bg-gradient-to-r from-[#a50000] to-[#e00000] text-white hover:brightness-110 text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <XCircle size={13} /> Tolak
@@ -1509,6 +1513,15 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
                 Batal
               </button>
             </div>
+          </div>
+        )}
+
+        {showRejectBox && (
+          <div className="bg-red-50 border border-red-300 rounded-[16px] p-[20px] mb-[20px] shadow-sm">
+            <h4 className="text-red-900 text-[14px] font-bold mb-2 flex items-center gap-2"><XCircle size={16} /> Alasan Penolakan Pengajuan Dana</h4>
+            <p className="mb-3 text-[11.5px] text-red-700">Alasan ini akan dikirim kepada user dan tersimpan sebagai catatan admin.</p>
+            <textarea autoFocus value={rejectNote} onChange={(event) => setRejectNote(event.target.value)} placeholder="Tuliskan alasan penolakan secara jelas..." className="w-full h-[90px] bg-white border border-red-300 rounded-[10px] p-3 text-[13px] text-slate-900 outline-none focus:border-red-500 mb-3" />
+            <div className="flex gap-2"><button onClick={handleTolak} className="h-9 px-4 rounded-lg bg-red-600 text-white text-[12px] font-semibold hover:bg-red-700">Kirim Penolakan</button><button onClick={() => setShowRejectBox(false)} className="h-9 px-4 rounded-lg border border-gray-300 bg-white text-[12px] font-semibold text-gray-600 hover:bg-gray-50">Batal</button></div>
           </div>
         )}
 
@@ -4897,6 +4910,10 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
 
   const currentLabel = subDocLabels[subDoc] || "Pembayaran";
 
+  if (subDoc === "pembayaran-daily-reports" || subDoc === "pembayaran-weekly-reports") {
+    return <div className="flex-1 min-h-0 overflow-auto bg-white px-[44px] py-[20px]"><PembayaranVerifScreen activeSubItem={subDoc} /></div>;
+  }
+
   if (view === "detail" && selectedRow) {
     return (
       <DetailPembayaranPage
@@ -5363,6 +5380,7 @@ function DetailPembayaranPage({
     lunas: initialPaymentProcess.lunas || "",
   });
   const [savingPaymentProcess, setSavingPaymentProcess] = useState<string | null>(null);
+  const [paymentProcessFeedback, setPaymentProcessFeedback] = useState<{ key: string; type: "success" | "error"; message: string } | null>(null);
 
   const [pelunasanFileName, setPelunasanFileName] = useState<string>(() => {
     return (
@@ -5435,15 +5453,23 @@ function DetailPembayaranPage({
 
   const savePaymentProcess = async (key: string) => {
     if (!pengadaanId) { alert("ID Pengadaan tidak ditemukan."); return; }
+    if (!paymentProcess[key]) {
+      setPaymentProcessFeedback({ key, type: "error", message: "Pilih tanggal terlebih dahulu." });
+      return;
+    }
     setSavingPaymentProcess(key);
+    setPaymentProcessFeedback(null);
     try {
       const nextProcess = { ...paymentProcess };
+      const latestResponse = await api.get(`/pengadaan/${pengadaanId}`).catch(() => null);
+      const latestFormData = latestResponse?.data?.formData || latestResponse?.data?.form_data || fd;
       await api.put(`/pengadaan/${pengadaanId}/form-data`, {
-        form_data: { ...fd, paymentProcess: nextProcess },
+        form_data: { ...latestFormData, paymentProcess: nextProcess },
       });
+      setPaymentProcessFeedback({ key, type: "success", message: key === "siapBayar" ? "Status Siap Bayar berhasil disimpan." : key === "lunas" ? "Status Lunas berhasil disimpan." : "Tanggal persetujuan TTD berhasil disimpan." });
       if (onSuccess) onSuccess();
     } catch (error: any) {
-      alert(error?.response?.data?.message || "Status proses pembayaran gagal disimpan.");
+      setPaymentProcessFeedback({ key, type: "error", message: error?.response?.data?.message || "Status permohonan pembayaran gagal disimpan." });
     } finally {
       setSavingPaymentProcess(null);
     }
@@ -5564,7 +5590,7 @@ function DetailPembayaranPage({
   const paymentProcessSection = (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
       <div className="border-b border-gray-100 px-4 py-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500">Status Proses Pembayaran</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500">{isUmd ? "Status Permohonan Pembayaran (TTD)" : "Status Proses Pembayaran"}</p>
       </div>
       <div className="p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -5591,10 +5617,16 @@ function DetailPembayaranPage({
               >
                 {savingPaymentProcess === step.key ? "Menyimpan..." : "Update"}
               </button>
+              {paymentProcessFeedback?.key === step.key && (
+                <p className={`mt-2 text-center text-[9.5px] font-medium ${paymentProcessFeedback.type === "success" ? "text-green-700" : "text-red-600"}`}>{paymentProcessFeedback.message}</p>
+              )}
             </div>
           ))}
         </div>
-        <p className="mt-3 rounded-md bg-blue-50 px-3 py-2 text-[9.5px] text-blue-700">
+        <div className="mt-3 rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-[9.5px] leading-relaxed text-blue-700">
+          {isUmd ? <><strong>Catatan:</strong> Isi tanggal persetujuan sesuai jalur TTD berdasarkan nominal UMD: CFFF untuk nilai di bawah Rp200 juta, CFF untuk Rp200–500 juta, dan CF untuk nilai di atas Rp500 juta. Status <strong>Siap Bayar</strong> diisi setelah TTD yang diperlukan lengkap, lalu <strong>Lunas</strong> setelah dana berhasil dibayarkan.</> : <><strong>Catatan:</strong> Isi tanggal persetujuan sesuai jalur sirkuler berdasarkan nominal. Setelah persetujuan lengkap, lanjutkan ke <strong>Siap Bayar</strong> dan kemudian <strong>Lunas</strong>.</>}
+        </div>
+        <p className="hidden">
           Persetujuan sirkuler: CFFF (&lt; Rp 200 juta), CFF (Rp 200–500 juta), CF (&gt; Rp 500 juta). Setelah sirkuler disetujui, lanjutkan ke “Siap Bayar” dan kemudian “Lunas”.
         </p>
       </div>
@@ -5618,6 +5650,8 @@ function DetailPembayaranPage({
               <button onClick={onBack} className="px-3 h-[30px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[9px] text-[11px] font-semibold">← Kembali</button>
             </div>
           </div>
+
+          {paymentProcessSection}
 
           {/* Submission Form */}
           <div>

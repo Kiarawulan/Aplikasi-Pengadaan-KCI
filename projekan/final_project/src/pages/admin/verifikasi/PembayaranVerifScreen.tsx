@@ -5,7 +5,7 @@ import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/shared/AdminModal";
 import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
-import { Plus, CheckCircle2, XCircle, FileWarning, Download, ChevronRight, Trash2, Upload } from "lucide-react";
+import { Plus, CheckCircle2, XCircle, FileWarning, Download, ChevronRight, Trash2, Upload, Search, RotateCcw } from "lucide-react";
 import { useAuth } from "../../../store/authStore";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
 import { useMasterVendors } from "../../../hooks/useMasterVendors";
@@ -862,6 +862,9 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
   const [form, setForm] = useState({ noSp3: "", noKontrak: "", nama: "", nominal: "", namaVendor: "", noRekening: "", bank: "Bank BNI", departemen: "CUG - LOGISTIC", tgl: "" });
   const [reportFilters, setReportFilters] = useState({ unit: "", category: "", vendor: "", jobTitle: "" });
   const [reportSearched, setReportSearched] = useState(false);
+  const [dailyFilters, setDailyFilters] = useState({ startDate: "", endDate: "", unit: "", status: "" });
+  const [dailyAppliedFilters, setDailyAppliedFilters] = useState({ startDate: "", endDate: "", unit: "", status: "" });
+  const [dailySearch, setDailySearch] = useState("");
 
   const getSubmenuInfo = () => {
     const key = (activeSubItem || "").toLowerCase();
@@ -901,6 +904,23 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
   });
 
   const reportVendors = Array.from(new Set(payments.map(payment => payment.namaVendor).filter((vendor) => vendor && vendor !== "N/A")));
+
+  const dailyResults = payments.filter((payment) => {
+    const paymentDate = String(payment.tgl || "");
+    const startMatches = !dailyAppliedFilters.startDate || paymentDate >= dailyAppliedFilters.startDate;
+    const endMatches = !dailyAppliedFilters.endDate || paymentDate <= dailyAppliedFilters.endDate;
+    const unitMatches = !dailyAppliedFilters.unit || payment.departemen === dailyAppliedFilters.unit;
+    const statusMatches = !dailyAppliedFilters.status || String(payment.status || "").toLowerCase() === dailyAppliedFilters.status;
+    const searchable = [payment.departemen, payment.tipe, payment.namaVendor, payment.id, payment.nama, payment.nominal, payment.status, payment.bank].join(" ").toLowerCase();
+    return startMatches && endMatches && unitMatches && statusMatches && searchable.includes(dailySearch.toLowerCase());
+  });
+
+  const resetDailyReport = () => {
+    const emptyFilters = { startDate: "", endDate: "", unit: "", status: "" };
+    setDailyFilters(emptyFilters);
+    setDailyAppliedFilters(emptyFilters);
+    setDailySearch("");
+  };
 
   const handleExportReport = () => {
     const rows = reportResults.map((payment, index) => `
@@ -1035,6 +1055,51 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
     { key: "ket", label: "Keterangan", render: (r: any) => <span className="text-gray-500 text-[11px]">{r.ket}</span> },
     { key: "tipe", label: "Tipe", render: (r: any) => <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono capitalize ${r.tipe === "weekly" ? "bg-indigo-50 text-indigo-600 border border-indigo-200" : "bg-blue-50 text-blue-600 border border-blue-200"}`}>{r.tipe.toUpperCase()}</span> },
   ];
+
+  if (isReport && tipe === "daily") {
+    const dailyColumns = ["No", "Unit", "Category", "Category Cost", "Vendor Name", "No Document A9", "Job Title", "Payment Type", "Month of Payment", "Value", "Status", "Destination Bank", "Business Area", "Date of Receipt", "Date A9", "Date Payment", "Status"];
+    return (
+      <div>
+        <div className="mb-4">
+          <h1 className="text-[#252271] text-[36px] font-black leading-tight">Verification</h1>
+          <p className="text-[#252271] text-[16px]">Pembayaran &gt; Reports &gt; <span className="font-bold">Daily Report</span></p>
+        </div>
+
+        <div className="rounded-[14px] border border-[#e0e5ef] bg-[#f5f7fe] px-5 py-5">
+          <div className="grid max-w-[1040px] grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
+            <label className="block text-[12px] font-semibold text-[#344258]"><span className="mb-1 block">Start Date</span><input type="date" value={dailyFilters.startDate} onChange={event => setDailyFilters(current => ({ ...current, startDate: event.target.value }))} className="h-9 w-full rounded-full border border-[#cbd7e8] bg-white px-4 outline-none focus:border-[#252271]" /></label>
+            <label className="block text-[12px] font-semibold text-[#344258]"><span className="mb-1 block">End Date</span><input type="date" value={dailyFilters.endDate} onChange={event => setDailyFilters(current => ({ ...current, endDate: event.target.value }))} className="h-9 w-full rounded-full border border-[#cbd7e8] bg-white px-4 outline-none focus:border-[#252271]" /></label>
+            <label className="block text-[12px] font-semibold text-[#344258]"><span className="mb-1 block">Unit</span><select value={dailyFilters.unit} onChange={event => setDailyFilters(current => ({ ...current, unit: event.target.value }))} className="h-9 w-full rounded-full border border-[#cbd7e8] bg-white px-4 font-normal outline-none focus:border-[#252271]"><option value="">Semua unit</option>{DIVISI_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+            <label className="block text-[12px] font-semibold text-[#344258]"><span className="mb-1 block">Status</span><select value={dailyFilters.status} onChange={event => setDailyFilters(current => ({ ...current, status: event.target.value }))} className="h-9 w-full rounded-full border border-[#cbd7e8] bg-white px-4 font-normal outline-none focus:border-[#252271]"><option value="">Semua status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="revision_required">Revision Required</option><option value="rejected">Rejected</option><option value="selesai">Selesai</option></select></label>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button onClick={() => setDailyAppliedFilters(dailyFilters)} className="flex h-9 items-center gap-2 rounded-full bg-[#252271] px-5 text-[12px] font-semibold text-white hover:bg-[#1a1753]"><Search size={13} /> Cari</button>
+            <button onClick={resetDailyReport} title="Reset filter" className="flex h-9 w-9 items-center justify-center rounded-full border border-[#ef4444] bg-white text-[#ef4444] hover:bg-red-50"><RotateCcw size={14} /></button>
+          </div>
+        </div>
+
+        <div className="mt-4 overflow-hidden rounded-[7px] border border-[#dfe4ec] bg-white">
+          <div className="flex items-center justify-between gap-4 px-4 py-3 text-[12px] text-[#657187]">
+            <div className="flex items-center gap-2">Show <select className="h-7 rounded border border-[#d3dae5] bg-white px-2"><option>10</option><option>25</option><option>50</option></select> entries</div>
+            <label className="flex items-center gap-2">Search: <input value={dailySearch} onChange={event => setDailySearch(event.target.value)} placeholder="Type to filter..." className="h-8 w-44 rounded border border-[#d3dae5] px-3 text-[#273955] outline-none focus:border-[#252271]" /></label>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-[1900px] w-full text-left text-[10px]">
+              <thead className="bg-[#252271] text-white"><tr>{dailyColumns.map(column => <th key={column} className="whitespace-nowrap px-3 py-3 font-semibold">{column} <span className="text-white/50">↕</span></th>)}</tr></thead>
+              <tbody className="divide-y divide-[#edf0f4] text-[#596579]">
+                {dailyResults.length ? dailyResults.map((payment, index) => {
+                  const data = payment.formData || {};
+                  const cells = [index + 1, payment.departemen || "—", payment.tipe || "—", data.categoryCost || "—", payment.namaVendor || "—", data.noDocumentA9 || payment.noSp3 || "—", payment.nama || "—", payment.tipe || "—", payment.tgl ? new Date(payment.tgl).toLocaleDateString("id-ID", { month: "long" }) : "—", payment.nominal || "—", payment.status || "—", payment.bank || "—", data.businessArea || "—", data.dateOfReceipt || "—", data.dateA9 || "—", payment.tgl || "—"];
+                  return <tr key={`${payment.id}-${index}`} className="hover:bg-[#fafbff]">{cells.map((cell, cellIndex) => <td key={cellIndex} className="whitespace-nowrap px-3 py-3">{cell}</td>)}<td className="px-3 py-3"><span className="rounded bg-[#f1f3f7] px-2 py-1 text-[9px] font-semibold">{payment.status || "Status"}</span></td></tr>;
+                }) : <tr><td colSpan={17} className="px-4 py-10 text-center text-[12px] text-gray-400">Tidak ada data pembayaran yang sesuai.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex items-center justify-between border-t border-[#edf0f4] px-4 py-3 text-[12px] text-[#657187]"><span>Showing {dailyResults.length ? 1 : 0} to {dailyResults.length} of {dailyResults.length} entries</span><div className="flex items-center gap-1"><button disabled className="rounded border border-[#d3dae5] px-3 py-1.5 disabled:opacity-60">Previous</button><button className="rounded bg-[#252271] px-3 py-1.5 text-white">1</button><button disabled className="rounded border border-[#d3dae5] px-3 py-1.5 disabled:opacity-60">Next</button></div></div>
+        </div>
+      </div>
+    );
+  }
 
   if (isReport) {
     return (
