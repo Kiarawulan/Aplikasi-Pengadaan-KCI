@@ -101,7 +101,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
         const matchingPeng = pengDataList.find((p: any) => p.id === pId);
         const fd = matchingPeng
           ? (typeof matchingPeng.formData === 'string' ? JSON.parse(matchingPeng.formData) : (matchingPeng.formData || {}))
-          : (item.document_form_data || item.pengadaan_form_data || {});
+          : (item.effective_form_data || item.pengadaan_form_data || item.document_form_data || {});
         const buatNpp = fd['buat-npp'] || fd['npp'] || {};
         const buatPd = fd['buat-pd'] || fd['buat-pr'] || {};
 

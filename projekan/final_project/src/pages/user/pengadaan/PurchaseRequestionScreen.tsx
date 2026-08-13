@@ -49,6 +49,7 @@ export function PurchaseRequestionScreen({ onSelectItem }: {
         });
         await fetchItems();
         setEditingItem(null);
+        setShowPopup(false);
       } else {
         // Create
         const res = await api.post('/pengadaan', {
@@ -62,9 +63,9 @@ export function PurchaseRequestionScreen({ onSelectItem }: {
         setShowPopup(false);
         onSelectItem(res.data);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Gagal menyimpan PR:", err);
-      alert("Gagal menyimpan PR. Coba lagi.");
+      alert(err.response?.data?.message || "Gagal menyimpan PR. Coba lagi.");
     }
   };
 
@@ -166,7 +167,7 @@ export function PurchaseRequestionScreen({ onSelectItem }: {
                         <button onClick={() => onSelectItem(item)} className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100" title="Buka Detail">
                           <Eye size={11} className="text-blue-600" />
                         </button>
-                        {item.createdBy === currentUser?.id && (item.status === "pending" || item.status === "revisi") && (
+                        {item.createdBy === currentUser?.id && ["pending", "revisi", "revision_required", "perlu revisi"].includes(String(item.status).toLowerCase()) && (
                           <button onClick={() => { setEditingItem(item); setShowPopup(true); }} className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center hover:bg-amber-100" title="Edit PR">
                             <Edit2 size={11} className="text-amber-600" />
                           </button>

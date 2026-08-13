@@ -15,6 +15,7 @@ use App\Models\PurchaseRequisition;
 use App\Models\ProcessHistory;
 use App\Models\Payment;
 use App\Models\Pengujian;
+use App\Models\UploadedDocument;
 use App\Http\Middleware\EnsureModulePermission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -51,6 +52,7 @@ class VerifikasiController extends Controller
                 'contract' => Contract::class,
                 'pbj' => Pbj::class,
                 'park-dokumen' => ParkDocument::class,
+                'park-document' => ParkDocument::class,
                 'purchase-requisition' => PurchaseRequisition::class,
                 'pengajuan-dana' => PurchaseRequisition::class,
                 'pengujian' => Pengujian::class,
@@ -63,10 +65,21 @@ class VerifikasiController extends Controller
             $document = $model ? $model::where('pengadaan_id', $verifikasi->pengadaan_id)->latest()->first() : null;
             $pengadaan = Pengadaan::find($verifikasi->pengadaan_id);
 
+            $documentFormData = $document?->form_data ?? [];
+            $pengadaanFormData = $pengadaan?->form_data ?? [];
+            $effectiveFormData = array_replace_recursive(
+                is_array($documentFormData) ? $documentFormData : [],
+                is_array($pengadaanFormData) ? $pengadaanFormData : [],
+            );
+
             return array_merge($verifikasi->toArray(), [
                 'document' => $document,
-                'document_form_data' => $document?->form_data ?? [],
-                'pengadaan_form_data' => $pengadaan?->form_data ?? [],
+                'document_form_data' => $documentFormData,
+                'pengadaan_form_data' => $pengadaanFormData,
+                // Pengadaan.form_data adalah sumber data terbaru karena selalu
+                // ditulis ulang saat user mengirim revisi. Field ini mencegah
+                // halaman Admin kembali memakai snapshot dokumen yang lama.
+                'effective_form_data' => $effectiveFormData,
                 'current_step' => $pengadaan?->current_step,
             ]);
         }));
@@ -90,8 +103,7 @@ class VerifikasiController extends Controller
             throw $e;
         }
 
-        $last = Verifikasi::where('id', 'regexp', '^VR-[0-9]+$')->orderBy('id', 'desc')->first();
-        $next = $last ? intval(substr($last->id, 3)) + 1 : Verifikasi::count() + 1;
+        $next = $this->nextVerificationNumber();
         $id = 'VR-' . str_pad($next, 3, '0', STR_PAD_LEFT);
 
         $verif = Verifikasi::create([
@@ -231,8 +243,7 @@ class VerifikasiController extends Controller
                         'pbj' => 'contract',
                     ][$verifikasi->tipe] ?? null;
                     if ($adminStage && ! Verifikasi::where('pengadaan_id', $pengadaan->id)->where('tipe', $adminStage)->exists()) {
-                        $last = Verifikasi::where('id', 'regexp', '^VR-[0-9]+$')->orderBy('id', 'desc')->first();
-                        $number = $last ? intval(substr($last->id, 3)) + 1 : Verifikasi::count() + 1;
+                        $number = $this->nextVerificationNumber();
                         Verifikasi::create([
                             'id' => 'VR-' . str_pad($number, 3, '0', STR_PAD_LEFT),
                             'pengadaan_id' => $pengadaan->id,
@@ -304,6 +315,13 @@ class VerifikasiController extends Controller
         $this->authorizeType($request, $verifikasi->tipe, 'editor');
         $admin = $request->user();
         $oldStatus = $verifikasi->status;
+
+        if ($verifikasi->tipe !== 'rup') {
+            $pengadaan = Pengadaan::find($verifikasi->pengadaan_id);
+            if ($pengadaan) {
+                $verifikasi->revision_snapshot = $this->revisionSnapshot($pengadaan);
+            }
+        }
 
         $verifikasi->status = 'revisi';
         $verifikasi->catatan_admin = $request->catatan;
@@ -429,6 +447,7 @@ class VerifikasiController extends Controller
             'contract' => Contract::class,
             'pbj' => Pbj::class,
             'park-dokumen' => ParkDocument::class,
+            'park-document' => ParkDocument::class,
             'purchase-requisition' => PurchaseRequisition::class,
             'pengajuan-dana' => PurchaseRequisition::class,
             'pengujian' => Pengujian::class,
@@ -442,6 +461,24 @@ class VerifikasiController extends Controller
         if ($model) {
             $model::where('pengadaan_id', $verifikasi->pengadaan_id)->latest()->first()?->update(['status' => $status]);
         }
+    }
+
+    private function revisionSnapshot(Pengadaan $pengadaan): array
+    {
+        $formData = $pengadaan->form_data ?? [];
+        if (is_array($formData)) {
+            unset($formData['__meta']);
+        }
+
+        return [
+            'form_data' => $formData,
+            'documents' => UploadedDocument::where('pengadaan_id', $pengadaan->id)
+                ->orderBy('id')
+                ->get(['stage', 'original_name', 'path', 'size'])
+                ->map(fn (UploadedDocument $document) => $document->toArray())
+                ->values()
+                ->all(),
+        ];
     }
 
     /**
@@ -517,6 +554,7 @@ class VerifikasiController extends Controller
             'contract' => Contract::class,
             'pbj' => Pbj::class,
             'park-dokumen' => ParkDocument::class,
+            'park-document' => ParkDocument::class,
             'purchase-requisition' => PurchaseRequisition::class,
             'pengajuan-dana' => PurchaseRequisition::class,
             'pengujian' => Pengujian::class,
@@ -552,11 +590,19 @@ class VerifikasiController extends Controller
         );
     }
 
+    private function nextVerificationNumber(): int
+    {
+        return (Verifikasi::where('id', 'like', 'VR-%')->pluck('id')
+            ->map(fn (string $id) => ctype_digit(substr($id, 3)) ? (int) substr($id, 3) : 0)
+            ->max() ?? 0) + 1;
+    }
+
     private function typeModules(): array
     {
         return [
             'rup' => 'pengadaan',
             'park-dokumen' => 'pengajuanDana',
+            'park-document' => 'pengajuanDana',
             'purchase-requisition' => 'pengajuanDana',
             'pengajuan-dana' => 'pengajuanDana',
             'npp' => 'pengadaan',

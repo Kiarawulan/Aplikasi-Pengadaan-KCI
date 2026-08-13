@@ -155,7 +155,7 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
                         <button onClick={() => onSelectItem(item)} className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100" title="Buka Detail">
                           <Eye size={11} className="text-blue-600" />
                         </button>
-                        {item.createdBy === currentUser?.id && (item.status === "pending" || item.status === "revisi" || item.status === "Perlu Revisi" || item.status === "draft" || item.status === "Draft") && (
+                        {item.createdBy === currentUser?.id && ["pending", "revisi", "revision_required", "perlu revisi", "draft"].includes(String(item.status).toLowerCase()) && (
                           <button onClick={() => { setEditingItem(item); setShowPopup(true); }} className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center hover:bg-amber-100" title="Edit & Kirim Revisi">
                             <Edit2 size={11} className="text-amber-600" />
                           </button>

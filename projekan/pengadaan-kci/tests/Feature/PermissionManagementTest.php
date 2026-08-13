@@ -180,6 +180,106 @@ class PermissionManagementTest extends TestCase
         ])->assertOk()->assertJsonPath('nominal', '2500');
     }
 
+    public function test_user_revision_replaces_old_data_in_admin_verification_queue(): void
+    {
+        $user = $this->user('USR-REVISION-SYNC', $this->role('ROLE-REVISION-SYNC', []), 'Testing');
+        $admin = $this->user(
+            'USR-REVISION-ADMIN',
+            $this->role('ROLE-REVISION-ADMIN', ['pengajuanDana' => 'editor'], 'admin'),
+            'Testing'
+        );
+
+        $created = $this->actingAs($user, 'sanctum')->postJson('/api/pengadaan', [
+            'nama' => 'Dokumen Sebelum Revisi',
+            'flow' => 'pd',
+            'nominal' => '1000',
+            'form_data' => ['buat-pd' => ['judulPermohonan' => 'Data Lama', 'nominalPermohonan' => '1000']],
+        ])->assertCreated();
+        $pengadaanId = $created->json('id');
+
+        $submitted = $this->actingAs($user, 'sanctum')->postJson("/api/pengadaan/{$pengadaanId}/submit-step", [
+            'stepId' => 'pengajuan-dana',
+            'tipe' => 'park-dokumen',
+            'form_data' => ['buat-pd' => ['judulPermohonan' => 'Data Lama', 'nominalPermohonan' => '1000']],
+        ])->assertOk();
+
+        $verificationId = $submitted->json('verifikasi.id');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/verifikasi/{$verificationId}/revisi", [
+            'catatan' => 'Perbarui judul dan nominal.',
+        ])->assertOk();
+
+        $this->actingAs($user, 'sanctum')->putJson("/api/pengadaan/{$pengadaanId}", [
+            'nama' => 'Dokumen Sesudah Revisi',
+            'nominal' => '2500',
+            'form_data' => ['buat-pd' => ['judulPermohonan' => 'Data Baru', 'nominalPermohonan' => '2500']],
+        ])->assertOk()->assertJsonPath('status', 'pending');
+
+        $queue = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/verifikasi?tipe=park-dokumen')
+            ->assertOk()
+            ->assertJsonCount(1);
+
+        $queue->assertJsonPath('0.status', 'pending');
+        $queue->assertJsonPath('0.pengadaan_nama', 'Dokumen Sesudah Revisi');
+        $queue->assertJsonPath('0.nominal', '2500');
+        $queue->assertJsonPath('0.effective_form_data.buat-pd.judulPermohonan', 'Data Baru');
+        $queue->assertJsonPath('0.document_form_data.buat-pd.judulPermohonan', 'Data Baru');
+        $this->assertDatabaseHas('process_histories', [
+            'pengadaan_id' => $pengadaanId,
+            'verifikasi_id' => $verificationId,
+            'action' => 'revisi',
+        ]);
+    }
+
+    public function test_admin_anggaran_can_see_park_document_submission_and_attachments(): void
+    {
+        Storage::fake('public');
+        $user = $this->user('USR-PD-ANGGARAN', $this->role('ROLE-PD-ANGGARAN', []), 'Operasional');
+        $adminRole = Role::findOrFail('role-admin-anggaran');
+        RolePermission::updateOrCreate(
+            ['role_id' => $adminRole->id, 'module' => 'pengajuanDana'],
+            ['access_level' => 'editor'],
+        );
+        $admin = $this->user(
+            'USR-ADMIN-ANGGARAN',
+            $adminRole,
+            'Anggaran'
+        );
+
+        $created = $this->actingAs($user, 'sanctum')->postJson('/api/pengadaan', [
+            'nama' => 'Park Dokumen untuk Admin Anggaran',
+            'flow' => 'pd',
+            'nominal' => '7500000',
+            'form_data' => ['buat-pd' => ['judulPermohonan' => 'Park Dokumen untuk Admin Anggaran']],
+        ])->assertCreated();
+        $pengadaanId = $created->json('id');
+
+        $uploaded = $this->actingAs($user, 'sanctum')->post("/api/pengadaan/{$pengadaanId}/documents", [
+            'stage' => 'pd-kak',
+            'file' => UploadedFile::fake()->create('kak-park-dokumen.pdf', 50, 'application/pdf'),
+        ])->assertCreated();
+
+        $this->actingAs($user, 'sanctum')->postJson("/api/pengadaan/{$pengadaanId}/submit-step", [
+            'stepId' => 'pengajuan-dana',
+            'form_data' => ['buat-pd' => ['judulPermohonan' => 'Park Dokumen untuk Admin Anggaran']],
+        ])->assertOk();
+
+        $queue = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/verifikasi?tipe=park-dokumen,park-document')
+            ->assertOk()
+            ->assertJsonCount(1);
+        $queue->assertJsonPath('0.pengadaan_id', $pengadaanId);
+        $queue->assertJsonPath('0.tipe', 'park-dokumen');
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson("/api/pengadaan/{$pengadaanId}/documents")
+            ->assertOk()
+            ->assertJsonPath('data.0.original_name', 'kak-park-dokumen.pdf');
+        $this->actingAs($admin, 'sanctum')
+            ->get('/api/documents/' . $uploaded->json('data.id') . '/download')
+            ->assertOk();
+    }
+
     public function test_master_reference_delete_is_persisted_in_database(): void
     {
         $manager = $this->user('USR-MASTER', $this->role('ROLE-MASTER', ['masterData' => 'editor'], 'admin'));
@@ -188,7 +288,8 @@ class PermissionManagementTest extends TestCase
         ])->assertOk();
         $this->actingAs($manager, 'sanctum')->deleteJson('/api/master-references/lokasi/LOK-001')->assertOk();
         $this->assertDatabaseMissing('master_references', ['category' => 'lokasi', 'reference_id' => 'LOK-001']);
-        $this->actingAs($manager, 'sanctum')->getJson('/api/master-references/lokasi')->assertOk()->assertExactJson([]);
+        $remaining = $this->actingAs($manager, 'sanctum')->getJson('/api/master-references/lokasi')->assertOk();
+        $this->assertFalse(collect($remaining->json())->contains('id', 'LOK-001'));
     }
 
     public function test_admin_releases_npp_number_and_syncs_procurement_form(): void

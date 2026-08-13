@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\Models\Pengadaan;
 use App\Models\ProcessHistory;
 use App\Models\Verifikasi;
+use App\Models\UploadedDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -40,6 +41,17 @@ class PaymentController extends Controller
         }
         if ($pengadaan->current_step !== 'pembayaran') {
             return response()->json(['success' => false, 'message' => 'Pembayaran belum dapat diajukan sebelum tahapan sebelumnya selesai.'], 422);
+        }
+
+        $existingVerification = Verifikasi::where('pengadaan_id', $pengadaan->id)
+            ->whereIn('tipe', ['pembayaran', 'umd', 'outsource', 'non-outsource', 'payment-request'])
+            ->latest()
+            ->first();
+        if ($existingVerification
+            && in_array(strtolower((string) $existingVerification->status), ['revisi', 'revision_required', 'perlu revisi'], true)
+            && $this->canonicalize($this->revisionSnapshot($pengadaan, $data['form_data'] ?? null))
+                === $this->canonicalize($existingVerification->revision_snapshot ?? [])) {
+            return response()->json(['message' => 'Belum ada perubahan pada data atau berkas pembayaran.'], 422);
         }
 
         $pengadaanFormData = $pengadaan->form_data ?? [];
@@ -102,6 +114,7 @@ class PaymentController extends Controller
         $verifikasi->submit_at = now();
         $verifikasi->status = 'pending';
         $verifikasi->catatan_admin = null;
+        $verifikasi->revision_snapshot = null;
         $verifikasi->save();
 
         ProcessHistory::create(['pengadaan_id' => $pengadaan->id, 'verifikasi_id' => $verifikasi->id, 'actor_id' => $request->user()->id, 'actor_name' => $request->user()->name, 'step_id' => 'pembayaran', 'action' => 'submitted', 'from_status' => 'draft', 'to_status' => $payment->status]);
@@ -173,5 +186,25 @@ class PaymentController extends Controller
     private function assertOwner(Request $request, Pengadaan $pengadaan): void
     {
         abort_unless($request->user()->is_admin || $pengadaan->created_by === $request->user()->id, 403, 'Anda tidak memiliki akses ke pengadaan ini.');
+    }
+
+    private function revisionSnapshot(Pengadaan $pengadaan, ?array $formData = null): array
+    {
+        $data = $formData ?? ($pengadaan->form_data ?? []);
+        unset($data['__meta']);
+        return [
+            'form_data' => $data,
+            'documents' => UploadedDocument::where('pengadaan_id', $pengadaan->id)
+                ->orderBy('id')->get(['stage', 'original_name', 'path', 'size'])
+                ->map(fn (UploadedDocument $document) => $document->toArray())->values()->all(),
+        ];
+    }
+
+    private function canonicalize(mixed $value): mixed
+    {
+        if (! is_array($value)) return $value;
+        if (! array_is_list($value)) ksort($value);
+        foreach ($value as $key => $nested) $value[$key] = $this->canonicalize($nested);
+        return $value;
     }
 }

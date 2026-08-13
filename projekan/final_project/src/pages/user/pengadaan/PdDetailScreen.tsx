@@ -165,7 +165,6 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         next.delete("pembayaran.proses-selesai");
         return next;
       });
-      setVerifState({ status: "not_submitted", canProceed: true, loading: false });
     }
   };
 
@@ -255,7 +254,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         if (stepId === "pembayaran") {
           setSubmittedSubs(prev => new Set([...prev, "pembayaran.payment-request", "pembayaran.pelunasan", "pembayaran.proses-selesai"]));
         }
-      } else if (res.data.status === "revisi" || res.data.status === "rejected") {
+      } else if (["revisi", "revision_required", "perlu revisi", "rejected"].includes(String(res.data.status).toLowerCase())) {
         if (stepId === "pembayaran") {
           const verificationFilesIndex = steps.find((step) => step.id === "pembayaran")?.subSteps.findIndex((sub) => sub.id === "pelunasan") ?? -1;
           if (verificationFilesIndex !== -1) setActiveSubIdx(verificationFilesIndex);
@@ -293,8 +292,11 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       || (sIdx > 0 && isSubSubmitted(activeStep.id, activeStep.subSteps[sIdx - 1].id));
   };
 
+  const revisionStatuses = ["revisi", "revision_required", "perlu revisi", "rejected"];
+  const isRevisionState = revisionStatuses.includes(String(verifState.status).toLowerCase());
+
   const flashSave = (newSubmittedSubs?: Set<string>, updatedFd?: Record<string, any>) => {
-    if (verifState.status !== "not_submitted" && verifState.status !== "revisi" && verifState.status !== "rejected") return;
+    if (verifState.status !== "not_submitted" && !isRevisionState) return;
     setFlash(true);
     const subsToSave = newSubmittedSubs || submittedSubs;
     const currentFd = updatedFd || allFd;
@@ -313,7 +315,6 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   const fd = (subId: string): Record<string, string> => allFd[subId] ?? {};
 
   const isDetailPd = activeSub.id === "detail-pd";
-  const isRevisionState = verifState.status === "revisi" || verifState.status === "rejected";
   const isCurrentSubmitted = !isRevisionState && (
     isSubSubmitted(activeStep.id, activeSub.id)
     || (activeSub.id === "pelunasan" && (verifState.status === "pending" || verifState.status === "approved"))
@@ -754,7 +755,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         </div>
       )}
 
-      {verifState.status === "revisi" && (
+      {isRevisionState && verifState.status !== "rejected" && (
         <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <AlertCircle size={16} className="text-blue-600 shrink-0 mt-0.5" />
@@ -830,7 +831,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             <div className="bg-[#252271] px-4 py-2.5 flex items-center justify-between">
               <p className="text-white font-semibold text-[11.5px]">{cardHeader()}</p>
               {isCurrentSubmitted && activeSub.id !== "detail-pd" && (
-                <StatusBadge status={verifState.status === "approved" || item.status === "Selesai" || item.status?.toLowerCase() === "approved" ? "Selesai" : verifState.status === "revisi" ? "Revisi" : verifState.status === "pending_acceptance" ? "pending_acceptance" : verifState.status === "accepted" ? "accepted" : "Menunggu Verifikasi"} />
+                <StatusBadge status={verifState.status === "approved" || item.status === "Selesai" || item.status?.toLowerCase() === "approved" ? "Selesai" : isRevisionState ? "Revisi" : verifState.status === "pending_acceptance" ? "pending_acceptance" : verifState.status === "accepted" ? "accepted" : "Menunggu Verifikasi"} />
               )}
             </div>
             <div id="pd-active-form" aria-disabled={isCurrentSubmitted} className={`p-4 ${isCurrentSubmitted ? "[&_input]:pointer-events-none [&_select]:pointer-events-none [&_textarea]:pointer-events-none [&_label]:pointer-events-none [&_input]:bg-slate-50 [&_select]:bg-slate-50 [&_textarea]:bg-slate-50" : ""}`}>{renderContent()}{activeStep.id === "pengajuan-dana" && <PengajuanDanaAttachments pengadaanId={item.id} flow="pd" />}</div>

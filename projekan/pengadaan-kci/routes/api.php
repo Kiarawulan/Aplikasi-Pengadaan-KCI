@@ -80,7 +80,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/pengadaan/{pengadaan}', [PengadaanController::class, 'destroy'])->middleware('module.permission:pengadaan,editor');
     Route::post('/pengadaan/{pengadaan}/submit-step', [PengadaanController::class, 'submitStep'])->middleware('module.permission:pengadaan,editor');
     Route::get('/pengadaan/{pengadaan}/step-status', [PengadaanController::class, 'stepStatus'])->middleware('module.permission:pengadaan,viewer');
-    Route::get('/pengadaan/{pengadaan}/documents', [UploadedDocumentController::class, 'index'])->middleware('module.permission:pengadaan,viewer');
+    // Otorisasi baca dilakukan di controller berdasarkan kepemilikan/divisi
+    // atau status admin. Ini memungkinkan Admin Anggaran membaca berkas PD
+    // tanpa memberinya akses ke seluruh modul Pengadaan.
+    Route::get('/pengadaan/{pengadaan}/documents', [UploadedDocumentController::class, 'index']);
     Route::post('/pengadaan/{pengadaan}/documents', [UploadedDocumentController::class, 'store'])->middleware('module.permission:pengadaan,editor');
 
     // Verifikasi
@@ -133,6 +136,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/payments/{payment}', [PaymentController::class, 'update'])->middleware('module.permission:pembayaran,editor');
     Route::post('/payments/{payment}/accept', [PaymentController::class, 'acceptSubmission'])->middleware('module.permission:pembayaran,editor');
     Route::post('/payments/{payment}/process', [PaymentController::class, 'process'])->middleware('module.permission:pembayaran,editor');
-    Route::get('/documents/{document}/download', [UploadedDocumentController::class, 'download'])->middleware('module.permission:pengadaan,viewer');
+    Route::get('/documents/{document}/download', [UploadedDocumentController::class, 'download']);
     Route::delete('/documents/{document}', [UploadedDocumentController::class, 'destroy'])->middleware('module.permission:pengadaan,editor');
 });

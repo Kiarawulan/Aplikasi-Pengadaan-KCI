@@ -320,7 +320,7 @@ export function RupListScreen() {
                   <td className="px-5 py-4">
                     <button
                       onClick={() => {
-                        const canEdit = (item.status === 'revisi' || item.status === 'pending') && currentUser?.departemen === item.departemen;
+                        const canEdit = ['revisi', 'revision_required', 'perlu revisi', 'pending'].includes(String(item.status).toLowerCase()) && currentUser?.departemen === item.departemen;
                         setIsViewOnly(!canEdit);
                         handleEditClick(item);
                       }}

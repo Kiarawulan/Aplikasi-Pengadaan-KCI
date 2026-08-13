@@ -66,6 +66,7 @@ class RupController extends Controller
         $isResubmission = $request->input('status') === 'pending';
         if (! $isResubmission && ! in_array($rup->status, ['draft', 'revision_required'], true)) return response()->json(['message' => 'RUP hanya dapat diubah saat draft atau revisi.'], 422);
         $data = $request->validate(['nama' => 'sometimes|string|max:255', 'jenis' => 'sometimes|string|max:100', 'metode' => 'sometimes|string|max:100', 'nilai' => 'sometimes|string|max:100', 'details' => 'sometimes|array']);
+        $before = ['nama' => $rup->nama, 'jenis' => $rup->jenis, 'metode' => $rup->metode, 'nilai' => preg_replace('/\D/', '', (string) $rup->nilai), 'details' => $rup->details ?? []];
         
         if (array_key_exists('nama', $data)) {
             abort_if(Rup::where('id', '!=', $rup->id)->whereRaw('LOWER(nama) = ?', [strtolower(trim($data['nama']))])->exists(), 422, 'Judul RUP sudah digunakan. Mohon gunakan judul RUP yang unik.');
@@ -87,6 +88,10 @@ class RupController extends Controller
 
         $rup->fill($data);
         if (array_key_exists('details', $data)) $rup->details = array_merge($rup->details ?? [], $data['details']);
+        $after = ['nama' => $rup->nama, 'jenis' => $rup->jenis, 'metode' => $rup->metode, 'nilai' => preg_replace('/\D/', '', (string) $rup->nilai), 'details' => $rup->details ?? []];
+        if ($isResubmission && $rup->getOriginal('status') === 'revision_required') {
+            abort_if($before == $after, 422, 'Belum ada perubahan. Ubah data RUP sesuai catatan revisi sebelum mengirim ulang.');
+        }
         $rup->updated_by = $request->user()->id;
         $rup->save();
         if ($isResubmission) $this->queueForApproval($request, $rup, $rup->getOriginal('status'));

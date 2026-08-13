@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Check, CheckCircle2, ChevronLeft, Clock, Edit2, FileWarning, X, XCircle } from "lucide-react";
 import type { Screen, PengadaanItem } from "@/types";
 import { PR_MAIN_STEPS } from "@/constants/steps";
@@ -87,6 +87,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   const [verifStatus, setVerifStatus] = useState<string>("not_submitted");
   const [catatanAdmin, setCatatanAdmin] = useState<string | null>(null);
   const [verifId, setVerifId] = useState<number | null>(null);
+  const revisionBaselineRef = useRef<Record<string, any> | null>(null);
   const [pengujianId, setPengujianId] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
   const [docWarningModal, setDocWarningModal] = useState<{
@@ -205,25 +206,19 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
     const refreshStatus = async () => {
       try {
-        const res = await api.get(`/verifikasi?pengadaan_id=${item.id}`);
+        const res = await api.get(`/pengadaan/${item.id}/step-status?stepId=${activeStep.id}`);
         if (!isSubscribed) return;
-        const list = Array.isArray(res.data) ? res.data : [];
-
-        const matched = list.find((v: any) => {
-          if (activeStep.id === "pengajuan-dana") {
-            return v.tipe === "pengajuan-dana" || v.tipe === "purchase-requisition" || v.tipe === "park-dokumen";
-          }
-          if (activeStep.id === "pembayaran") {
-            return ["pembayaran", "umd", "outsource", "non-outsource", "payment-request"].includes(v.tipe);
-          }
-          return v.tipe === activeStep.id;
-        });
+        const matched = res.data?.verifikasi;
 
         if (matched) {
           setVerifStatus(matched.status || "pending");
           setCatatanAdmin(matched.catatan_admin || matched.catatan || null);
           setVerifId(matched.id);
-          if (matched.status === "revisi" || matched.status === "rejected") {
+          const matchedStatus = String(matched.status || "pending").toLowerCase();
+          if (["revisi", "revision_required", "perlu revisi", "rejected"].includes(matchedStatus)) {
+            if (revisionBaselineRef.current === null) {
+              revisionBaselineRef.current = matched.revision_snapshot?.form_data || allFd || {};
+            }
             const revisionSubStepByStage: Record<string, string> = {
               npp: "buat-npp",
               "pengajuan-dana": "buat-pr",
@@ -237,6 +232,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             }
           }
           if (matched.status === "approved") {
+            revisionBaselineRef.current = null;
             setCompletedStepIds(prev => new Set([...prev, activeStep.id]));
           }
           return;
@@ -287,8 +283,18 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       || (sIdx > 0 && isSubDone(activeStep.id, activeStep.subSteps[sIdx - 1]?.id ?? ""));
   };
 
+  const revisionStatuses = ["revisi", "revision_required", "perlu revisi", "rejected"];
+  const isRevision = revisionStatuses.includes(String(verifStatus).toLowerCase());
+  const editableStatuses = ["not_submitted", ...revisionStatuses];
+  const stripMeta = (value: Record<string, any> | null) => {
+    const copy = JSON.parse(JSON.stringify(value || {}));
+    delete copy.__meta;
+    return copy;
+  };
+  const hasRevisionChanges = () => !isRevision || JSON.stringify(stripMeta(allFd)) !== JSON.stringify(stripMeta(revisionBaselineRef.current));
+
   const flashSave = (newCompletedSubs?: Set<string>, updatedFd?: Record<string, any>) => {
-    if (verifStatus !== "not_submitted" && verifStatus !== "revisi" && verifStatus !== "rejected") return;
+    if (!editableStatuses.includes(String(verifStatus).toLowerCase())) return;
     setFlash(true);
     const subsToSave = newCompletedSubs || completedSubs;
     const currentFd = updatedFd || allFd;
@@ -305,7 +311,24 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     });
   };
   const fd = allFd[subId] ?? {};
-  const isFormLocked = (!["not_submitted", "revisi", "rejected"].includes(verifStatus) || isSubDone(activeStep.id, subId) || ["sp3", "pbj", "contract"].includes(activeStep.id));
+  const isFormLocked = (!editableStatuses.includes(String(verifStatus).toLowerCase()) || (isSubDone(activeStep.id, subId) && !isRevision) || ["sp3", "pbj", "contract"].includes(activeStep.id));
+
+  const warnNoRevisionChanges = () => {
+    setDocWarningModal({
+      isOpen: true,
+      title: "Belum Ada Perubahan",
+      message: "Data masih sama dengan pengajuan sebelumnya. Ubah data sesuai catatan admin sebelum menyimpan atau mengirim revisi.",
+      variant: "warning",
+    });
+  };
+
+  const handleManualSave = () => {
+    if (isRevision && !hasRevisionChanges()) {
+      warnNoRevisionChanges();
+      return;
+    }
+    flashSave();
+  };
 
   let isSubmitPoint = hasSubSteps ? activeSubIdx === activeStep.subSteps.length - 1 : true;
   if (activeStep.id === "pembayaran") {
@@ -319,6 +342,10 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     const adminOnlySteps = ["sp3", "pbj", "contract"];
 
     if (!adminOnlySteps.includes(activeStep.id) && !remindIncompleteFields(document.getElementById("pr-active-form"))) return;
+    if (isRevision && !hasRevisionChanges()) {
+      warnNoRevisionChanges();
+      return;
+    }
 
     if (activeStep.id === "pengajuan-dana" && isSubmitPoint) {
       try {
@@ -344,7 +371,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       }
     }
 
-    if (userSubmitSteps.includes(activeStep.id) && isSubmitPoint && (verifStatus === "not_submitted" || verifStatus === "revisi" || verifStatus === "rejected")) {
+    if (userSubmitSteps.includes(activeStep.id) && isSubmitPoint && editableStatuses.includes(String(verifStatus).toLowerCase())) {
       // Save form data before submitting
       flashSave();
 
@@ -354,6 +381,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         tipe: activeStep.id,
         form_data: allFd
       }).then(() => {
+        revisionBaselineRef.current = null;
         setVerifStatus("pending");
         setCatatanAdmin(null);
         setCompletedSubs(p => {
@@ -585,8 +613,6 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       const targetIndex = activeStep.subSteps.findIndex((sub) => sub.id === targetSubStep);
       if (targetIndex !== -1) setActiveSubIdx(targetIndex);
     }
-    setVerifStatus("not_submitted");
-    setCatatanAdmin(null);
   };
 
   const handleRevisionSubmit = async (newItem: any) => {
@@ -656,7 +682,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           <div className="rounded-[10px] border border-[#e2e2e2] bg-white overflow-hidden shadow-sm">
             <div className="bg-[#252271] px-4 py-2.5"><p className="text-white font-semibold text-[11.5px]">{cardHeader()}</p></div>
             <div id="pr-active-form" aria-disabled={isFormLocked} className={`p-4 ${isFormLocked ? "[&_input]:pointer-events-none [&_select]:pointer-events-none [&_textarea]:pointer-events-none [&_label]:pointer-events-none [&_input]:bg-slate-50 [&_select]:bg-slate-50 [&_textarea]:bg-slate-50" : ""}`}>
-              {verifStatus === "revisi" && (
+              {isRevision && verifStatus !== "rejected" && (
                 <div className="mb-4 bg-rose-50 border border-rose-200 rounded-xl p-3.5 flex items-start justify-between gap-3">
                   <FileWarning className="text-red-600 shrink-0 mt-0.5" size={16} />
                   <div className="flex-1">
@@ -704,7 +730,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
             <div className="px-4 pb-3.5 pt-3.5 border-t border-[#e2e2e2] flex items-center justify-between">
               <button onClick={goPrev} disabled={isFirst} className="flex items-center gap-1.5 px-4 h-[30px] rounded border border-gray-200 text-[11.5px] text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"><ChevronLeft size={12} /> Kembali</button>
               <div className="flex gap-2">
-                <button onClick={() => flashSave()} className="px-4 h-[30px] rounded border border-[#252271] text-[11.5px] text-[#252271] font-medium hover:bg-[#252271]/5">Simpan</button>
+                <button onClick={handleManualSave} disabled={isFormLocked} className="px-4 h-[30px] rounded border border-[#252271] text-[11.5px] text-[#252271] font-medium hover:bg-[#252271]/5 disabled:opacity-40 disabled:cursor-not-allowed">Simpan</button>
 
                 {!isLast ? (
                   <button onClick={goNext} disabled={(["sp3", "pbj", "contract"].includes(activeStep.id) && verifStatus !== "approved" && item.status?.toLowerCase() !== "approved" && !completedStepIds.has(activeStep.id)) || (verifStatus === "pending" && isSubmitPoint) || (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian" && verifStatus !== "not_submitted" && verifStatus !== "approved")} className="px-4 h-[30px] rounded text-[11.5px] text-white font-medium bg-[#252271] hover:bg-[#1a1860] disabled:bg-gray-400 disabled:cursor-not-allowed">

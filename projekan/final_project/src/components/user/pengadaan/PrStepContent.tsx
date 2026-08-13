@@ -84,7 +84,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
     if (status === "pending" || status === "Menunggu Verifikasi" || status === "Menunggu Verifikasi Admin") {
       return <span className="bg-yellow-100 text-yellow-700 text-[10px] font-semibold px-2 py-0.5 rounded">Menunggu Verifikasi</span>;
     }
-    if (status === "revisi" || status === "Perlu Revisi") {
+    if (["revisi", "revision_required", "perlu revisi"].includes(String(status).toLowerCase()) || status === "Perlu Revisi") {
       return <span className="bg-orange-100 text-orange-700 text-[10px] font-semibold px-2 py-0.5 rounded">Perlu Revisi</span>;
     }
     if (status === "rejected" || status === "Ditolak") {

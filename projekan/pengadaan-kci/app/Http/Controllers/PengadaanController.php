@@ -136,6 +136,21 @@ class PengadaanController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        if (! $user->is_admin) {
+            $stepTypes = [
+                'pengajuan-dana' => ['pengajuan-dana', 'purchase-requisition', 'park-dokumen'],
+                'pembayaran' => ['pembayaran', 'umd', 'outsource', 'non-outsource', 'payment-request'],
+            ][$pengadaan->current_step] ?? [$pengadaan->current_step];
+            $latestVerification = Verifikasi::where('pengadaan_id', $pengadaan->id)
+                ->whereIn('tipe', $stepTypes)
+                ->latest()
+                ->first();
+            $editableStatuses = ['revisi', 'revision_required', 'perlu revisi', 'rejected'];
+            if ($latestVerification && ! in_array(strtolower((string) $latestVerification->status), $editableStatuses, true)) {
+                return response()->json(['message' => 'Data yang sudah dikirim tidak dapat diubah sebelum Admin meminta revisi.'], 422);
+            }
+        }
+
         $incomingFormData = $request->input('form_data', $request->all());
         $pengadaan->form_data = $this->normalizeFormData($pengadaan->flow_type, $incomingFormData);
         $pengadaan->updated_by = $user->id;
@@ -172,6 +187,25 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
             return response()->json(['message' => 'Tahap belum dapat diproses. Selesaikan tahapan sebelumnya terlebih dahulu.'], 422);
         }
 
+
+        $existing = Verifikasi::where('pengadaan_id', $pengadaan->id)
+            ->where('tipe', $tipe)
+            ->latest()
+            ->first();
+
+        $revisionStatuses = ['revisi', 'revision_required', 'perlu revisi'];
+        if ($existing && in_array(strtolower((string) $existing->status), $revisionStatuses, true)) {
+            $candidateFormData = $request->has('form_data')
+                ? $this->normalizeFormData($pengadaan->flow_type, $request->form_data)
+                : ($pengadaan->form_data ?? []);
+            $candidateSnapshot = $this->revisionSnapshot($pengadaan, $candidateFormData);
+            if ($this->canonicalize($candidateSnapshot) === $this->canonicalize($existing->revision_snapshot ?? [])) {
+                return response()->json([
+                    'message' => 'Belum ada perubahan. Perbaiki data sesuai catatan Admin sebelum mengirim revisi.',
+                ], 422);
+            }
+        }
+
         // Simpan payload yang sama sebelum membuat antrean verifikasi. Dengan
         // begitu admin selalu membaca detail yang identik dengan input user.
         if ($request->has('form_data')) {
@@ -182,18 +216,18 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
         // Simpan data form tahapan ke tabel khusus (npp / sp3 / contract)
         $this->persistStepDocument($request, $pengadaan, $stepId);
 
-        // Check existing verif record for this step
-        $existing = Verifikasi::where('pengadaan_id', $pengadaan->id)
-            ->where('tipe', $tipe)
-            ->latest()
-            ->first();
-
         if ($existing) {
             $oldStatus = $existing->status;
             $existing->status = 'pending';
             $existing->catatan_admin = null;
+            $existing->pengadaan_nama = $pengadaan->nama;
+            $existing->departemen = $pengadaan->departemen;
+            $existing->nominal = $pengadaan->nominal;
             $existing->submit_by = $request->user()->name;
             $existing->submit_at = now();
+            $existing->verified_by = null;
+            $existing->verified_at = null;
+            $existing->revision_snapshot = null;
             $existing->save();
 
             $pengadaan->status = 'waiting_approval';
@@ -209,8 +243,9 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
         }
 
         // Create new verif record if no existing record
-        $lastVerif = Verifikasi::where('id', 'regexp', '^VR-[0-9]+$')->orderBy('id', 'desc')->first();
-        $nextVerif = $lastVerif ? intval(substr($lastVerif->id, 3)) + 1 : Verifikasi::count() + 1;
+        $nextVerif = (Verifikasi::where('id', 'like', 'VR-%')->pluck('id')
+            ->map(fn (string $id) => ctype_digit(substr($id, 3)) ? (int) substr($id, 3) : 0)
+            ->max() ?? 0) + 1;
         $verifId = 'VR-' . str_pad($nextVerif, 3, '0', STR_PAD_LEFT);
         
         $verif = Verifikasi::create([
@@ -236,6 +271,30 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
             'verifikasi' => $verif,
             'pengadaan'  => $pengadaan,
         ]);
+    }
+
+    private function revisionSnapshot(Pengadaan $pengadaan, ?array $formData = null): array
+    {
+        $data = $formData ?? ($pengadaan->form_data ?? []);
+        unset($data['__meta']);
+
+        return [
+            'form_data' => $data,
+            'documents' => UploadedDocument::where('pengadaan_id', $pengadaan->id)
+                ->orderBy('id')
+                ->get(['stage', 'original_name', 'path', 'size'])
+                ->map(fn (UploadedDocument $document) => $document->toArray())
+                ->values()
+                ->all(),
+        ];
+    }
+
+    private function canonicalize(mixed $value): mixed
+    {
+        if (! is_array($value)) return $value;
+        if (! array_is_list($value)) ksort($value);
+        foreach ($value as $key => $nested) $value[$key] = $this->canonicalize($nested);
+        return $value;
     }
 
 
@@ -271,6 +330,14 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
                 'canProceed'    => $stepId === $pengadaan->current_step,
                 'message'       => 'Tahap ini belum diajukan verifikasi.',
             ]);
+        }
+
+        if (in_array(strtolower((string) $latestVerif->status), ['revisi', 'revision_required', 'perlu revisi'], true)
+            && empty($latestVerif->revision_snapshot)) {
+            // Menangani data revisi lama yang dibuat sebelum snapshot tersedia.
+            // Snapshot dibuat saat user pertama kali membuka kembali tahap revisi.
+            $latestVerif->revision_snapshot = $this->revisionSnapshot($pengadaan);
+            $latestVerif->save();
         }
 
         $displayStatus = $latestVerif->status;
@@ -315,7 +382,16 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
             'status'      => 'sometimes|string',
         ]);
 
-        if (! $user->is_admin && ! in_array($pengadaan->status, ['draft', 'revision_required', 'rejected'], true)) return response()->json(['message' => 'Pengadaan tidak dapat diubah pada status saat ini.'], 422);
+        $originalStatus = strtolower((string) $pengadaan->status);
+        $revisionStatuses = ['revision_required', 'revisi', 'perlu revisi', 'rejected'];
+        if (! $user->is_admin && ! in_array($originalStatus, ['draft', ...$revisionStatuses], true)) return response()->json(['message' => 'Pengadaan tidak dapat diubah pada status saat ini.'], 422);
+
+        $before = [
+            'nama' => trim((string) $pengadaan->nama),
+            'departemen' => trim((string) $pengadaan->departemen),
+            'nominal' => preg_replace('/\D/', '', (string) $pengadaan->nominal),
+            'form_data' => $pengadaan->form_data ?? [],
+        ];
         if ($request->has('nama')) {
             $trimmedName = trim($request->nama);
             if (Pengadaan::where('id', '!=', $pengadaan->id)->whereRaw('LOWER(nama) = ?', [strtolower($trimmedName)])->exists()) {
@@ -338,6 +414,37 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
             ]);
         }
         if ($request->has('form_data')) $pengadaan->form_data = $this->normalizeFormData($pengadaan->flow_type, $request->form_data);
+
+        if (! $user->is_admin && in_array($originalStatus, $revisionStatuses, true)) {
+            $after = [
+                'nama' => trim((string) $pengadaan->nama),
+                'departemen' => trim((string) $pengadaan->departemen),
+                'nominal' => preg_replace('/\D/', '', (string) $pengadaan->nominal),
+                'form_data' => $pengadaan->form_data ?? [],
+            ];
+            abort_if($before == $after, 422, 'Belum ada perubahan. Ubah data atau dokumen sesuai catatan revisi sebelum mengirim ulang.');
+            $pengadaan->status = 'pending';
+            $latestVerification = $pengadaan->verifikasiRecords()->latest('submit_at')->first();
+            if ($latestVerification) {
+                $latestVerification->status = 'pending';
+                $latestVerification->catatan_admin = null;
+                $latestVerification->pengadaan_nama = $pengadaan->nama;
+                $latestVerification->departemen = $pengadaan->departemen;
+                $latestVerification->nominal = $pengadaan->nominal;
+                $latestVerification->submit_by = $user->name;
+                $latestVerification->submit_at = now();
+                $latestVerification->verified_by = null;
+                $latestVerification->verified_at = null;
+                $latestVerification->revision_snapshot = null;
+                $latestVerification->save();
+            }
+
+            // Jalur edit dari daftar memakai PUT /pengadaan. Sinkronkan juga
+            // tabel dokumen tahap agar seluruh layar Admin membaca revisi baru.
+            if ($request->has('form_data')) {
+                $this->persistStepDocument($request, $pengadaan, $pengadaan->current_step);
+            }
+        }
         if ($user->is_admin && $request->has('status')) $pengadaan->status = $request->status;
         $pengadaan->updated_by = $user->id;
 
@@ -425,8 +532,10 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
         if ($document) {
             $id = $document->id;
         } else {
-            $last = $modelClass::where('id', 'regexp', '^' . $prefix . '-[0-9]+$')->orderBy('id', 'desc')->first();
-            $next = $last ? intval(substr($last->id, strlen($prefix) + 1)) + 1 : 1;
+            $offset = strlen($prefix) + 1;
+            $next = ($modelClass::where('id', 'like', $prefix . '-%')->pluck('id')
+                ->map(fn (string $documentId) => ctype_digit(substr($documentId, $offset)) ? (int) substr($documentId, $offset) : 0)
+                ->max() ?? 0) + 1;
             $id = $prefix . '-' . str_pad($next, 3, '0', STR_PAD_LEFT);
         }
 
@@ -484,6 +593,12 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
             $data['tgl_awal']   = $request->tgl_awal ?? $subFd['tglAwal'] ?? $subFd['targetLogistik'] ?? null;
             $data['tgl_akhir']  = $request->tgl_akhir ?? $subFd['tglAkhir'] ?? $subFd['perkiraanWaktu'] ?? null;
             $data['keterangan'] = $request->keterangan ?? $subFd['keterangan'] ?? null;
+        } elseif ($stepId === 'pengajuan-dana' && $pengadaan->flow_type === 'pd') {
+            $data['no_dokumen'] = $request->no_dokumen ?? $subFd['noDokumen'] ?? null;
+            $data['judul']      = $request->judul ?? $subFd['judulPermohonan'] ?? $subFd['judul'] ?? $pengadaan->nama;
+            $data['departemen'] = $request->departemen ?? $subFd['subUnit'] ?? $subFd['divisi'] ?? $pengadaan->departemen;
+            $data['kategori']   = $request->kategori ?? $subFd['jenisPermohonan'] ?? $subFd['kategori'] ?? null;
+            $data['nominal']    = $request->nominal ?? $subFd['nominalPermohonan'] ?? $subFd['nominal'] ?? $pengadaan->nominal;
         } elseif ($stepId === 'pengajuan-dana') {
             $data['no_pr']            = $request->no_pr ?? $subFd['noPr'] ?? null;
             $data['judul']            = $request->judul ?? $subFd['judulPermohonan'] ?? $subFd['judul'] ?? $pengadaan->nama;
@@ -491,7 +606,7 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
             $data['sub_unit']         = $request->sub_unit ?? $subFd['subUnit'] ?? null;
             $data['jenis_permohonan'] = $request->jenis_permohonan ?? $subFd['jenisPermohonan'] ?? null;
             $data['nominal']          = $request->nominal ?? $subFd['nominalPermohonan'] ?? $subFd['nominal'] ?? $pengadaan->nominal;
-} elseif (($stepId === 'pengajuan-dana' && $pengadaan->flow_type === 'pd') || $stepId === 'park-dokumen' || $stepId === 'buat-pd' || $stepId === 'detail-pd') {
+        } elseif ($stepId === 'park-dokumen' || $stepId === 'buat-pd' || $stepId === 'detail-pd') {
             $data['no_dokumen'] = $request->no_dokumen ?? $subFd['noDokumen'] ?? null;
             $data['judul']      = $request->judul ?? $subFd['judulPermohonan'] ?? $subFd['judul'] ?? $pengadaan->nama;
             $data['departemen'] = $request->departemen ?? $subFd['subUnit'] ?? $subFd['divisi'] ?? $pengadaan->departemen;

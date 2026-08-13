@@ -26,11 +26,13 @@ class Verifikasi extends Model
         'catatan_admin',
         'verified_by',
         'verified_at',
+        'revision_snapshot',
     ];
 
     protected $casts = [
         'submit_at' => 'datetime',
         'verified_at' => 'datetime',
+        'revision_snapshot' => 'array',
     ];
 
     public function pengadaan()

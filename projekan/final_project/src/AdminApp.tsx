@@ -132,7 +132,7 @@ function useAdminVerificationQueue(types: string) {
 }
 
 function mapVerificationRow(verifikasi: any) {
-  const form = verifikasi.document_form_data || verifikasi.pengadaan_form_data || {};
+  const form = verifikasi.effective_form_data || verifikasi.pengadaan_form_data || verifikasi.document_form_data || {};
   const document = verifikasi.document || {};
   // Form pengadaan berisi objek per tahapan (RUP, NPP, SP3, kontrak, dst.).
   // Ambil nilai dari seluruh tahapan agar tabel pengujian dapat mereferensikan
@@ -1694,6 +1694,14 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
 
   useEffect(() => {
     fetchDanaData();
+    const timer = window.setInterval(fetchDanaData, 15000);
+    window.addEventListener("focus", fetchDanaData);
+    window.addEventListener("verification-updated", fetchDanaData);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", fetchDanaData);
+      window.removeEventListener("verification-updated", fetchDanaData);
+    };
   }, [category, doc]);
 
   const deleteDanaVerification = async () => {
@@ -6246,7 +6254,7 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
           status: st,
           statusHps: "Final",
           nama: v.pengadaan_nama || existing.nama || "Pengadaan Baru",
-          formData: v.document_form_data || v.pengadaan_form_data || {},
+          formData: v.effective_form_data || v.pengadaan_form_data || v.document_form_data || {},
           noNpp: v.document?.no_npp,
           verif_id: v.id
         });
