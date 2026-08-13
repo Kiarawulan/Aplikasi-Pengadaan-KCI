@@ -6,6 +6,7 @@ import { api } from "@/services/api";
 import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { useAuth } from "@/store/authStore";
 import { DIVISI_LIST } from "@/constants/divisi";
+import { useMasterReferenceOptions } from "@/hooks/useMasterReferenceOptions";
 
 export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Pengadaan Baru", submitLabel = "Submit", initialStep = "npp" as ParkStep, initialData, isViewOnly, requiresRup = true, requireChanges = false, existingItems = [], editingId }: {
   onClose: () => void; onSubmit: (item: any) => void | Promise<void>;
@@ -15,6 +16,10 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { currentUser } = useAuth();
+  const { items: yearReferences } = useMasterReferenceOptions("tahun-anggaran");
+  const { items: divisionReferences } = useMasterReferenceOptions("unit-kerja");
+  const { items: procurementTypeReferences } = useMasterReferenceOptions("jenis-pengadaan");
+  const { items: currencyReferences } = useMasterReferenceOptions("mata-uang");
   const today = new Date().toISOString().split("T")[0];
   const [rupList, setRupList] = useState<RupItem[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -323,9 +328,7 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
             <div>
               <label className="block text-[11.5px] font-medium text-[#0a0a0a] mb-1.5">Tahun <span className="text-[#e6251c]">*</span></label>
               <select value={form.tahun} onChange={set("tahun")} className={`w-full border rounded-xl px-3 py-2 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] bg-white ${errors.tahun ? "border-red-400" : "border-gray-200"}`}>
-                {Array.from({length: 5}, (_, i) => new Date().getFullYear() + i).map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
+                {(yearReferences.length ? yearReferences.map(item => item.tahun || item.nama) : Array.from({length: 5}, (_, i) => new Date().getFullYear() + i)).map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
           </div>
@@ -335,17 +338,14 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
               <label className="block text-[11.5px] font-medium text-[#0a0a0a] mb-1.5">Divisi <span className="text-[#e6251c]">*</span></label>
               <select value={form.divisi} onChange={set("divisi")} className={`w-full border rounded-xl px-3 py-2 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] bg-white ${errors.divisi ? "border-red-400" : "border-gray-200"}`}>
                 <option value="" disabled>Pilih Divisi</option>
-                {DIVISI_LIST.map((divisi) => <option key={divisi} value={divisi}>{divisi}</option>)}
+                {(divisionReferences.length ? divisionReferences : DIVISI_LIST.map(nama => ({ id: nama, nama }))).map((item: any) => <option key={item.id} value={item.nama}>{item.nama}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-[11.5px] font-medium text-[#0a0a0a] mb-1.5">Jenis Permohonan <span className="text-[#e6251c]">*</span></label>
               <select value={form.jenisPermohonan} onChange={set("jenisPermohonan")} className={`w-full border rounded-xl px-3 py-2 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] bg-white ${errors.jenisPermohonan ? "border-red-400" : "border-gray-200"}`}>
                 <option value="" disabled>Pilih Jenis Permohonan</option>
-                <option value="Barang">Barang</option>
-                <option value="Jasa">Jasa</option>
-                <option value="Konstruksi">Konstruksi</option>
-                <option value="Konsultansi">Konsultansi</option>
+                {(procurementTypeReferences.length ? procurementTypeReferences.map(item => item.nama) : ["Barang", "Jasa", "Konstruksi", "Konsultansi"]).map(value => <option key={value} value={value}>{value}</option>)}
               </select>
             </div>
           </div>
@@ -360,11 +360,13 @@ export function PembelianBaruPopup({ onClose, onSubmit, title = "Pembuatan Penga
               <label className="block text-[11.5px] font-medium text-[#0a0a0a] mb-1.5">Nominal Permohonan <span className="text-[#e6251c]">*</span></label>
               <div className="flex gap-2">
                 <select value={form.kurs} onChange={handleKursChange} className="w-16 shrink-0 border rounded-xl px-2 py-2 text-[11.5px] font-bold focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] border-gray-200 bg-white text-center">
-                  <option value="IDR">Rp</option>
-                  <option value="USD">$</option>
-                  <option value="JPY">¥</option>
-                  <option value="KRW">₩</option>
-                  <option value="EUR">€</option>
+                  {(currencyReferences.length ? currencyReferences : [
+                    { id: "IDR", kode: "IDR", simbol: "Rp" },
+                    { id: "USD", kode: "USD", simbol: "$" },
+                    { id: "JPY", kode: "JPY", simbol: "¥" },
+                    { id: "KRW", kode: "KRW", simbol: "₩" },
+                    { id: "EUR", kode: "EUR", simbol: "€" },
+                  ]).map(item => <option key={item.id} value={item.kode}>{item.simbol || item.kode}</option>)}
                 </select>
                 <input type="text" value={form.nominalPermohonan} onChange={handleNominalPermohonanChange} className={`flex-1 border rounded-xl px-3 py-2 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-[#e6251c]/20 focus:border-[#e6251c] ${errors.nominalPermohonan ? "border-red-400" : "border-gray-200"}`} placeholder="0" />
               </div>

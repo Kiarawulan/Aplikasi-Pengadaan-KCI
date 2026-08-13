@@ -101,7 +101,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/templates/{template}', [TemplateDokumenController::class, 'destroy'])->middleware('module.permission:templateDokumen,editor');
 
     // Opsi vendor diperlukan oleh form NPP User; perubahan master tetap khusus Admin.
-    Route::get('/vendors/options', [VendorController::class, 'index'])->middleware('module.permission:pengadaan,viewer');
+    Route::get('/vendors/options', [VendorController::class, 'options']);
 
     // Vendors
     Route::get('/vendors', [VendorController::class, 'index'])->middleware('module.permission:masterData,viewer');
@@ -114,6 +114,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('/harga-satuan', HargaSatuanController::class)->middleware('module.permission:masterData,editor');
 
     Route::get('/master-references/{category}', [MasterReferenceController::class, 'index'])->middleware('module.permission:masterData,viewer');
+    Route::get('/master-reference-options/{category}', [MasterReferenceController::class, 'options']);
     Route::post('/master-references/{category}/bootstrap', [MasterReferenceController::class, 'bootstrap'])->middleware('module.permission:masterData,editor');
     Route::post('/master-references/{category}', [MasterReferenceController::class, 'store'])->middleware('module.permission:masterData,editor');
     Route::put('/master-references/{category}/{referenceId}', [MasterReferenceController::class, 'update'])->middleware('module.permission:masterData,editor');

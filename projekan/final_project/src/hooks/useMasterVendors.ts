@@ -23,7 +23,7 @@ export function useMasterVendors() {
 
   useEffect(() => {
     let active = true;
-    api.get("/vendors")
+    const load = () => api.get("/vendors/options")
       .then((response) => {
         const rows = Array.isArray(response.data) ? response.data : response.data?.data;
         if (active && Array.isArray(rows)) setVendors(rows.map(normalizeVendor));
@@ -31,7 +31,12 @@ export function useMasterVendors() {
       .catch(() => {
         // Cache Master Data tetap dipakai saat API sedang tidak tersedia.
       });
-    return () => { active = false; };
+    load();
+    window.addEventListener("master-vendors-updated", load);
+    return () => {
+      active = false;
+      window.removeEventListener("master-vendors-updated", load);
+    };
   }, []);
 
   const activeVendors = useMemo(

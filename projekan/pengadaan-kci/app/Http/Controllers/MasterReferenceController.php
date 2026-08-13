@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\MasterReference;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class MasterReferenceController extends Controller
 {
@@ -13,18 +12,22 @@ class MasterReferenceController extends Controller
         return response()->json($this->items($category));
     }
 
+    public function options(string $category)
+    {
+        $items = collect($this->items($category))
+            ->filter(function (array $item) {
+                $status = strtolower((string) ($item['status'] ?? 'aktif'));
+                return ! in_array($status, ['non-aktif', 'nonaktif', 'inactive', 'blacklist'], true);
+            })
+            ->sortBy(fn (array $item) => strtolower((string) ($item['nama'] ?? $item['kode'] ?? $item['id'] ?? '')))
+            ->values();
+
+        return response()->json($items);
+    }
+
     public function bootstrap(Request $request, string $category)
     {
-        $data = $request->validate(['items' => ['array'], 'items.*.id' => ['required', 'string']]);
-        DB::transaction(function () use ($category, $data) {
-            $initialized = DB::table('master_reference_categories')->where('category', $category)->lockForUpdate()->exists();
-            if (! $initialized) {
-                foreach ($data['items'] as $item) {
-                    MasterReference::create(['category' => $category, 'reference_id' => $item['id'], 'data' => $item]);
-                }
-                DB::table('master_reference_categories')->insert(['category' => $category, 'created_at' => now(), 'updated_at' => now()]);
-            }
-        });
+        // Kompatibilitas untuk frontend lama: jangan pernah memasukkan data contoh lagi.
         return response()->json($this->items($category));
     }
 

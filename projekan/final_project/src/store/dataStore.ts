@@ -66,13 +66,9 @@ const DEFAULT_TEMPLATES: TemplateDokumen[] = [
   { id: "TPL-003", nama: "Template Kontrak - Barang", kategori: "Contract", tipe: "PDF", ukuran: "1.2 MB", deskripsi: "Template kontrak standard untuk barang", uploadedBy: "Super Admin", uploadedAt: "2024-01-12" },
 ];
 
-const DEFAULT_VENDORS: Vendor[] = [
-  { id: "VND-001", nama: "PT Maju Bersama Teknologi", npwp: "01.234.567.8-001.000", alamat: "Jl. Sudirman No. 45, Jakarta", kontakPerson: "Hendra K.", telepon: "021-5551234", email: "info@majubersama.co.id", kategori: "Teknologi", status: "aktif", createdAt: "2024-01-05" },
-];
+const DEFAULT_VENDORS: Vendor[] = [];
 
-const DEFAULT_HARGA: HargaSatuan[] = [
-  { id: "HS-001", namaBarang: "Laptop Dell Latitude 5540", satuan: "Unit", harga: 18500000, kategori: "IT Hardware", tahun: "2024", updatedAt: "2024-01-10" },
-];
+const DEFAULT_HARGA: HargaSatuan[] = [];
 
 const DEFAULT_PENGUJIAN = [
   { id: "PUJ-001", nama: "Laptop Dell Latitude 5540", pemohon: "Andi Wijaya", departemen: "CTIT", tanggal: "2024-03-01", status: "pending", catatan: "" },

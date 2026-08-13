@@ -53,6 +53,8 @@ const TABS: TabDef[] = [
 
 const TAB_GROUPS = ["Umum", "Pengajuan Dana", "Pengadaan", "Pengujian", "Pembayaran"];
 
+const EMPTY_MASTER_DATA = Object.fromEntries(TABS.map(tab => [tab.id, []])) as Record<TabId, MasterItem[]>;
+
 // ─── Mock Data for each tab ────────────────────────────────────────────────────
 const MOCK_DATA: Record<TabId, MasterItem[]> = {
   vendor: [
@@ -435,7 +437,7 @@ export function MasterDataScreen() {
   const allowedGroups = new Set(allowedModules.map(module => module === "pengajuan-dana" ? "Pengajuan Dana" : module.charAt(0).toUpperCase() + module.slice(1)));
   const visibleTabs = TABS.filter(tab => allowedGroups.has(tab.group));
   const [activeTab, setActiveTab] = useState<TabId>((getFigmaCaptureConfig()?.masterTab as TabId) || "vendor");
-  const [allData, setAllData] = useState<Record<TabId, MasterItem[]>>(MOCK_DATA);
+  const [allData, setAllData] = useState<Record<TabId, MasterItem[]>>(EMPTY_MASTER_DATA);
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState<MasterItem | null>(null);
@@ -469,12 +471,30 @@ export function MasterDataScreen() {
       telepon: vendor.telepon || "—",
     }));
     setAllData((previous) => ({ ...previous, vendor: vendors }));
+    window.dispatchEvent(new Event("master-vendors-updated"));
+  };
+
+  const toggleVendorStatus = async (vendor: MasterItem) => {
+    const currentStatus = String(vendor.status || "").toLowerCase();
+    const nextStatus = currentStatus === "aktif" ? "non-aktif" : "aktif";
+    try {
+      await api.put(`/vendors/${vendor.id}`, { status: nextStatus });
+      await loadVendors();
+    } catch (error: any) {
+      setWarning({
+        isOpen: true,
+        title: "Gagal Mengubah Status Vendor",
+        message: error.response?.data?.message || "Status vendor tidak dapat diperbarui.",
+        variant: "error",
+      });
+    }
   };
 
   const loadReferences = async (category: TabId) => {
     if (category === "vendor") return loadVendors();
-    const response = await api.post(`/master-references/${category}/bootstrap`, { items: MOCK_DATA[category] });
+    const response = await api.get(`/master-references/${category}`);
     setAllData(previous => ({ ...previous, [category]: Array.isArray(response.data) ? response.data : [] }));
+    window.dispatchEvent(new Event(`master-reference-updated:${category}`));
   };
 
   useEffect(() => {
@@ -698,7 +718,16 @@ export function MasterDataScreen() {
                     {col.render ? col.render(item) : <span className="text-[12px] text-gray-700">{item[col.key]}</span>}
                   </div>
                 ))}
-                <div className="w-28 px-3 py-3 flex items-center justify-end gap-1">
+                <div className={`${activeTab === "vendor" ? "w-48" : "w-28"} px-3 py-3 flex items-center justify-end gap-1`}>
+                  {activeTab === "vendor" && (
+                    <button
+                      onClick={() => toggleVendorStatus(item)}
+                      className={`h-7 rounded-lg px-2 text-[9px] font-bold transition-colors ${String(item.status).toLowerCase() === "aktif" ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-green-50 text-green-700 hover:bg-green-100"}`}
+                      title={String(item.status).toLowerCase() === "aktif" ? "Nonaktifkan vendor" : "Aktifkan vendor"}
+                    >
+                      {String(item.status).toLowerCase() === "aktif" ? "Nonaktif" : "Aktifkan"}
+                    </button>
+                  )}
                   <button onClick={() => setShowEdit(item)} className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center hover:bg-amber-100 transition-colors" title="Edit">
                     <Edit3 size={11} className="text-amber-600" />
                   </button>

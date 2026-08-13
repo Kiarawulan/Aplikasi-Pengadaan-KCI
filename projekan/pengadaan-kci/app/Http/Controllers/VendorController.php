@@ -12,6 +12,16 @@ class VendorController extends Controller
         return response()->json(Vendor::all());
     }
 
+    public function options()
+    {
+        return response()->json(
+            Vendor::query()
+                ->whereRaw('LOWER(status) = ?', ['aktif'])
+                ->orderBy('nama')
+                ->get()
+        );
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -70,6 +80,11 @@ class VendorController extends Controller
 
     public function update(Request $request, Vendor $vendor)
     {
+        $request->validate([
+            'nama' => 'sometimes|required|string',
+            'email' => 'sometimes|nullable|email',
+            'status' => 'sometimes|required|in:aktif,non-aktif,blacklist,Aktif,Non-Aktif,Blacklist',
+        ]);
         if ($request->has('nama')) {
             $trimmedName = trim($request->nama);
             if (Vendor::where('id', '!=', $vendor->id)->whereRaw('LOWER(nama) = ?', [strtolower($trimmedName)])->exists()) {
