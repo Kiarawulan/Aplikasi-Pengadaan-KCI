@@ -1,4 +1,4 @@
-# SIPRO (Sistem Informasi Pengadaan KCI)
+#APLIKASI PENGADAAN KCI
 **Aplikasi Terintegrasi Manajemen & Digitalisasi Proses Pengadaan Barang/Jasa PT Kereta Commuter Indonesia**
 
 </div>
@@ -7,7 +7,7 @@
 
 ## 📌 Tentang Aplikasi
 
-**SIPRO** (*Sistem Informasi Pengadaan*) adalah platform web enterprise yang dirancang khusus untuk mengelola, mendokumentasikan, dan memantau seluruh siklus hidup pengadaan barang dan jasa di lingkungan **PT Kereta Commuter Indonesia (KCI)** secara transparan, akuntabel, dan real-time.
+**Aplikasi Pengadaan KCI**  adalah platform web enterprise yang dirancang khusus untuk mengelola, mendokumentasikan, dan memantau seluruh siklus hidup pengadaan barang dan jasa di lingkungan **PT Kereta Commuter Indonesia (KCI)** secara transparan, akuntabel, dan real-time.
 
 Aplikasi ini mencakup seluruh rantai proses pengadaan: mulai dari perencanaan (RUP), verifikasi dokumen, penerbitan dokumen tahapan (NPP, SP3, Kontrak), proses pengujian & BAST, manajemen rekanan/vendor, standarisasi harga satuan, hingga verifikasi pembayaran.
 
@@ -133,7 +133,7 @@ npm run dev
 
 Jika menggunakan Windows dan XAMPP, Anda dapat langsung menjalankan file batch otomatis:
 ```cmd
-double-click start-sipro.bat
+double-click start-Aplikasi Pengadaan KCI.bat
 ```
 Skrip ini akan otomatis menyalakan MySQL, Laravel Backend API (`http://localhost:8000`), dan React Frontend (`http://localhost:5173`).
 
@@ -143,8 +143,8 @@ Skrip ini akan otomatis menyalakan MySQL, Laravel Backend API (`http://localhost
 
 | Peran (Role) | Email / Username | Password | Deskripsi Akses |
 | :--- | :--- | :--- | :--- |
-| **Super Admin** | `admin@sipro.com` | `admin123` | Akses penuh seluruh sistem, user management & verifikasi |
-| **IT User / Unit** | `it@sipro.com` | `it123` | Pembuatan RUP, pengajuan pengadaan, upload dokumen |
+| **Super Admin** | `admin@Aplikasi Pengadaan KCI.com` | `admin123` | Akses penuh seluruh sistem, user management & verifikasi |
+| **IT User / Unit** | `it@Aplikasi Pengadaan KCI.com` | `it123` | Pembuatan RUP, pengajuan pengadaan, upload dokumen |
 
 ---
 
@@ -170,7 +170,7 @@ KCI-PROJEKAN/
 │   ├── routes/api.php         # Endpoint Definisi REST API
 │   └── composer.json
 │
-├── start-sipro.bat            # Windows One-Click Auto Runner
+├── start-Aplikasi Pengadaan KCI.bat            # Windows One-Click Auto Runner
 └── README.md                  # Dokumentasi Utama Proyek
 ```
 
