@@ -356,18 +356,18 @@ function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
       {/* Gradient sidebar */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#e6251c] to-[#c20f06] rounded-tr-[24px] rounded-br-[24px] rounded-tl-none rounded-bl-none shadow-[0px_0px_6px_0px_rgba(0,0,0,0.22)] overflow-hidden">
         {/* Logo */}
-        <div className="absolute top-0 left-0 right-0 h-[125px] flex items-center justify-center px-[12px]">
-          <div className="w-[215px] h-[97px] overflow-hidden relative flex items-center justify-center">
+        <div className="absolute top-0 left-0 right-0 h-[96px] flex items-center justify-center px-[20px] border-b border-white/10">
+          <div className="w-full h-full overflow-hidden relative flex items-center justify-center">
             <img
               src={logoImg}
               alt="Logo KCI"
-              className="h-[76px] w-auto object-contain transition-transform duration-200 hover:scale-105"
+              className="block h-[76px] max-w-[190px] w-auto object-contain transition-transform duration-200 hover:scale-105"
             />
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="absolute top-[125px] bottom-[76px] left-0 right-0 overflow-auto px-[8px] py-[4px] flex flex-col gap-[2px]">
+        <nav className="absolute top-[96px] bottom-[76px] left-0 right-0 overflow-auto px-[8px] py-[4px] flex flex-col gap-[2px]">
           {/* Dashboard */}
           {canDashboard && <NavLink
             label="Dashboard"

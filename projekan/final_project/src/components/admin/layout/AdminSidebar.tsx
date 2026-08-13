@@ -166,11 +166,11 @@ export function AdminSidebar({
       <div className="absolute inset-0 bg-gradient-to-b from-[#e6251c] to-[#c20f06] rounded-tr-[24px] rounded-br-[24px] rounded-tl-none rounded-bl-none shadow-[0px_0px_6px_0px_rgba(0,0,0,0.22)] overflow-hidden flex flex-col justify-between">
         <div>
           {/* Logo & Toggle */}
-          <div className="h-[96px] flex items-center justify-between px-3 border-b border-white/10">
-            <div className="flex items-center justify-center flex-1">
-              <img src={logoImg} alt="Logo KCI" className="h-[68px] w-auto object-contain transition-transform duration-200 hover:scale-105" />
+          <div className="relative h-[96px] flex items-center justify-center px-5 border-b border-white/10">
+            <div className="flex h-full w-full items-center justify-center">
+              <img src={logoImg} alt="Logo KAI Commuter" className="block h-[76px] max-w-[190px] w-auto object-contain transition-transform duration-200 hover:scale-105" />
             </div>
-            <button onClick={onToggleCollapse} className="text-white/80 hover:text-white p-1 rounded hover:bg-white/10 transition-colors cursor-pointer">
+            <button onClick={onToggleCollapse} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-1 rounded hover:bg-white/10 transition-colors cursor-pointer">
               <span className="text-xs">◀</span>
             </button>
           </div>
