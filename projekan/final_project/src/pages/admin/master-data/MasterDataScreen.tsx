@@ -6,7 +6,7 @@ import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { getFigmaCaptureConfig } from "@/figmaCapture";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/store/authStore";
-import { getAdminBusinessModules } from "@/utils/adminModuleAccess";
+import { getAdminBusinessModules, type AdminBusinessModule } from "@/utils/adminModuleAccess";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -17,7 +17,7 @@ interface MasterItem {
 
 type TabId =
   | "vendor" | "unit-kerja" | "department" | "direktorat"
-  | "jenis-pengadaan" | "metode-pengadaan" | "kategori-barang" | "jenis-kontrak"
+  | "jenis-pengadaan" | "metode-pengadaan" | "kategori-barang" | "jenis-kontrak" | "opex-capex" | "kategori-anggaran"
   | "tahun-anggaran" | "mata-uang" | "pajak" | "bank"
   | "lokasi" | "penguji" | "jabatan-ttd" 
   | "status-pengadaan" | "status-pengujian" | "status-pembayaran";
@@ -27,28 +27,31 @@ interface TabDef {
   label: string;
   icon: any;
   group: string;
+  modules: AdminBusinessModule[];
 }
 
 // ─── Tab Definitions ───────────────────────────────────────────────────────────
 const TABS: TabDef[] = [
-  { id: "vendor", label: "Vendor", icon: Building2, group: "Umum" },
-  { id: "unit-kerja", label: "Divisi", icon: Users, group: "Umum" },
-  { id: "department", label: "Detail Divisi", icon: Briefcase, group: "Umum" },
-  { id: "direktorat", label: "Direktorat", icon: Building2, group: "Umum" },
-  { id: "jenis-pengadaan", label: "Jenis Pengadaan", icon: Tag, group: "Pengadaan" },
-  { id: "metode-pengadaan", label: "Metode Pengadaan", icon: FileStack, group: "Pengadaan" },
-  { id: "kategori-barang", label: "Kategori Barang/Jasa", icon: Database, group: "Pengadaan" },
-  { id: "jenis-kontrak", label: "Jenis Kontrak", icon: Briefcase, group: "Pengadaan" },
-  { id: "tahun-anggaran", label: "Tahun Anggaran", icon: CalendarDays, group: "Pengajuan Dana" },
-  { id: "mata-uang", label: "Mata Uang", icon: Banknote, group: "Pengajuan Dana" },
-  { id: "pajak", label: "Pajak", icon: Percent, group: "Pembayaran" },
-  { id: "bank", label: "Bank", icon: CreditCard, group: "Pembayaran" },
-  { id: "lokasi", label: "Lokasi Pengujian", icon: MapPin, group: "Pengujian" },
-  { id: "penguji", label: "Penguji", icon: FlaskConical, group: "Pengujian" },
-  { id: "jabatan-ttd", label: "Jabatan Penandatangan", icon: PenTool, group: "Pengadaan" },
-  { id: "status-pengadaan", label: "Status Pengadaan", icon: Activity, group: "Pengadaan" },
-  { id: "status-pengujian", label: "Status Pengujian", icon: Activity, group: "Pengujian" },
-  { id: "status-pembayaran", label: "Status Pembayaran", icon: Activity, group: "Pembayaran" },
+  { id: "vendor", label: "Vendor", icon: Building2, group: "Umum", modules: ["umum"] },
+  { id: "unit-kerja", label: "Divisi", icon: Users, group: "Umum", modules: ["umum"] },
+  { id: "department", label: "Detail Divisi", icon: Briefcase, group: "Umum", modules: ["umum"] },
+  { id: "direktorat", label: "Direktorat", icon: Building2, group: "Umum", modules: ["umum"] },
+  { id: "jenis-pengadaan", label: "Jenis Pengadaan", icon: Tag, group: "Pengadaan", modules: ["pengadaan"] },
+  { id: "metode-pengadaan", label: "Metode Pengadaan", icon: FileStack, group: "Pengadaan", modules: ["pengadaan"] },
+  { id: "opex-capex", label: "Opex / Capex", icon: Banknote, group: "Pengadaan", modules: ["pengadaan"] },
+  { id: "kategori-anggaran", label: "Kategori Anggaran", icon: Tag, group: "Pengadaan", modules: ["pengadaan"] },
+  { id: "kategori-barang", label: "Kategori Barang/Jasa", icon: Database, group: "Pengadaan", modules: ["pengadaan", "pengujian"] },
+  { id: "jenis-kontrak", label: "Jenis Kontrak", icon: Briefcase, group: "Pengadaan", modules: ["pengadaan", "pengujian", "pembayaran"] },
+  { id: "tahun-anggaran", label: "Tahun Anggaran", icon: CalendarDays, group: "Pengajuan Dana", modules: ["pengajuan-dana", "pengadaan"] },
+  { id: "mata-uang", label: "Mata Uang / Kurs", icon: Banknote, group: "Pengajuan Dana", modules: ["pengajuan-dana", "pengadaan", "pembayaran"] },
+  { id: "pajak", label: "Pajak", icon: Percent, group: "Pembayaran", modules: ["pengadaan", "pembayaran"] },
+  { id: "bank", label: "Bank", icon: CreditCard, group: "Pembayaran", modules: ["pengadaan", "pembayaran"] },
+  { id: "lokasi", label: "Lokasi Pengujian", icon: MapPin, group: "Pengujian", modules: ["pengadaan", "pengujian"] },
+  { id: "penguji", label: "Penguji", icon: FlaskConical, group: "Pengujian", modules: ["pengujian"] },
+  { id: "jabatan-ttd", label: "Jabatan Penandatangan", icon: PenTool, group: "Pengadaan", modules: ["pengajuan-dana", "pengadaan", "pengujian", "pembayaran"] },
+  { id: "status-pengadaan", label: "Status Pengadaan", icon: Activity, group: "Pengadaan", modules: ["pengadaan"] },
+  { id: "status-pengujian", label: "Status Pengujian", icon: Activity, group: "Pengujian", modules: ["pengujian"] },
+  { id: "status-pembayaran", label: "Status Pembayaran", icon: Activity, group: "Pembayaran", modules: ["pembayaran"] },
 ];
 
 const TAB_GROUPS = ["Umum", "Pengajuan Dana", "Pengadaan", "Pengujian", "Pembayaran"];
@@ -317,6 +320,8 @@ function getFormFields(tab: TabId): { key: string; label: string; type?: string;
     case "metode-pengadaan":
       return [{ key: "nama", label: "Nama Metode", required: true }, { key: "kode", label: "Kode", required: true }, { key: "batasNilai", label: "Batas Nilai" }];
     case "kategori-barang":
+    case "opex-capex":
+    case "kategori-anggaran":
       return [{ key: "nama", label: "Nama Kategori", required: true }, { key: "kode", label: "Kode", required: true }];
     case "tahun-anggaran":
       return [{ key: "nama", label: "Nama", required: true }, { key: "tahun", label: "Tahun", required: true }, { key: "status", label: "Status", options: ["Aktif", "Perencanaan", "Selesai"] }];
@@ -434,8 +439,7 @@ function ConfirmDeleteModal({ onConfirm, onClose }: { onConfirm: () => void; onC
 export function MasterDataScreen() {
   const { currentUser } = useAuth();
   const allowedModules = getAdminBusinessModules(currentUser);
-  const allowedGroups = new Set(allowedModules.map(module => module === "pengajuan-dana" ? "Pengajuan Dana" : module.charAt(0).toUpperCase() + module.slice(1)));
-  const visibleTabs = TABS.filter(tab => allowedGroups.has(tab.group));
+  const visibleTabs = TABS.filter(tab => tab.modules.some(module => allowedModules.includes(module)));
   const [activeTab, setActiveTab] = useState<TabId>((getFigmaCaptureConfig()?.masterTab as TabId) || "vendor");
   const [allData, setAllData] = useState<Record<TabId, MasterItem[]>>(EMPTY_MASTER_DATA);
   const [search, setSearch] = useState("");
@@ -638,11 +642,11 @@ export function MasterDataScreen() {
   return (
     <div className="flex-1 min-h-0 overflow-auto bg-[#f8fafc] select-none">
       <div className="max-w-[1280px] mx-auto px-6 py-6">
-        <AdminTopBar title="Master Data" subtitle="Kelola data referensi sistem" />
+        <AdminTopBar title="Master Data" />
 
         {/* Tab Groups */}
         <div className="space-y-3 mb-6">
-          {TAB_GROUPS.filter(group => allowedGroups.has(group)).map(group => {
+          {TAB_GROUPS.filter(group => visibleTabs.some(tab => tab.group === group)).map(group => {
             const groupTabs = visibleTabs.filter(t => t.group === group);
             return (
               <div key={group}>

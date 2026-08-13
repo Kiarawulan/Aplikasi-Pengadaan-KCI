@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FileText, DollarSign, Calendar } from 'lucide-react';
 import { WarningModal, WarningVariant } from '@/components/common/WarningModal';
+import { useMasterReferenceOptions } from '@/hooks/useMasterReferenceOptions';
 
 interface TambahRupModalProps {
   onClose: () => void;
@@ -17,6 +18,11 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
   existingRups = [],
   editingId,
 }) => {
+  const { items: methodReferences } = useMasterReferenceOptions('metode-pengadaan');
+  const { items: procurementTypeReferences } = useMasterReferenceOptions('jenis-pengadaan');
+  const { items: taxReferences } = useMasterReferenceOptions('pajak');
+  const { items: opexCapexReferences } = useMasterReferenceOptions('opex-capex');
+  const { items: budgetCategoryReferences } = useMasterReferenceOptions('kategori-anggaran');
   const [warning, setWarning] = useState<{
     isOpen: boolean;
     title: string;
@@ -42,7 +48,7 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
     namaPaket: initialData?.namaPaket || initialData?.judul || initialData?.nama || '',
     opexCapex: initialData?.opexCapex || initialData?.capexOpex || '',
     uraian: initialData?.uraian || '',
-    metode: initialData?.metode || 'Penunjukan Langsung',
+    metode: initialData?.metode || '',
     jenisPengadaan: initialData?.jenisPengadaan || initialData?.jenis || '',
     kategoriAnggaran: initialData?.kategoriAnggaran || initialData?.kategori || '',
     tahunAnggaran: initialData?.tahunAnggaran || new Date().getFullYear().toString(),
@@ -309,8 +315,7 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
                   className="w-full h-[34px] border border-gray-200 rounded-md px-2.5 text-[10.5px] outline-none focus:border-[#252271] focus:ring-1 focus:ring-[#252271]/20 transition-all bg-white font-medium"
                 >
                   <option value="">-- Pilih Opex / Capex --</option>
-                  <option value="Capex">Capex</option>
-                  <option value="Opex">Opex</option>
+                  {opexCapexReferences.map(item => <option key={item.id} value={item.nama}>{item.nama}</option>)}
                 </select>
               </div>
 
@@ -324,10 +329,8 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
                   required
                   className="w-full h-[34px] border border-gray-200 rounded-md px-2.5 text-[10.5px] outline-none focus:border-[#252271] focus:ring-1 focus:ring-[#252271]/20 transition-all bg-white font-medium"
                 >
-                  <option value="Penunjukan Langsung">Penunjukan Langsung</option>
-                  <option value="Pelelangan Umum">Pelelangan Umum</option>
-                  <option value="Pemilihan Langsung">Pemilihan Langsung</option>
-                  <option value="Pengadaan Langsung">Pengadaan Langsung</option>
+                  <option value="">-- Pilih Metode Pengadaan --</option>
+                  {methodReferences.map(item => <option key={item.id} value={item.nama}>{item.nama}</option>)}
                 </select>
               </div>
             </div>
@@ -345,9 +348,7 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
                   className="w-full h-[34px] border border-gray-200 rounded-md px-2.5 text-[10.5px] outline-none focus:border-[#252271] focus:ring-1 focus:ring-[#252271]/20 transition-all bg-white font-medium"
                 >
                   <option value="">-- Pilih Jenis Pengadaan --</option>
-                  <option value="Barang">Barang</option>
-                  <option value="Jasa">Jasa</option>
-                  <option value="Konsultansi">Konsultansi</option>
+                  {procurementTypeReferences.map(item => <option key={item.id} value={item.nama}>{item.nama}</option>)}
                 </select>
               </div>
 
@@ -362,9 +363,7 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
                   className="w-full h-[34px] border border-gray-200 rounded-md px-2.5 text-[10.5px] outline-none focus:border-[#252271] focus:ring-1 focus:ring-[#252271]/20 transition-all bg-white font-medium"
                 >
                   <option value="">-- Pilih Kategori Anggaran --</option>
-                  <option value="Investasi">Investasi</option>
-                  <option value="Eksploitasi">Eksploitasi</option>
-                  <option value="Pemeliharaan">Pemeliharaan</option>
+                  {budgetCategoryReferences.map(item => <option key={item.id} value={item.nama}>{item.nama}</option>)}
                 </select>
               </div>
             </div>
@@ -499,10 +498,7 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
                   className="w-full h-[34px] border border-gray-200 rounded-md px-2.5 text-[10.5px] outline-none focus:border-[#252271] focus:ring-1 focus:ring-[#252271]/20 transition-all bg-white font-medium"
                 >
                   <option value="">-- Pilih Tipe Pajak --</option>
-                  <option value="PPN 11%">PPN 11%</option>
-                  <option value="PPN 12%">PPN 12%</option>
-                  <option value="Pajak Dipungut">Pajak Dipungut</option>
-                  <option value="Pajak Tidak Dipungut">Pajak Tidak Dipungut</option>
+                  {taxReferences.map(item => <option key={item.id} value={item.nama}>{item.nama}</option>)}
                 </select>
               </div>
 

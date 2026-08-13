@@ -9,6 +9,7 @@ import { WarningModal, WarningVariant } from "@/components/common/WarningModal";
 import { Plus, CheckCircle2, XCircle, FileWarning, BarChart3, TrendingUp, ShieldCheck } from "lucide-react";
 import { DIVISI_OPTIONS } from "../../../constants/divisi";
 import { useMasterVendors } from "../../../hooks/useMasterVendors";
+import { useMasterReferenceOptions } from "@/hooks/useMasterReferenceOptions";
 import { StatusBadge } from "../../../components/common/StatusBadge";
 
 type ScreenProps = {
@@ -17,6 +18,10 @@ type ScreenProps = {
 
 export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
   const { vendorOptions } = useMasterVendors();
+  const { items: itemCategories } = useMasterReferenceOptions("kategori-barang");
+  const { items: testers } = useMasterReferenceOptions("penguji");
+  const itemCategoryOptions = itemCategories.map(item => ({ value: item.nama, label: item.nama }));
+  const testerOptions = testers.map(item => ({ value: item.nama, label: item.nama }));
   const [loading, setLoading] = useState(false);
   const [kontrakList, setKontrakList] = useState<any[]>([]);
   const [kontrakListOver, setKontrakListOver] = useState<any[]>([]);
@@ -103,10 +108,10 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
   const [bahpFileName, setBahpFileName] = useState("");
 
   const [formKontrak, setFormKontrak] = useState({
-    judul: "", nominal: "", vendor: "", jenisBarang: "Sparepart", kurs: "IDR", tglKontrak: "", noPerjanjian: "", tglPerjanjian: ""
+    judul: "", nominal: "", vendor: "", jenisBarang: "", kurs: "IDR", tglKontrak: "", noPerjanjian: "", tglPerjanjian: ""
   });
 
-  const [formRequest, setFormRequest] = useState({ tipeKontrak: "<500jt", judul: "", assignTo: "Penguji 1 C-CUT", tglPengujian: "", doNo: "", tglDO: "", catatan: "" });
+  const [formRequest, setFormRequest] = useState({ tipeKontrak: "<500jt", judul: "", assignTo: "", tglPengujian: "", doNo: "", tglDO: "", catatan: "" });
 
   const [confirmDialog, setConfirmDialog] = useState<{ type: "verifikasi" | "reject" | "kelengkapan"; text: string; show: boolean }>({ type: "verifikasi", text: "", show: false });
   const [actionReason, setActionReason] = useState("");
@@ -280,7 +285,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
                     <ModalInput type="date" value={formKontrak.tglKontrak} onChange={v => setFormKontrak(p => ({ ...p, tglKontrak: v }))} />
                   </ModalField>
                   <ModalField label="Jenis Barang" required>
-                    <ModalSelect value={formKontrak.jenisBarang} onChange={v => setFormKontrak(p => ({ ...p, jenisBarang: v }))} options={[{value:"Sparepart",label:"Sparepart"}, {value:"Jasa",label:"Jasa"}]} />
+                    <ModalSelect value={formKontrak.jenisBarang} onChange={v => setFormKontrak(p => ({ ...p, jenisBarang: v }))} options={itemCategoryOptions} placeholder="Pilih kategori dari Master Data" />
                   </ModalField>
                 </div>
               </div>
@@ -330,7 +335,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
                 </ModalField>
                 <div className="grid grid-cols-2 gap-3">
                   <ModalField label="Pilih Penguji (Assign To)" required>
-                    <ModalSelect value={formRequest.assignTo} onChange={v => setFormRequest(p => ({ ...p, assignTo: v }))} options={[{value:"Penguji 1 C-CUT",label:"Penguji 1 C-CUT"}, {value:"Penguji 2 C-CUT",label:"Penguji 2 C-CUT"}]} />
+                    <ModalSelect value={formRequest.assignTo} onChange={v => setFormRequest(p => ({ ...p, assignTo: v }))} options={testerOptions} placeholder="Pilih penguji dari Master Data" />
                   </ModalField>
                   <ModalField label="Tanggal Pengujian" required>
                     <ModalInput type="date" value={formRequest.tglPengujian} onChange={v => setFormRequest(p => ({ ...p, tglPengujian: v }))} />

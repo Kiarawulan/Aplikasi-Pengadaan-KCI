@@ -11,6 +11,7 @@ import { Sp3DetailView } from "./Sp3DetailView";
 import { InternalProcessView } from "./InternalProcessView";
 import { api } from "@/services/api";
 import { useMasterVendors } from "@/hooks/useMasterVendors";
+import { useMasterReferenceOptions } from "@/hooks/useMasterReferenceOptions";
 
 export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
   step: ParkStep; subStepId: string;
@@ -20,6 +21,10 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
 }) {
   const { currentUser } = useAuth();
   const { vendorOptions } = useMasterVendors();
+  const { items: procurementMethods } = useMasterReferenceOptions("metode-pengadaan");
+  const { items: itemCategories } = useMasterReferenceOptions("kategori-barang");
+  const { items: currencies } = useMasterReferenceOptions("mata-uang");
+  const { items: testers } = useMasterReferenceOptions("penguji");
   const [signedDocuments, setSignedDocuments] = useState<any[]>([]);
   useEffect(() => {
     if (!item?.id) return;
@@ -62,12 +67,12 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
     <div>
       <div className="mb-3"><p className="text-[11.5px] font-medium text-[#0a0a0a] mb-1">Realisasi</p><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="w-[13px] h-[13px] rounded-[2px] border border-[#767676] bg-white shrink-0 cursor-pointer" checked={f("realisasi") === "true"} onChange={(e) => u("realisasi")(e.target.checked ? "true" : "false")} /><p className="text-[11.5px]">Tandai sebagai realisasi</p></label></div>
       <div className="grid grid-cols-2 gap-x-[12px] gap-y-[12px]">
-        <FieldInput label="Metode" type="select" required value={f("metode")} onChange={u("metode")} />
+        <FieldInput label="Metode" type="select" options={procurementMethods.map(item => item.nama)} required value={f("metode")} onChange={u("metode")} />
         <FieldInput label="Vendor Name" type="select" options={vendorOptions.map((option) => option.value)} required value={f("vendor")} onChange={u("vendor")} />
         <FieldInput label="Nilai PR" placeholder="0" type="number" required value={f("nilaiPr")} onChange={u("nilaiPr")} />
         <FieldInput label="COA" placeholder="Kode akun..." required value={f("coa")} onChange={u("coa")} />
-        <FieldInput label="Jenis Barang" type="select" required value={f("jenisBarang")} onChange={u("jenisBarang")} />
-        <FieldInput label="Kurs" type="select" required value={f("kurs")} onChange={u("kurs")} />
+        <FieldInput label="Jenis Barang" type="select" options={itemCategories.map(item => item.nama)} required value={f("jenisBarang")} onChange={u("jenisBarang")} />
+        <FieldInput label="Kurs" type="select" options={currencies.map(item => item.kode)} required value={f("kurs")} onChange={u("kurs")} />
         <FieldInput label="Keterangan" placeholder="Keterangan tambahan..." type="textarea" span2 value={f("keterangan")} onChange={u("keterangan")} />
       </div>
     </div>
@@ -189,7 +194,7 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
             
             <FieldInput label="Tanggal Pengujian" type="date" required value={f("tanggalPengujian")} onChange={u("tanggalPengujian")} />
             <FieldInput label="Nomor Delivery Order" type="number" required value={f("noDO")} onChange={u("noDO")} />
-            <FieldInput label="Assign To" required value={f("assignTo")} onChange={u("assignTo")} />
+            <FieldInput label="Assign To" type="select" options={testers.map(item => item.nama)} required value={f("assignTo")} onChange={u("assignTo")} />
             
             <FileUploadInput label="Dokumen MI" required pengadaanId={item?.id} stage="dokumen-mi" value={f("fileMI")} onChange={u("fileMI")} />
             <FileUploadInput label="Surat Permohonan Pengujian" required pengadaanId={item?.id} stage="permohonan-pengujian" value={f("filePermohonan")} onChange={u("filePermohonan")} />

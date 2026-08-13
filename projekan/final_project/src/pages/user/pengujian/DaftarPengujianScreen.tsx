@@ -47,7 +47,7 @@ export function DaftarPengujianScreen({ onSelectItem }: {
 
   return (
     <div>
-      <TopBar title="Daftar Pengujian" subtitle="Proses pengadaan yang sedang berlangsung pada tahap Pengujian" />
+      <TopBar title="Daftar Pengujian" />
 
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm mt-5">
         <div className="px-5 py-4 flex items-center justify-between border-b border-gray-50 bg-[#1e1c56] text-white">
@@ -72,8 +72,8 @@ export function DaftarPengujianScreen({ onSelectItem }: {
         </div>
 
         {showPopup && (
-          <BuatPengujianPopup 
-            onClose={() => setShowPopup(false)} 
+          <BuatPengujianPopup
+            onClose={() => setShowPopup(false)}
             onSuccess={() => {
               setShowPopup(false);
               fetchItems();
@@ -122,13 +122,12 @@ export function DaftarPengujianScreen({ onSelectItem }: {
                             <div
                               key={s.id}
                               title={s.label}
-                              className={`w-3 h-3 rounded-full ${
-                                isCompleted
+                              className={`w-3 h-3 rounded-full ${isCompleted
                                   ? "bg-[#4ACE22]"
                                   : item.currentStep === s.id
-                                  ? "bg-[#252271]"
-                                  : "bg-gray-100 border border-gray-200"
-                              }`}
+                                    ? "bg-[#252271]"
+                                    : "bg-gray-100 border border-gray-200"
+                                }`}
                             />
                           );
                         })}

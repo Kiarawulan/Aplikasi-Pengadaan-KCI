@@ -467,7 +467,7 @@ export function TemplateDokumenAdminScreen() {
   return (
     <div className="flex-1 min-h-0 overflow-auto bg-[#f8fafc] select-none">
       <div className="max-w-[1280px] mx-auto px-6 py-6">
-        <AdminTopBar title="Template Dokumen" subtitle="Kelola template dokumen sistem" />
+        <AdminTopBar title="Template Dokumen" />
 
         {/* Summary bar */}
         <div className="grid grid-cols-5 gap-4 mb-6">

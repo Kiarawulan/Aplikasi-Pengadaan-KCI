@@ -22,6 +22,7 @@ import { updateRup, updateVerifRecord } from "./store/dataStore";
 import featureUnavailableImage from "./assets/feature-unavailable.png";
 import { DIVISI_LIST } from "./constants/divisi";
 import { useMasterVendors } from "./hooks/useMasterVendors";
+import { useVerificationNotifications } from "./hooks/useVerificationNotifications";
 import { StatusBadge } from "./components/common/StatusBadge";
 import { PembayaranVerifScreen } from "./pages/admin/verifikasi/PembayaranVerifScreen";
 
@@ -245,6 +246,7 @@ function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
   const userName = currentUser?.name || "Administrator";
   const userEmail = currentUser?.email || "admin@kci.co.id";
   const initial = userName.charAt(0).toUpperCase();
+  const { counts: verificationCounts, total: verificationTotal } = useVerificationNotifications();
 
   const [userRoleOpen, setUserRoleOpen] = useState(
     page === "manajemen-user" || page === "manajemen-role"
@@ -278,12 +280,13 @@ function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
               <button
                 key={i}
                 onClick={() => onNavigate(ni.p)}
-                className={`w-full flex items-center justify-center p-[8px] rounded-[8px] transition-all duration-150 cursor-pointer
+                className={`relative w-full flex items-center justify-center p-[8px] rounded-[8px] transition-all duration-150 cursor-pointer
                   ${ni.active
                     ? "bg-gradient-to-r from-[#ff4444] to-[#ff7272] drop-shadow-[0px_1px_2px_rgba(0,0,0,0.25)]"
                     : "hover:bg-white/10 active:bg-white/20"}`}
               >
                 <NavIcon path={ni.path} />
+                {ni.p === "verifikasi" && verificationTotal > 0 && <span className="absolute right-1 top-1 flex min-w-[16px] h-[16px] items-center justify-center rounded-full bg-white px-1 text-[9px] font-bold text-[#cc0000] shadow">{verificationTotal > 99 ? "99+" : verificationTotal}</span>}
               </button>
             ))}
           </nav>
@@ -393,9 +396,8 @@ function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
             </button>
 
             <div
-              className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-                userRoleOpen ? "grid-rows-[1fr] opacity-100 mt-[2px]" : "grid-rows-[0fr] opacity-0"
-              }`}
+              className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${userRoleOpen ? "grid-rows-[1fr] opacity-100 mt-[2px]" : "grid-rows-[0fr] opacity-0"
+                }`}
             >
               <div className="overflow-hidden relative flex flex-col gap-[2px] items-start pl-[11px] w-[208px] ml-auto">
                 <div className="absolute inset-0 border-l border-white/50 pointer-events-none" />
@@ -425,6 +427,7 @@ function Sidebar({ page, onNavigate, collapsed = false }: SidebarProps) {
               <div className="flex gap-[10px] items-center">
                 <NavIcon path={ICONS.clipboard} />
                 <span className={`text-[12.5px] leading-[18.75px] text-white ${isVerifikasiSection ? "font-medium" : "font-normal"}`}>Verifikasi</span>
+                {verificationTotal > 0 && <span title={`Pengajuan Dana ${verificationCounts.pengajuanDana}, Pengadaan ${verificationCounts.pengadaan}, Pengujian ${verificationCounts.pengujian}, Pembayaran ${verificationCounts.pembayaran}`} className="flex min-w-[20px] h-[20px] items-center justify-center rounded-full bg-white px-1.5 text-[10px] font-bold text-[#cc0000] shadow-sm">{verificationTotal > 99 ? "99+" : verificationTotal}</span>}
               </div>
               <ChevronRight open={isVerifikasiSection} />
             </button>
@@ -775,6 +778,7 @@ function SecondarySidebar({
   onPembayaranDoc,
 }: SecondarySidebarProps) {
   const { hasPermission } = useAuth();
+  const { counts: verificationCounts } = useVerificationNotifications();
   const items: { id: VerifCategory; label: string; icon: React.ReactNode }[] = [
     {
       id: "pengajuan-dana",
@@ -926,6 +930,11 @@ function SecondarySidebar({
                   <span className={`text-[12px] font-medium ${isActive ? "text-[#cc0000]" : "text-white"}`}>
                     {item.label}
                   </span>
+                  {verificationCounts[item.id === "pengajuan-dana" ? "pengajuanDana" : item.id] > 0 && (
+                    <span className={`flex min-w-[18px] h-[18px] items-center justify-center rounded-full px-1 text-[9px] font-bold shadow-sm ${isActive ? "bg-[#cc0000] text-white" : "bg-white text-[#cc0000]"}`}>
+                      {verificationCounts[item.id === "pengajuan-dana" ? "pengajuanDana" : item.id] > 99 ? "99+" : verificationCounts[item.id === "pengajuan-dana" ? "pengajuanDana" : item.id]}
+                    </span>
+                  )}
                 </div>
                 <svg
                   fill="none" height="10" viewBox="0 0 10 10" width="10"
@@ -938,9 +947,8 @@ function SecondarySidebar({
               {/* Sub-docs for Pengajuan Dana */}
               {item.id === "pengajuan-dana" && (
                 <div
-                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-                    isCategoryOpen ? "grid-rows-[1fr] opacity-100 mt-0.5" : "grid-rows-[0fr] opacity-0"
-                  }`}
+                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${isCategoryOpen ? "grid-rows-[1fr] opacity-100 mt-0.5" : "grid-rows-[0fr] opacity-0"
+                    }`}
                 >
                   <div className="overflow-hidden relative flex flex-col gap-[2px] pl-[11px]">
                     <div className="absolute inset-0 border-l border-white/15 pointer-events-none" />
@@ -963,9 +971,8 @@ function SecondarySidebar({
               {/* Sub-docs for Pengadaan */}
               {item.id === "pengadaan" && (
                 <div
-                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-                    isCategoryOpen ? "grid-rows-[1fr] opacity-100 mt-0.5" : "grid-rows-[0fr] opacity-0"
-                  }`}
+                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${isCategoryOpen ? "grid-rows-[1fr] opacity-100 mt-0.5" : "grid-rows-[0fr] opacity-0"
+                    }`}
                 >
                   <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[11px]">
                     <div className="absolute inset-0 border-l border-white/15 pointer-events-none" />
@@ -989,9 +996,8 @@ function SecondarySidebar({
                       </button>
 
                       <div
-                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-                          rupExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                        }`}
+                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${rupExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                          }`}
                       >
                         <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[10px]">
                           <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
@@ -1041,9 +1047,8 @@ function SecondarySidebar({
                       </button>
 
                       <div
-                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-                          sp3Expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                        }`}
+                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${sp3Expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                          }`}
                       >
                         <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[10px]">
                           <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
@@ -1082,9 +1087,8 @@ function SecondarySidebar({
                       </button>
 
                       <div
-                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-                          pbjExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                        }`}
+                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${pbjExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                          }`}
                       >
                         <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[10px]">
                           <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
@@ -1123,9 +1127,8 @@ function SecondarySidebar({
                       </button>
 
                       <div
-                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-                          contractExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                        }`}
+                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${contractExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                          }`}
                       >
                         <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[10px]">
                           <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
@@ -1165,9 +1168,8 @@ function SecondarySidebar({
               {/* Sub-docs for Pengujian */}
               {item.id === "pengujian" && (
                 <div
-                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-                    isCategoryOpen ? "grid-rows-[1fr] opacity-100 mt-0.5" : "grid-rows-[0fr] opacity-0"
-                  }`}
+                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${isCategoryOpen ? "grid-rows-[1fr] opacity-100 mt-0.5" : "grid-rows-[0fr] opacity-0"
+                    }`}
                 >
                   <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[11px]">
                     <div className="absolute inset-0 border-l border-white/15 pointer-events-none" />
@@ -1191,9 +1193,8 @@ function SecondarySidebar({
                       </button>
 
                       <div
-                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-                          pengujianKontrakExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                        }`}
+                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${pengujianKontrakExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                          }`}
                       >
                         <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[10px]">
                           <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
@@ -1232,9 +1233,8 @@ function SecondarySidebar({
                       </button>
 
                       <div
-                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-                          pengujianRequestExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                        }`}
+                        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${pengujianRequestExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                          }`}
                       >
                         <div className="overflow-hidden relative flex flex-col gap-[1px] pl-[10px]">
                           <div className="absolute inset-0 border-l border-white/10 pointer-events-none" />
@@ -1260,9 +1260,8 @@ function SecondarySidebar({
               {/* Sub-docs for Pembayaran */}
               {item.id === "pembayaran" && (
                 <div
-                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-                    isCategoryOpen ? "grid-rows-[1fr] opacity-100 mt-0.5" : "grid-rows-[0fr] opacity-0"
-                  }`}
+                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${isCategoryOpen ? "grid-rows-[1fr] opacity-100 mt-0.5" : "grid-rows-[0fr] opacity-0"
+                    }`}
                 >
                   <div className="overflow-hidden relative flex flex-col gap-[8px] pl-[12px] pt-[4px]">
                     {/* Payment Approve Group */}
@@ -1451,10 +1450,10 @@ function VerifikasiDetailPage({ row, onBack }: { row: ParkDocRow; onBack: () => 
           <div className="flex items-center gap-[10px]">
             <span
               className={`text-[11.5px] font-bold px-[12px] py-[5px] rounded-full border ${docStatus === "Sudah Diverifikasi"
-                  ? "bg-[#f0fdf4] text-[#15803d] border-[#bbf7d0]"
-                  : docStatus === "Perlu Revisi" || docStatus === "Ditolak"
-                    ? "bg-[#fef2f2] text-[#cc0000] border-[#fecaca]"
-                    : "bg-amber-50 text-amber-800 border-amber-200"
+                ? "bg-[#f0fdf4] text-[#15803d] border-[#bbf7d0]"
+                : docStatus === "Perlu Revisi" || docStatus === "Ditolak"
+                  ? "bg-[#fef2f2] text-[#cc0000] border-[#fecaca]"
+                  : "bg-amber-50 text-amber-800 border-amber-200"
                 }`}
             >
               ● {docStatus}
@@ -1643,7 +1642,7 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
             ? "Perlu Revisi"
             : s === "rejected" || s === "Rejected" || s === "Ditolak"
               ? "Ditolak"
-            : "Belum Diverifikasi";
+              : "Belum Diverifikasi";
 
       // 1. Load from DB Verifikasi records (highest priority — real IDs)
       dbVerif.forEach((v: any) => {
@@ -2819,7 +2818,7 @@ function Sp3SignedUploadModal({ onClose, onSuccess }: { onClose: () => void; onS
       const payload = new FormData();
       payload.append("file", selectedFile);
       payload.append("stage", "sp3-signed");
-      await api.post(`/pengadaan/${sp3Id}/documents`, payload).catch(() => {});
+      await api.post(`/pengadaan/${sp3Id}/documents`, payload).catch(() => { });
       onSuccess({
         idSp3: sp3Id,
         namaFile: selectedFile.name,
@@ -3259,41 +3258,41 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
           </div>
         </div>
 
-          {/* Inline Revisi Box */}
-          {showRevisi && (
-            <div className="mx-[44px] mb-[16px] bg-rose-50 border border-rose-300 rounded-[12px] p-[16px]">
-              <p className="text-red-900 text-[12px] font-bold mb-[8px]">Tuliskan Catatan Revisi:</p>
-              <textarea
-                autoFocus
-                value={actionNote}
-                onChange={(e) => setActionNote(e.target.value)}
-                className="w-full h-[80px] border border-rose-300 rounded-[8px] px-[12px] py-[8px] text-[13px] outline-none focus:border-red-500 resize-none transition-colors"
-                placeholder="Catatan revisi..."
-              />
-              <div className="flex gap-[10px] justify-end mt-[10px]">
-                <button onClick={() => { setShowRevisi(false); setActionNote(""); }} className="px-[16px] py-[7px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[12px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
-                <button disabled={!actionNote.trim()} onClick={() => submitAction("revisi")} className="px-[16px] py-[7px] rounded-[8px] bg-gradient-to-r from-red-600 to-rose-500 text-white text-[12px] font-medium hover:from-red-700 hover:to-rose-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors active:scale-95">Kirim Revisi</button>
-              </div>
+        {/* Inline Revisi Box */}
+        {showRevisi && (
+          <div className="mx-[44px] mb-[16px] bg-rose-50 border border-rose-300 rounded-[12px] p-[16px]">
+            <p className="text-red-900 text-[12px] font-bold mb-[8px]">Tuliskan Catatan Revisi:</p>
+            <textarea
+              autoFocus
+              value={actionNote}
+              onChange={(e) => setActionNote(e.target.value)}
+              className="w-full h-[80px] border border-rose-300 rounded-[8px] px-[12px] py-[8px] text-[13px] outline-none focus:border-red-500 resize-none transition-colors"
+              placeholder="Catatan revisi..."
+            />
+            <div className="flex gap-[10px] justify-end mt-[10px]">
+              <button onClick={() => { setShowRevisi(false); setActionNote(""); }} className="px-[16px] py-[7px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[12px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
+              <button disabled={!actionNote.trim()} onClick={() => submitAction("revisi")} className="px-[16px] py-[7px] rounded-[8px] bg-gradient-to-r from-red-600 to-rose-500 text-white text-[12px] font-medium hover:from-red-700 hover:to-rose-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors active:scale-95">Kirim Revisi</button>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Inline Reject Box */}
-          {showReject && (
-            <div className="mx-[44px] mb-[16px] bg-red-50 border border-red-300 rounded-[12px] p-[16px]">
-              <p className="text-[#991b1b] text-[12px] font-bold mb-[8px]">Tuliskan Alasan Penolakan:</p>
-              <textarea
-                autoFocus
-                value={actionNote}
-                onChange={(e) => setActionNote(e.target.value)}
-                className="w-full h-[80px] border border-red-300 rounded-[8px] px-[12px] py-[8px] text-[13px] outline-none focus:border-red-500 resize-none transition-colors"
-                placeholder="Alasan penolakan..."
-              />
-              <div className="flex gap-[10px] justify-end mt-[10px]">
-                <button onClick={() => { setShowReject(false); setActionNote(""); }} className="px-[16px] py-[7px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[12px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
-                <button disabled={!actionNote.trim()} onClick={() => submitAction("reject")} className="px-[16px] py-[7px] rounded-[8px] bg-red-600 text-white text-[12px] font-medium hover:bg-red-700 disabled:bg-red-200 disabled:cursor-not-allowed transition-colors active:scale-95">Tolak Dokumen</button>
-              </div>
+        {/* Inline Reject Box */}
+        {showReject && (
+          <div className="mx-[44px] mb-[16px] bg-red-50 border border-red-300 rounded-[12px] p-[16px]">
+            <p className="text-[#991b1b] text-[12px] font-bold mb-[8px]">Tuliskan Alasan Penolakan:</p>
+            <textarea
+              autoFocus
+              value={actionNote}
+              onChange={(e) => setActionNote(e.target.value)}
+              className="w-full h-[80px] border border-red-300 rounded-[8px] px-[12px] py-[8px] text-[13px] outline-none focus:border-red-500 resize-none transition-colors"
+              placeholder="Alasan penolakan..."
+            />
+            <div className="flex gap-[10px] justify-end mt-[10px]">
+              <button onClick={() => { setShowReject(false); setActionNote(""); }} className="px-[16px] py-[7px] rounded-[8px] border border-[#d1d5dc] text-[#64748b] text-[12px] font-medium hover:bg-[#f1f5f9] transition-colors">Batal</button>
+              <button disabled={!actionNote.trim()} onClick={() => submitAction("reject")} className="px-[16px] py-[7px] rounded-[8px] bg-red-600 text-white text-[12px] font-medium hover:bg-red-700 disabled:bg-red-200 disabled:cursor-not-allowed transition-colors active:scale-95">Tolak Dokumen</button>
             </div>
-          )}
+          </div>
+        )}
       </div>
     );
   }
@@ -3989,8 +3988,8 @@ function ProsesPBJPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi, onSa
               <button
                 onClick={() => setIsEditing(!isEditing)}
                 className={`h-[38px] px-[16px] rounded-[10px] text-[12.5px] font-semibold flex items-center gap-[6px] transition-all cursor-pointer ${isEditing
-                    ? "bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200"
-                    : "bg-[#f1f5f9] text-[#252271] hover:bg-[#e2e8f0]"
+                  ? "bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200"
+                  : "bg-[#f1f5f9] text-[#252271] hover:bg-[#e2e8f0]"
                   }`}
               >
                 <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d={ICONS.edit} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" /></svg>
@@ -4559,8 +4558,8 @@ function ProsesContractPage({ row, breadcrumbFrom, onBack, onComplete, onRevisi,
               <button
                 onClick={() => setIsEditing(!isEditing)}
                 className={`h-[38px] px-[16px] rounded-[10px] text-[12.5px] font-semibold flex items-center gap-[6px] transition-all cursor-pointer ${isEditing
-                    ? "bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200"
-                    : "bg-[#f1f5f9] text-[#252271] hover:bg-[#e2e8f0]"
+                  ? "bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200"
+                  : "bg-[#f1f5f9] text-[#252271] hover:bg-[#e2e8f0]"
                   }`}
               >
                 <svg fill="none" height="14" viewBox="0 0 14 14" width="14"><path d={ICONS.edit} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" /></svg>
@@ -5410,7 +5409,7 @@ function DetailPembayaranPage({
         if (proofDoc.original_name) setPelunasanFileName(proofDoc.original_name);
         if (proofDoc.id) setProofDocId(proofDoc.id);
       }
-    }).catch(() => {});
+    }).catch(() => { });
   }, [pengadaanId]);
 
   const resolveVerifId = async (): Promise<string> => {
@@ -5502,7 +5501,7 @@ function DetailPembayaranPage({
         await api.post(`/verifikasi/${verifId}/approve`);
       }
       if (pengadaanId) {
-        await api.put(`/pengadaan/${pengadaanId}`, { status: 'approved' }).catch(() => {});
+        await api.put(`/pengadaan/${pengadaanId}`, { status: 'approved' }).catch(() => { });
       }
       alert(isUmd ? '✅ Pengajuan UMD Berhasil Diverifikasi & Disetujui (Approved) Admin!' : '✅ Pembayaran Berhasil Diverifikasi & Disetujui (Approved) Admin!');
       if (onSuccess) onSuccess();
@@ -5540,7 +5539,7 @@ function DetailPembayaranPage({
       if (!verifId) { alert("ID Verifikasi tidak ditemukan."); return; }
       await api.post(`/verifikasi/${verifId}/${action}`, { catatan: note });
       if (pengadaanId) {
-        await api.put(`/pengadaan/${pengadaanId}`, { status: action === 'revisi' ? 'revision_required' : 'rejected' }).catch(() => {});
+        await api.put(`/pengadaan/${pengadaanId}`, { status: action === 'revisi' ? 'revision_required' : 'rejected' }).catch(() => { });
       }
       alert(action === "revisi" ? "Catatan revisi pembayaran berhasil dikirim ke user!" : "Pembayaran berhasil ditolak!");
       setShowRevisiBox(false);
@@ -6667,7 +6666,7 @@ export function AdminApp() {
       if (saved && ["dashboard", "manajemen-user", "manajemen-role", "tambah-role", "verifikasi", "template-dokumen", "master-data"].includes(saved)) {
         return saved;
       }
-    } catch {}
+    } catch { }
     return "dashboard";
   });
 
@@ -6675,7 +6674,7 @@ export function AdminApp() {
     try {
       const saved = localStorage.getItem("sipro_admin_prev_page") as Page;
       if (saved) return saved;
-    } catch {}
+    } catch { }
     return "dashboard";
   });
 
@@ -6688,7 +6687,7 @@ export function AdminApp() {
       if (saved && ["pengajuan-dana", "pengadaan", "pengujian", "pembayaran"].includes(saved)) {
         return saved;
       }
-    } catch {}
+    } catch { }
     return "pengajuan-dana";
   });
 
@@ -6698,7 +6697,7 @@ export function AdminApp() {
       if (saved && ["park-document", "purchase-requisition"].includes(saved)) {
         return saved;
       }
-    } catch {}
+    } catch { }
     return "park-document";
   });
 
@@ -6706,7 +6705,7 @@ export function AdminApp() {
     try {
       const saved = localStorage.getItem("sipro_admin_pg_doc") as PengadaanDoc;
       if (saved) return saved;
-    } catch {}
+    } catch { }
     return "rup-task-approval";
   });
 
@@ -6714,7 +6713,7 @@ export function AdminApp() {
     try {
       const saved = localStorage.getItem("sipro_admin_pj_doc") as PengujianDoc;
       if (saved) return saved;
-    } catch {}
+    } catch { }
     return "kontrak-list-500";
   });
 
@@ -6722,7 +6721,7 @@ export function AdminApp() {
     try {
       const saved = localStorage.getItem("sipro_admin_byr_doc") as PembayaranDoc;
       if (saved) return saved;
-    } catch {}
+    } catch { }
     return "pembayaran-contract-release";
   });
 
@@ -6876,8 +6875,8 @@ export function AdminApp() {
       {/* Secondary sidebar shown on verifikasi with smooth sliding transition */}
       <div
         className={`shrink-0 h-full overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isVerifPage
-            ? "w-[224px] opacity-100 translate-x-0"
-            : "w-0 opacity-0 -translate-x-6 pointer-events-none"
+          ? "w-[224px] opacity-100 translate-x-0"
+          : "w-0 opacity-0 -translate-x-6 pointer-events-none"
           }`}
       >
         <SecondarySidebar

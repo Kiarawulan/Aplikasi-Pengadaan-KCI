@@ -3,8 +3,8 @@ import { ChevronRight } from "lucide-react";
 import type { Screen } from "@/types";
 import pembayaranIcon from "@/assets/pembayaran.svg";
 
-export function DaftarPembayaranNavItem({ screen, backScreen, onNavigate, collapsed }: {
-  screen: Screen; backScreen?: Screen; onNavigate: (s: Screen) => void; collapsed: boolean;
+export function DaftarPembayaranNavItem({ screen, backScreen, onNavigate, collapsed, badge = 0, onRead }: {
+  screen: Screen; backScreen?: Screen; onNavigate: (s: Screen) => void; collapsed: boolean; badge?: number; onRead?: () => void;
 }) {
   const isActive = [
     "pembayaran-outsource",
@@ -33,6 +33,7 @@ export function DaftarPembayaranNavItem({ screen, backScreen, onNavigate, collap
   const showInlineMenu = !collapsed && expanded;
 
   const handleHeaderClick = () => {
+    onRead?.();
     if (collapsed) {
       onNavigate("pembayaran-outsource");
       return;
@@ -60,6 +61,7 @@ export function DaftarPembayaranNavItem({ screen, backScreen, onNavigate, collap
         <span className={`text-[12.5px] truncate flex-1 transition-all duration-300 ease-in-out ${isActive ? "text-white font-semibold" : "text-white/70 font-normal"} ${collapsed ? "max-w-0 opacity-0 pointer-events-none" : "max-w-[140px] opacity-100"}`}>
           Daftar Pembayaran
         </span>
+        {badge > 0 && <span className={`${collapsed ? "absolute right-1 top-1" : ""} flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-white px-1 text-[9px] font-bold text-[#cc0000] shadow`}>{badge > 99 ? "99+" : badge}</span>}
         <ChevronRight size={11} className={`text-white/35 transition-transform duration-300 ease-in-out shrink-0 ${showInlineMenu ? "rotate-90" : "rotate-0"} ${collapsed ? "opacity-0 pointer-events-none" : "opacity-100"}`} />
       </button>
 

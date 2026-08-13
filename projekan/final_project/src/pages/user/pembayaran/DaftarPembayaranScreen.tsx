@@ -123,28 +123,24 @@ export function DaftarPembayaranScreen({ onSelectItem, type }: {
       case "umd":
         return {
           title: "Daftar Pembayaran - UMD",
-          subtitle: "Proses pengadaan UMD (Park Dokumen) yang sedang berlangsung pada tahap Pembayaran",
           cardTitle: "Daftar Pembayaran UMD",
           emptyText: "Tidak ada proses pembayaran UMD yang sedang berlangsung."
         };
       case "payment-request":
         return {
           title: "Daftar Pembayaran - Payment Request",
-          subtitle: "Proses pengadaan Payment Request yang sedang berlangsung pada tahap Pembayaran",
           cardTitle: "Daftar Pembayaran Payment Request",
           emptyText: "Tidak ada proses pembayaran Payment Request yang sedang berlangsung."
         };
       case "outsource":
         return {
           title: "Daftar Pembayaran - Outsource",
-          subtitle: "Proses pengadaan Outsource (PR) yang sedang berlangsung pada tahap Pembayaran",
           cardTitle: "Daftar Pembayaran Outsource",
           emptyText: "Tidak ada proses pembayaran Outsource yang sedang berlangsung."
         };
       case "non-outsource":
         return {
           title: "Daftar Pembayaran - Non Outsource",
-          subtitle: "Proses pengadaan Non Outsource (PR) yang sedang berlangsung pada tahap Pembayaran",
           cardTitle: "Daftar Pembayaran Non Outsource",
           emptyText: "Tidak ada proses pembayaran Non Outsource yang sedang berlangsung."
         };
