@@ -59,17 +59,17 @@ class DatabaseSeeder extends Seeder
             [
                 'id' => 'role-admin-anggaran', 'name' => 'Admin Anggaran', 'description' => 'Administrator khusus modul Pengajuan Dana.',
                 'color' => '#7c3aed', 'role_type' => 'admin', 'is_system' => true,
-                'permissions' => ['dashboard' => 'viewer', 'pengajuanDana' => 'editor', 'pengadaan' => 'no-access', 'pengujian' => 'no-access', 'pembayaran' => 'no-access', 'templateDokumen' => 'no-access', 'masterData' => 'no-access', 'userManagement' => 'no-access', 'roleManagement' => 'no-access'],
+                'permissions' => ['dashboard' => 'viewer', 'pengajuanDana' => 'editor', 'pengadaan' => 'no-access', 'pengujian' => 'no-access', 'pembayaran' => 'no-access', 'templateDokumen' => 'editor', 'masterData' => 'editor', 'userManagement' => 'no-access', 'roleManagement' => 'no-access'],
             ],
             [
                 'id' => 'role-admin-penguji', 'name' => 'Admin Penguji', 'description' => 'Administrator khusus modul Pengujian.',
                 'color' => '#059669', 'role_type' => 'admin', 'is_system' => true,
-                'permissions' => ['dashboard' => 'viewer', 'pengajuanDana' => 'no-access', 'pengadaan' => 'no-access', 'pengujian' => 'editor', 'pembayaran' => 'no-access', 'templateDokumen' => 'no-access', 'masterData' => 'no-access', 'userManagement' => 'no-access', 'roleManagement' => 'no-access'],
+                'permissions' => ['dashboard' => 'viewer', 'pengajuanDana' => 'no-access', 'pengadaan' => 'no-access', 'pengujian' => 'editor', 'pembayaran' => 'no-access', 'templateDokumen' => 'editor', 'masterData' => 'editor', 'userManagement' => 'no-access', 'roleManagement' => 'no-access'],
             ],
             [
                 'id' => 'role-admin-keuangan', 'name' => 'Admin Keuangan', 'description' => 'Administrator khusus modul Pembayaran.',
                 'color' => '#d97706', 'role_type' => 'admin', 'is_system' => true,
-                'permissions' => ['dashboard' => 'viewer', 'pengajuanDana' => 'no-access', 'pengadaan' => 'no-access', 'pengujian' => 'no-access', 'pembayaran' => 'editor', 'templateDokumen' => 'no-access', 'masterData' => 'no-access', 'userManagement' => 'no-access', 'roleManagement' => 'no-access'],
+                'permissions' => ['dashboard' => 'viewer', 'pengajuanDana' => 'no-access', 'pengadaan' => 'no-access', 'pengujian' => 'no-access', 'pembayaran' => 'editor', 'templateDokumen' => 'editor', 'masterData' => 'editor', 'userManagement' => 'no-access', 'roleManagement' => 'no-access'],
             ],
             [
                 'id' => 'role-staff-pengadaan',
