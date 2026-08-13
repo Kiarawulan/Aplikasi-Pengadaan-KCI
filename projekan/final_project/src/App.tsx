@@ -17,6 +17,7 @@ import {
   DaftarPembayaranScreen,
 } from "./pages/user";
 import { getFigmaCaptureConfig } from "./figmaCapture";
+import { GlobalFeedback } from "./components/common/GlobalFeedback";
 
 // ─── Error Boundary Component ──────────────────────────────────────────────────
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
@@ -328,6 +329,7 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <AppRoot />
+        <GlobalFeedback />
       </AuthProvider>
     </ErrorBoundary>
   );

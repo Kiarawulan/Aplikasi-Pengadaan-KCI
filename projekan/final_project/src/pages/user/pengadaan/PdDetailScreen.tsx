@@ -289,7 +289,8 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   const canAccessSub = (sIdx: number): boolean => {
     if (isStepDone(activeStepIdx) || verifState.status === "approved" || item.status === "Selesai" || item.status?.toLowerCase() === "approved") return true;
     const sub = activeStep.subSteps[sIdx];
-    return sIdx <= activeSubIdx || isSubSubmitted(activeStep.id, sub.id);
+    return sIdx <= activeSubIdx || isSubSubmitted(activeStep.id, sub.id)
+      || (sIdx > 0 && isSubSubmitted(activeStep.id, activeStep.subSteps[sIdx - 1].id));
   };
 
   const flashSave = (newSubmittedSubs?: Set<string>, updatedFd?: Record<string, any>) => {
@@ -903,6 +904,7 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           initialStep="pengajuan-dana"
           requiresRup={false}
           requireChanges
+          editingId={item.id}
           onClose={() => setShowEditPopup(false)}
           onSubmit={handleRevisionSubmit}
         />

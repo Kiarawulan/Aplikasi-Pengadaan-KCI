@@ -11,6 +11,7 @@ use App\Models\PurchaseRequisition;
 use App\Models\Pengadaan;
 use App\Models\Verifikasi;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * Controller untuk menangani dokumen tahapan pengadaan: NPP, SP3, dan Contract/Kontrak.
@@ -19,6 +20,43 @@ use Illuminate\Http\Request;
  */
 class StepDocumentController extends Controller
 {
+    public function releaseNppNumber(Request $request, Pengadaan $pengadaan)
+    {
+        abort_unless($request->user()->is_admin, 403, 'Hanya admin yang dapat merilis No. NPP.');
+        $data = $request->validate([
+            'no_npp' => ['required', 'string', 'max:100', Rule::unique('npp', 'no_npp')->ignore(Npp::where('pengadaan_id', $pengadaan->id)->value('id'))],
+        ]);
+
+        $npp = Npp::where('pengadaan_id', $pengadaan->id)->latest()->first();
+        if (! $npp) {
+            $lastNumber = Npp::where('id', 'like', 'NPP-%')->pluck('id')
+                ->map(fn ($existingId) => preg_match('/^NPP-(\d+)$/', $existingId, $matches) ? (int) $matches[1] : 0)
+                ->max();
+            $npp = Npp::create([
+                'id' => 'NPP-' . str_pad((string) (((int) $lastNumber) + 1), 3, '0', STR_PAD_LEFT),
+                'pengadaan_id' => $pengadaan->id,
+                'judul' => $pengadaan->nama,
+                'status' => 'pending',
+                'submitted_by' => $request->user()->name,
+            ]);
+        }
+
+        $npp->no_npp = trim($data['no_npp']);
+        $npp->save();
+
+        $formData = $pengadaan->form_data ?? [];
+        if (!isset($formData['buat-npp']) || !is_array($formData['buat-npp'])) $formData['buat-npp'] = [];
+        $formData['buat-npp']['noNpp'] = $npp->no_npp;
+        $formData['noNpp'] = $npp->no_npp;
+        $pengadaan->form_data = $formData;
+        $pengadaan->save();
+
+        return response()->json([
+            'message' => 'No. NPP berhasil dirilis kepada user.',
+            'document' => $npp->fresh(),
+        ]);
+    }
+
 protected function modelFor(string $type)
     {
         return match ($type) {
@@ -92,8 +130,11 @@ protected function modelFor(string $type)
         }
 
         $prefix = $this->prefixFor($type);
-        $last = $modelClass::where('id', 'regexp', '^' . $prefix . '-[0-9]+$')->orderBy('id', 'desc')->first();
-        $next = $last ? intval(substr($last->id, strlen($prefix) + 1)) + 1 : 1;
+        $lastNumber = $modelClass::where('id', 'like', $prefix . '-%')->pluck('id')
+            ->map(function ($existingId) use ($prefix) {
+                return preg_match('/^' . preg_quote($prefix, '/') . '-(\d+)$/', $existingId, $matches) ? (int) $matches[1] : 0;
+            })->max();
+        $next = ((int) $lastNumber) + 1;
         $id = $prefix . '-' . str_pad($next, 3, '0', STR_PAD_LEFT);
 
         $formData = $request->form_data ?? $request->all();
@@ -109,8 +150,10 @@ protected function modelFor(string $type)
 
         // Auto-create verifikasi record for admin panel
         try {
-            $lastVerif = Verifikasi::where('id', 'regexp', '^VR-[0-9]+$')->orderBy('id', 'desc')->first();
-            $nextVerif = $lastVerif ? intval(substr($lastVerif->id, 3)) + 1 : Verifikasi::count() + 1;
+            $lastVerifNumber = Verifikasi::where('id', 'like', 'VR-%')->pluck('id')
+                ->map(fn ($existingId) => preg_match('/^VR-(\d+)$/', $existingId, $matches) ? (int) $matches[1] : 0)
+                ->max();
+            $nextVerif = ((int) $lastVerifNumber) + 1;
             $verifId = 'VR-' . str_pad($nextVerif, 3, '0', STR_PAD_LEFT);
 
             Verifikasi::create([
@@ -147,11 +190,28 @@ protected function modelFor(string $type)
             abort_unless(in_array($doc->status, ['draft', 'revisi', 'revision_required', 'rejected'], true), 422, 'Dokumen yang telah dikirim tidak dapat diubah.');
         }
 
+        if ($type === 'npp' && $request->hasAny(['no_npp', 'noNpp'])) {
+            $number = trim((string) ($request->input('no_npp') ?? $request->input('noNpp')));
+            $request->merge(['no_npp' => $number]);
+            $request->validate(['no_npp' => ['required', 'string', 'max:100', Rule::unique('npp', 'no_npp')->ignore($doc->id)]]);
+        }
         $doc->fill($request->except(['id', '_method', '_token']));
         if ($request->has('form_data')) {
             $doc->form_data = $request->form_data;
         }
         $doc->save();
+
+        if ($type === 'npp' && $request->has('no_npp') && $doc->pengadaan_id) {
+            $pengadaan = Pengadaan::find($doc->pengadaan_id);
+            if ($pengadaan) {
+                $formData = $pengadaan->form_data ?? [];
+                if (!isset($formData['buat-npp']) || !is_array($formData['buat-npp'])) $formData['buat-npp'] = [];
+                $formData['buat-npp']['noNpp'] = $doc->no_npp;
+                $formData['noNpp'] = $doc->no_npp;
+                $pengadaan->form_data = $formData;
+                $pengadaan->save();
+            }
+        }
 
         // Sinkronkan status verifikasi dengan tabel verifikasi
         if ($request->has('status')) {
@@ -242,13 +302,21 @@ protected function titleField(string $type)
         }
 
         if ($type === 'sp3') {
+            $npp = Npp::where('pengadaan_id', $request->pengadaan_id ?? $request->pengadaanId)->latest()->first();
+            $nppRealisation = $npp?->realisasi;
+            if ($nppRealisation === null && $npp) {
+                $nppForm = $npp->form_data ?? [];
+                $nppSection = $nppForm['buat-npp'] ?? $nppForm['npp'] ?? $nppForm;
+                $nppRealisation = $nppSection['realisasi'] ?? null;
+            }
+            $isRealisation = in_array(strtolower((string) $nppRealisation), ['1', 'true', 'ya', 'yes'], true);
             return [
                 'no_sp3'         => $data['no_sp3'] ?? $data['noSp3'] ?? $data['sp3'] ?? null,
                 'judul'          => $data['judul'] ?? $data['title'] ?? $fd['judulPermohonan'] ?? $fd['judul'] ?? null,
                 'departemen'     => $data['departemen'] ?? $data['dept'] ?? $fd['subUnit'] ?? $fd['divisi'] ?? null,
                 'rkap'           => $data['rkap'] ?? $data['nilaiRkap'] ?? $fd['nilaiPr'] ?? $fd['nilaiPermohonan'] ?? null,
                 'tax'            => $data['tax'] ?? $data['nilaiTax'] ?? $fd['nilaiTax'] ?? null,
-                'realisasi'      => $data['realisasi'] ?? $fd['realisasi'] ?? null,
+                'realisasi'      => $nppRealisation === null ? null : ($isRealisation ? 'Ya' : 'Tidak'),
                 'vendor'         => $data['vendor'] ?? $fd['vendor'] ?? null,
                 'pr_no'          => $data['pr_no'] ?? $data['prNo'] ?? $fd['noPR'] ?? $fd['prNo'] ?? null,
                 'rab_no'         => $data['rab_no'] ?? $data['rabNo'] ?? $fd['noRAB'] ?? $fd['rabNo'] ?? null,

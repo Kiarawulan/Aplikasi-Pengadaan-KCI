@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, AlertCircle, Info, X } from "lucide-react";
 
 export type WarningVariant = "warning" | "error" | "info" | "duplicate";
@@ -57,9 +58,9 @@ export const WarningModal: React.FC<WarningModalProps> = ({
 
   const Icon = config.icon;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 min-h-[100dvh] bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000] p-4 animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
@@ -107,6 +108,7 @@ export const WarningModal: React.FC<WarningModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };

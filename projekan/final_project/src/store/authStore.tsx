@@ -13,6 +13,7 @@ export const DEFAULT_ROLES: AppRole[] = [
     roleType: "admin",
     color: "#e6251c",
     createdAt: "2024-01-01",
+    active: true,
     permissions: {
       pengajuanDana: "editor", pengadaan: "editor", pengujian: "editor",
       pembayaran: "editor", templateDokumen: "editor", masterData: "editor",
@@ -27,6 +28,7 @@ export const DEFAULT_ROLES: AppRole[] = [
     roleType: "admin",
     color: "#e6251c",
     createdAt: "2024-01-01",
+    active: true,
     permissions: {
       dashboard: "editor", pengajuanDana: "editor", pengadaan: "editor",
       pengujian: "editor", pembayaran: "editor", templateDokumen: "editor",
@@ -41,6 +43,7 @@ export const DEFAULT_ROLES: AppRole[] = [
     roleType: "admin",
     color: "#0284c7",
     createdAt: "2024-01-01",
+    active: true,
     permissions: {
       dashboard: "editor", pengajuanDana: "viewer", pengadaan: "editor",
       pengujian: "editor", pembayaran: "viewer", templateDokumen: "editor",
@@ -55,6 +58,7 @@ export const DEFAULT_ROLES: AppRole[] = [
     roleType: "user",
     color: "#10b981",
     createdAt: "2024-01-01",
+    active: true,
     permissions: {
       dashboard: "editor", pengajuanDana: "editor", pengadaan: "editor",
       pengujian: "editor", pembayaran: "editor", templateDokumen: "viewer",
@@ -69,6 +73,7 @@ export const DEFAULT_ROLES: AppRole[] = [
     roleType: "user",
     color: "#7c3aed",
     createdAt: "2024-01-01",
+    active: true,
     permissions: {
       pengajuanDana: "editor", pengadaan: "editor", pengujian: "viewer",
       pembayaran: "viewer", templateDokumen: "viewer", masterData: "no-access",

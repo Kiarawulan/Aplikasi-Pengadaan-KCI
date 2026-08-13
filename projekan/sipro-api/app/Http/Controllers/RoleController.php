@@ -49,6 +49,7 @@ class RoleController extends Controller
                 'role_type' => $data['roleType'],
                 'color' => $data['color'],
                 'is_system' => false,
+                'is_active' => true,
             ]);
             $this->replacePermissions($role, $data['permissions']);
             $this->audit($request, 'role.created', $role, null, $this->snapshot($role));
@@ -66,6 +67,12 @@ class RoleController extends Controller
             $before = $this->snapshot($role);
 
             $nextRoleType = $data['roleType'] ?? $role->role_type;
+            $nextActive = $data['active'] ?? $role->is_active;
+            if ($role->role_type === 'admin' && ! $nextActive) {
+                $activeAdmins = User::where('is_active', true)->where('is_admin', true)->count();
+                $affectedAdmins = User::where('is_active', true)->where('role_id', $role->id)->count();
+                abort_if($activeAdmins <= $affectedAdmins, 422, 'Role ini masih memegang akses admin aktif terakhir dan tidak dapat dinonaktifkan.');
+            }
             if ($role->role_type === 'admin' && $nextRoleType !== 'admin') {
                 $activeAdmins = User::where('is_active', true)->where('is_admin', true)->count();
                 $affectedAdmins = User::where('is_active', true)->where('role_id', $role->id)->count();
@@ -76,6 +83,7 @@ class RoleController extends Controller
             if (array_key_exists('description', $data)) $role->description = $data['description'];
             if (array_key_exists('color', $data)) $role->color = $data['color'];
             if (array_key_exists('roleType', $data)) $role->role_type = $nextRoleType;
+            if (array_key_exists('active', $data)) $role->is_active = $nextActive;
             $role->save();
 
             if (array_key_exists('permissions', $data)) $this->replacePermissions($role, $data['permissions']);
@@ -128,6 +136,7 @@ class RoleController extends Controller
             'color' => [$role ? 'sometimes' : 'required', 'string', 'max:30'],
             'permissions' => [$role ? 'sometimes' : 'required', 'array'],
             'permissions.*' => ['required', 'in:viewer,editor,no-access'],
+            'active' => ['sometimes', 'boolean'],
         ]);
 
         $roleType = $data['roleType'] ?? $role?->role_type;
@@ -161,6 +170,7 @@ class RoleController extends Controller
             'roleType' => $role->role_type,
             'color' => $role->color,
             'isSystem' => $role->is_system,
+            'active' => $role->is_active,
             'permissions' => $role->permissions->mapWithKeys(fn (RolePermission $permission) => [$permission->module => $permission->access_level])->all(),
             'userCount' => $role->users_count ?? $role->users()->count(),
             'createdAt' => $role->created_at?->toDateTimeString(),
@@ -190,6 +200,7 @@ class RoleController extends Controller
             'name' => $role->name,
             'role_type' => $role->role_type,
             'description' => $role->description,
+            'is_active' => $role->is_active,
             'permissions' => $role->permissions->mapWithKeys(fn (RolePermission $permission) => [$permission->module => $permission->access_level])->all(),
         ];
     }

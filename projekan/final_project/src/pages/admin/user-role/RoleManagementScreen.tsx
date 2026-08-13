@@ -139,6 +139,7 @@ export function RoleManagementScreen() {
         description: showEdit.description,
         roleType: showEdit.roleType || 'admin',
         color: showEdit.color,
+        active: showEdit.active !== false,
         permissions: rolePermissionsFromGroups(editGroups, normalizePermissions(showEdit.permissions)),
       });
       showNotify("Role Diperbarui", "Role berhasil diperbarui!", "info");
@@ -199,20 +200,21 @@ export function RoleManagementScreen() {
 
           {/* Role Table */}
           <div className="rounded-[16px] border border-[#f1f5f9] overflow-x-auto">
-            <table className="w-full min-w-[600px] text-left border-collapse">
+            <table className="w-full min-w-[700px] text-left border-collapse">
               <thead>
                 <tr className="bg-[#252271] text-white text-[12px] font-bold h-[44px]">
-                  <th className="pl-5 pr-3 py-3 w-[320px]">Role</th>
-                  <th className="px-3 py-3 w-[180px]">Jumlah User</th>
+                  <th className="pl-5 pr-3 py-3 w-[280px]">Role</th>
+                  <th className="px-3 py-3 w-[140px]">Jumlah User</th>
                   <th className="px-3 py-3">Akses Utama</th>
+                  <th className="px-3 py-3 w-[130px]">Status</th>
                   <th className="px-3 py-3 w-[120px] text-right pr-5">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f1f5f9]">
                 {filteredRoles.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-10 text-center text-[#94a3b8] text-[13px]">
-                      Tidak ada role ditemukan.
+                    <td colSpan={5} className="py-10 text-center text-[#94a3b8] text-[13px]">
+                      {loading ? "Memuat data role..." : "Tidak ada role ditemukan."}
                     </td>
                   </tr>
                 ) : (
@@ -240,21 +242,34 @@ export function RoleManagementScreen() {
                             {role.name.toLowerCase().includes("admin") ? "Semua Menu (Full Access)" : "Menu Terbatas"}
                           </span>
                         </td>
+                        <td className="px-3 py-4">
+                          {role.active !== false ? (
+                            <span className="bg-[#f0fdf4] text-[#15803d] text-[11px] font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 w-fit">
+                              <span className="bg-[#22c55e] size-1.5 rounded-full" />
+                              Aktif
+                            </span>
+                          ) : (
+                            <span className="bg-[#fef2f2] text-[#cc0000] text-[11px] font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 w-fit">
+                              <span className="bg-[#cc0000] size-1.5 rounded-full" />
+                              Non-Aktif
+                            </span>
+                          )}
+                        </td>
                         <td className="px-3 py-4 pr-5 text-right">
                           <div className="flex items-center justify-end gap-1">
                             {hasPermission("roleManagement", "editor") && <button
                               onClick={() => { setEditGroups(permissionGroupsFromRole(normalizePermissions(role.permissions))); setShowEdit(role); }}
-                              className="p-1.5 rounded-[6px] hover:bg-[#e0e7ff] text-[#252271] transition-colors"
+                              className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center hover:bg-amber-100 transition-colors"
                               title="Edit Role"
                             >
-                              <Edit2 size={15} />
+                              <Edit2 size={11} className="text-amber-600" />
                             </button>}
                             {hasPermission("roleManagement", "editor") && <button
                               onClick={() => setShowConfirmDelete(role)}
-                              className="p-1.5 rounded-[6px] hover:bg-[#fef2f2] text-[#cc0000] transition-colors"
+                              className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors"
                               title="Hapus Role"
                             >
-                              <Trash2 size={15} />
+                              <Trash2 size={11} className="text-red-500" />
                             </button>}
                           </div>
                         </td>

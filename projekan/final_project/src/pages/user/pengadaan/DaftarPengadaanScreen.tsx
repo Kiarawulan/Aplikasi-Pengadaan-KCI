@@ -5,6 +5,7 @@ import { TopBar } from "@/components/user/layout/TopBar";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { PembelianBaruPopup } from "@/components/user/pengadaan/PembelianBaruPopup";
 import { api } from "@/services/api";
+import { confirmFeedback } from "@/components/common/GlobalFeedback";
 import { useAuth } from "@/store/authStore";
 
 
@@ -75,7 +76,7 @@ export function DaftarPengadaanScreen({ onSelectItem }: {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(`Yakin ingin menghapus paket pengadaan ${id}?`)) return;
+    if (!await confirmFeedback(`Yakin ingin menghapus paket pengadaan ${id}?`, "Hapus Pengadaan")) return;
     try {
       setDeletingId(id);
       await api.delete(`/pengadaan/${id}`);

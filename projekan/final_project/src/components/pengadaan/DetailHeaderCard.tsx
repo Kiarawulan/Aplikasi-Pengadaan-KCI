@@ -1,4 +1,5 @@
 import type { PengadaanItem } from "../../types";
+import { formatDisplayDate } from "../../utils/formatDate";
 
 export function DetailHeaderCard({ item, allFd }: { item: PengadaanItem, allFd?: Record<string, any> }) {
   const fd = allFd || item.formData || {};
@@ -14,7 +15,7 @@ export function DetailHeaderCard({ item, allFd }: { item: PengadaanItem, allFd?:
           <p className="text-white font-black text-xl">{item.nama}</p>
           <div className="flex flex-wrap gap-6 mt-2.5">
             {[
-              { label: "Tanggal Pembuatan:", val: item.tanggal },
+              { label: "Tanggal Pembuatan:", val: formatDisplayDate(item.tanggal) },
               { label: "Divisi:", val: item.departemen },
               { label: "Nominal:", val: item.nominal },
               { label: "Email PIC:", val: emailPic },

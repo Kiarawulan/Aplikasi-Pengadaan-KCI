@@ -19,10 +19,12 @@ class Role extends Model
         'color',
         'role_type',
         'is_system',
+        'is_active',
     ];
 
     protected $casts = [
         'is_system' => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     public function permissions()

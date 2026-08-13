@@ -583,17 +583,17 @@ export function TemplateDokumenAdminScreen() {
                   <p className="text-[9.5px] text-gray-400">{t.uploadedAt}</p>
                 </div>
                 <div className="col-span-2 px-3 py-3.5 flex items-center justify-end gap-1">
-                  <button onClick={() => setShowDetail(t)} className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors" title="Lihat Detail">
-                    <Eye size={14} className="text-blue-500" />
+                  <button onClick={() => setShowDetail(t)} className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100 transition-colors" title="Lihat Detail">
+                    <Eye size={11} className="text-blue-600" />
                   </button>
-                  <button onClick={() => setShowEdit(t)} className="p-1.5 rounded-lg hover:bg-indigo-50 transition-colors" title="Edit">
-                    <Edit3 size={14} className="text-indigo-500" />
+                  <button onClick={() => setShowEdit(t)} className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center hover:bg-amber-100 transition-colors" title="Edit">
+                    <Edit3 size={11} className="text-amber-600" />
                   </button>
                   <button onClick={() => downloadTemplate(t)} className="p-1.5 rounded-lg hover:bg-green-50 transition-colors cursor-pointer" title="Download Template">
                     <Download size={14} className="text-green-500" />
                   </button>
-                  <button onClick={() => setDeleteId(t.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Hapus">
-                    <Trash2 size={14} className="text-red-400" />
+                  <button onClick={() => setDeleteId(t.id)} className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors" title="Hapus">
+                    <Trash2 size={11} className="text-red-500" />
                   </button>
                 </div>
               </div>

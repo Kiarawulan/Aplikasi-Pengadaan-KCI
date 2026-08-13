@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Pengadaan;
 use App\Models\Pengujian;
+use App\Models\Rup;
 use App\Models\UploadedDocument;
 use App\Models\Verifikasi;
 use Illuminate\Http\Request;
@@ -11,6 +12,30 @@ use Illuminate\Support\Facades\Storage;
 
 class UploadedDocumentController extends Controller
 {
+    public function rupIndex(Request $request)
+    {
+        abort_unless($request->user()->is_admin, 403, 'Hanya admin yang dapat melihat seluruh RUP signed.');
+        return response()->json(['success' => true, 'data' => UploadedDocument::where('stage', 'rup-signed')->latest()->get()]);
+    }
+
+    public function rupStore(Request $request, Rup $rup)
+    {
+        $this->authorizeRupAccess($request, $rup);
+        $request->validate(['file' => 'required|file|mimes:pdf,doc,docx|max:20480']);
+        $file = $request->file('file');
+        $path = $file->store("rup/{$rup->id}", 'public');
+        $document = UploadedDocument::create([
+            'pengadaan_id' => $rup->id,
+            'stage' => 'rup-signed',
+            'original_name' => $file->getClientOriginalName(),
+            'path' => $path,
+            'mime_type' => $file->getMimeType(),
+            'size' => $file->getSize(),
+            'uploaded_by' => $request->user()->id,
+        ]);
+        return response()->json(['success' => true, 'message' => 'RUP signed berhasil diunggah.', 'data' => $document], 201);
+    }
+
     public function index(Request $request, string $pengadaan)
     {
         $pengadaanModel = $this->resolvePengadaan($pengadaan);
@@ -70,15 +95,21 @@ class UploadedDocumentController extends Controller
 
     public function download(Request $request, UploadedDocument $document)
     {
-        $pengadaan = Pengadaan::findOrFail($document->pengadaan_id);
-        $this->authorizeReadAccess($request, $pengadaan);
+        if ($document->stage === 'rup-signed') {
+            $this->authorizeRupReadAccess($request, Rup::findOrFail($document->pengadaan_id));
+        } else {
+            $this->authorizeReadAccess($request, Pengadaan::findOrFail($document->pengadaan_id));
+        }
         return Storage::disk('public')->download($document->path, $document->original_name);
     }
 
     public function destroy(Request $request, UploadedDocument $document)
     {
-        $pengadaan = Pengadaan::findOrFail($document->pengadaan_id);
-        $this->authorizeAccess($request, $pengadaan);
+        if ($document->stage === 'rup-signed') {
+            $this->authorizeRupAccess($request, Rup::findOrFail($document->pengadaan_id));
+        } else {
+            $this->authorizeAccess($request, Pengadaan::findOrFail($document->pengadaan_id));
+        }
         abort_unless($request->user()->is_admin || $document->uploaded_by === $request->user()->id, 403, 'Tidak dapat menghapus dokumen ini.');
         Storage::disk('public')->delete($document->path);
         $document->delete();
@@ -130,5 +161,15 @@ class UploadedDocumentController extends Controller
         $user = $request->user();
         $isStaff = $user->is_admin || ($user->role && in_array($user->role->name, ['Admin', 'Superadmin', 'Keuangan', 'Finance', 'Verifikator', 'Manajer'], true));
         abort_unless($isStaff || $pengadaan->departemen === $user->departemen || $pengadaan->created_by === $user->id, 403, 'Anda tidak memiliki akses ke pengadaan ini.');
+    }
+
+    private function authorizeRupAccess(Request $request, Rup $rup): void
+    {
+        abort_unless($request->user()->is_admin || $rup->created_by === $request->user()->id, 403, 'Anda tidak memiliki akses ke RUP ini.');
+    }
+
+    private function authorizeRupReadAccess(Request $request, Rup $rup): void
+    {
+        abort_unless($request->user()->is_admin || $rup->departemen === $request->user()->departemen || $rup->created_by === $request->user()->id, 403, 'Anda tidak memiliki akses ke RUP ini.');
     }
 }

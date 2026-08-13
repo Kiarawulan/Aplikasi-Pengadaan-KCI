@@ -10,6 +10,7 @@ use App\Http\Controllers\VerifikasiController;
 use App\Http\Controllers\TemplateDokumenController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\HargaSatuanController;
+use App\Http\Controllers\MasterReferenceController;
 use App\Http\Controllers\PengujianController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\RupController;
@@ -32,10 +33,12 @@ Route::middleware('auth:sanctum')->group(function () {
 // RUP
     Route::get('/rup', [RupController::class, 'index'])->middleware('module.permission:pengadaan,viewer');
     Route::post('/rup', [RupController::class, 'store'])->middleware('module.permission:pengadaan,editor');
+    Route::get('/rup-documents', [UploadedDocumentController::class, 'rupIndex'])->middleware('module.permission:pengadaan,viewer');
     Route::get('/rup/{rup}', [RupController::class, 'show'])->middleware('module.permission:pengadaan,viewer');
     Route::put('/rup/{rup}', [RupController::class, 'update'])->middleware('module.permission:pengadaan,editor');
     Route::delete('/rup/{rup}', [RupController::class, 'destroy'])->middleware('module.permission:pengadaan,editor');
     Route::post('/rup/{rup}/submit', [RupController::class, 'submit'])->middleware('module.permission:pengadaan,editor');
+    Route::post('/rup/{rup}/documents', [UploadedDocumentController::class, 'rupStore'])->middleware('module.permission:pengadaan,editor');
 
     // Dokumen Tahapan Pengadaan (NPP, SP3, Contract)
     Route::get('/step-documents/{type}', [StepDocumentController::class, 'index'])->middleware('module.permission:pengadaan,viewer');
@@ -70,6 +73,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Pengadaan
     Route::get('/pengadaan', [PengadaanController::class, 'index'])->middleware('module.permission:pengadaan,viewer');
     Route::post('/pengadaan', [PengadaanController::class, 'store'])->middleware('module.permission:pengadaan,editor');
+    Route::post('/pengadaan/{pengadaan}/release-npp-number', [StepDocumentController::class, 'releaseNppNumber'])->middleware('module.permission:pengadaan,editor');
     Route::get('/pengadaan/{pengadaan}', [PengadaanController::class, 'show'])->middleware('module.permission:pengadaan,viewer');
     Route::put('/pengadaan/{pengadaan}', [PengadaanController::class, 'update'])->middleware('module.permission:pengadaan,editor');
     Route::put('/pengadaan/{pengadaan}/form-data', [PengadaanController::class, 'updateFormData'])->middleware('module.permission:pengadaan,editor');
@@ -108,6 +112,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Harga Satuan
     Route::apiResource('/harga-satuan', HargaSatuanController::class)->middleware('module.permission:masterData,editor');
+
+    Route::get('/master-references/{category}', [MasterReferenceController::class, 'index'])->middleware('module.permission:masterData,viewer');
+    Route::post('/master-references/{category}/bootstrap', [MasterReferenceController::class, 'bootstrap'])->middleware('module.permission:masterData,editor');
+    Route::post('/master-references/{category}', [MasterReferenceController::class, 'store'])->middleware('module.permission:masterData,editor');
+    Route::put('/master-references/{category}/{referenceId}', [MasterReferenceController::class, 'update'])->middleware('module.permission:masterData,editor');
+    Route::delete('/master-references/{category}/{referenceId}', [MasterReferenceController::class, 'destroy'])->middleware('module.permission:masterData,editor');
 
     // Pengujian
     Route::get('/pengujian', [PengujianController::class, 'index'])->middleware('module.permission:pengujian,viewer');

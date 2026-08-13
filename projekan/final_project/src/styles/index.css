@@ -2,3 +2,9 @@
 @import './tailwind.css';
 @import './theme.css';
 @import './design-system.css';
+/* Prevent the browser's native password reveal control from appearing beside
+   the application's own accessible show/hide button. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}

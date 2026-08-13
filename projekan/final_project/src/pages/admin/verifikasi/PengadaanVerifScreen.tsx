@@ -109,6 +109,8 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
         if (key && !uniqueVerifMap.has(key)) {
           uniqueVerifMap.set(key, {
             id: pId,
+            documentId: item.document?.id,
+            noNpp: item.document?.no_npp,
             verif_id: item.id,
             judul: buatNpp.judulPermohonan || buatPd.judulPermohonan || matchingPeng?.nama || item.pengadaan_nama || item.judul || "Pengadaan Baru",
             title: buatNpp.judulPermohonan || buatPd.judulPermohonan || matchingPeng?.nama || item.pengadaan_nama || item.judul || "Pengadaan Baru",
@@ -125,7 +127,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
             coa: buatNpp.coa || "5211101",
             jenisBarang: buatNpp.jenisBarang || "Barang",
             kurs: buatNpp.kurs || "IDR",
-            realisasi: buatNpp.realisasi === "true" ? "Timeline" : "Diluar Timeline",
+            realisasi: [true, "true", 1, "1", "ya", "yes"].includes(buatNpp.realisasi) ? "Ya" : "Tidak",
             keterangan: buatNpp.keterangan || "",
             pengadaanNama: item.pengadaan_nama || item.judul || "Pengadaan Baru",
             status: item.status || "pending",
@@ -332,6 +334,7 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
     { key: "nama", label: "Procurement Title", render: (r: any) => <div><p className="font-semibold text-gray-800 text-[11.5px] max-w-[220px] truncate">{r.nama || r.title}</p><p className="text-gray-400 text-[10px]">{r.vendor}</p></div> },
     { key: "nominal", label: "Nilai Pengadaan", render: (r: any) => <span className="font-semibold text-gray-800 text-[11.5px]">{r.nominal || r.rkap}</span> },
     { key: "dept", label: "Divisi", render: (r: any) => <span className="text-gray-600 text-[11px]">{r.departemen || r.dept}</span> },
+    { key: "realisasi", label: "Realisation", render: (r: any) => <span className={`inline-flex rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${r.realisasi === "Ya" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{r.realisasi || "Tidak"}</span> },
   ];
 
   const pbjColumns = activeSubItem === 'pbj-task-approval-pbj' ? [

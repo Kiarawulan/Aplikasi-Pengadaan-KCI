@@ -168,6 +168,7 @@ class UserController extends Controller
 
     private function assertRoleCanBeAssigned(Request $request, Role $role): void
     {
+        abort_if(! $role->is_active, 422, 'Role nonaktif tidak dapat diberikan kepada user. Aktifkan role terlebih dahulu.');
         // Managing user accounts alone never permits granting an Admin role.
         // That action additionally requires Role Management edit permission.
         if ($role->role_type === 'admin' && ! EnsureModulePermission::allows($request->user(), 'roleManagement', 'editor')) {

@@ -26,17 +26,18 @@ class EnsureModulePermission
     {
         if (! $user || ! $user->is_active) return false;
 
-        // Admin & Superadmin bypass
+        $role = $user->loadMissing('role.permissions')->role;
+        if ($role && ! $role->is_active) return false;
+
+        // Only built-in full-access administrator identities bypass the matrix.
+        // Custom roles with role_type=admin must still honor their permissions.
         if (
-            $user->is_admin ||
             $user->email === 'admin@sipro.com' ||
             $user->role_id === 'role-admin' ||
             in_array($user->role?->name, ['Super Admin', 'Admin Full Access', 'Admin'], true)
         ) {
             return true;
         }
-
-        $role = $user->loadMissing('role.permissions')->role;
 
         // User role default permission for core user workflow modules
         if (!$role || $role->role_type === 'user' || empty($role->role_type)) {
@@ -49,7 +50,8 @@ class EnsureModulePermission
         $level = $permission?->access_level;
 
         // Default fallback for core user workflow modules if not explicitly set
-        if (!$permission && in_array($module, ['pengadaan', 'pengajuanDana', 'pembayaran', 'pengujian', 'dashboard'], true)) {
+        if (!$permission && (!$role || $role->role_type === 'user' || empty($role->role_type))
+            && in_array($module, ['pengadaan', 'pengajuanDana', 'pembayaran', 'pengujian', 'dashboard'], true)) {
             return true;
         }
 

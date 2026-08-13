@@ -45,16 +45,31 @@ class DatabaseSeeder extends Seeder
             [
                 'id' => 'role-admin-logistik',
                 'name' => 'Admin Logistik',
-                'description' => 'Administrator pengelola logistik, warehouse, material, inventory, dan verifikasi alur logistik.',
+                'description' => 'Administrator khusus modul Pengadaan.',
                 'color' => '#0284c7',
                 'role_type' => 'admin',
                 'is_system' => true,
                 'permissions' => [
-                    'dashboard' => 'editor', 'pengajuanDana' => 'viewer', 'pengadaan' => 'editor',
-                    'pengujian' => 'editor', 'pembayaran' => 'viewer', 'templateDokumen' => 'editor',
-                    'masterData' => 'editor', 'userManagement' => 'viewer',
+                    'dashboard' => 'viewer', 'pengajuanDana' => 'no-access', 'pengadaan' => 'editor',
+                    'pengujian' => 'no-access', 'pembayaran' => 'no-access', 'templateDokumen' => 'no-access',
+                    'masterData' => 'no-access', 'userManagement' => 'no-access',
                     'roleManagement' => 'no-access',
                 ],
+            ],
+            [
+                'id' => 'role-admin-anggaran', 'name' => 'Admin Anggaran', 'description' => 'Administrator khusus modul Pengajuan Dana.',
+                'color' => '#7c3aed', 'role_type' => 'admin', 'is_system' => true,
+                'permissions' => ['dashboard' => 'viewer', 'pengajuanDana' => 'editor', 'pengadaan' => 'no-access', 'pengujian' => 'no-access', 'pembayaran' => 'no-access', 'templateDokumen' => 'no-access', 'masterData' => 'no-access', 'userManagement' => 'no-access', 'roleManagement' => 'no-access'],
+            ],
+            [
+                'id' => 'role-admin-penguji', 'name' => 'Admin Penguji', 'description' => 'Administrator khusus modul Pengujian.',
+                'color' => '#059669', 'role_type' => 'admin', 'is_system' => true,
+                'permissions' => ['dashboard' => 'viewer', 'pengajuanDana' => 'no-access', 'pengadaan' => 'no-access', 'pengujian' => 'editor', 'pembayaran' => 'no-access', 'templateDokumen' => 'no-access', 'masterData' => 'no-access', 'userManagement' => 'no-access', 'roleManagement' => 'no-access'],
+            ],
+            [
+                'id' => 'role-admin-keuangan', 'name' => 'Admin Keuangan', 'description' => 'Administrator khusus modul Pembayaran.',
+                'color' => '#d97706', 'role_type' => 'admin', 'is_system' => true,
+                'permissions' => ['dashboard' => 'viewer', 'pengajuanDana' => 'no-access', 'pengadaan' => 'no-access', 'pengujian' => 'no-access', 'pembayaran' => 'editor', 'templateDokumen' => 'no-access', 'masterData' => 'no-access', 'userManagement' => 'no-access', 'roleManagement' => 'no-access'],
             ],
             [
                 'id' => 'role-staff-pengadaan',
@@ -99,6 +114,7 @@ class DatabaseSeeder extends Seeder
                     'color' => $data['color'],
                     'role_type' => $data['role_type'],
                     'is_system' => $data['is_system'],
+                    'is_active' => true,
                     'updated_at' => now(),
                 ]);
                 $roleId = $raw->id;
@@ -110,6 +126,7 @@ class DatabaseSeeder extends Seeder
                     'color' => $data['color'],
                     'role_type' => $data['role_type'],
                     'is_system' => $data['is_system'],
+                    'is_active' => true,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -180,6 +197,22 @@ class DatabaseSeeder extends Seeder
                 'departemen' => 'CTIT',
                 'is_admin' => false,
             ],
+            [
+                'id' => 'user-kci-admin-anggaran', 'name' => 'Admin Anggaran', 'username' => 'adminanggaran', 'email' => 'admin.anggaran@kci.com', 'password' => 'Kci@2026!',
+                'role_name' => 'Admin Anggaran', 'default_role_id' => 'role-admin-anggaran', 'departemen' => 'Anggaran', 'is_admin' => true,
+            ],
+            [
+                'id' => 'user-kci-admin-logistik', 'name' => 'Admin Logistik', 'username' => 'adminlogistik.kci', 'email' => 'admin.logistik@kci.com', 'password' => 'Kci@2026!',
+                'role_name' => 'Admin Logistik', 'default_role_id' => 'role-admin-logistik', 'departemen' => 'Logistik', 'is_admin' => true,
+            ],
+            [
+                'id' => 'user-kci-admin-penguji', 'name' => 'Admin Penguji', 'username' => 'adminpenguji', 'email' => 'admin.penguji@kci.com', 'password' => 'Kci@2026!',
+                'role_name' => 'Admin Penguji', 'default_role_id' => 'role-admin-penguji', 'departemen' => 'Pengujian', 'is_admin' => true,
+            ],
+            [
+                'id' => 'user-kci-admin-keuangan', 'name' => 'Admin Keuangan', 'username' => 'adminkeuangan', 'email' => 'admin.keuangan@kci.com', 'password' => 'Kci@2026!',
+                'role_name' => 'Admin Keuangan', 'default_role_id' => 'role-admin-keuangan', 'departemen' => 'Keuangan', 'is_admin' => true,
+            ],
         ];
 
         foreach ($users as $data) {
@@ -203,6 +236,7 @@ class DatabaseSeeder extends Seeder
                     'departemen' => $data['departemen'],
                     'is_admin' => $data['is_admin'],
                     'is_active' => true,
+                    'must_reset_password' => str_ends_with($data['email'], '@kci.com'),
                     'password' => Hash::make($data['password']),
                     'updated_at' => now(),
                 ]);
@@ -217,7 +251,7 @@ class DatabaseSeeder extends Seeder
                     'departemen' => $data['departemen'],
                     'is_admin' => $data['is_admin'],
                     'is_active' => true,
-                    'must_reset_password' => false,
+                    'must_reset_password' => str_ends_with($data['email'], '@kci.com'),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);

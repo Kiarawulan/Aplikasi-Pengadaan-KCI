@@ -258,24 +258,24 @@ export function UserManagementScreen() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => setShowDetail(user)}
-                              className="p-1.5 rounded-[6px] hover:bg-[#e0e7ff] text-[#252271] transition-colors"
+                              className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100 transition-colors"
                               title="Lihat Detail"
                             >
-                              <Eye size={15} />
+                              <Eye size={11} className="text-blue-600" />
                             </button>
                             {hasPermission("userManagement", "editor") && <button
                               onClick={() => { setEditForm(user); setShowEdit(user); }}
-                              className="p-1.5 rounded-[6px] hover:bg-[#f1f5f9] text-gray-500 transition-colors"
+                              className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center hover:bg-amber-100 transition-colors"
                               title="Edit User"
                             >
-                              <Edit2 size={15} />
+                              <Edit2 size={11} className="text-amber-600" />
                             </button>}
                             {hasPermission("userManagement", "editor") && <button
                               onClick={() => setShowConfirmDelete(user)}
-                              className="p-1.5 rounded-[6px] hover:bg-[#fef2f2] text-[#cc0000] transition-colors"
+                              className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors"
                               title="Hapus User"
                             >
-                              <Trash2 size={15} />
+                              <Trash2 size={11} className="text-red-500" />
                             </button>}
                           </div>
                         </td>
@@ -364,6 +364,18 @@ export function UserManagementScreen() {
             </ModalField>
             <ModalField label="Divisi" required>
               <ModalSelect value={editForm.departemen || ""} onChange={v => setEditForm(p => ({ ...p, departemen: v }))} options={DIVISI_OPTIONS} />
+            </ModalField>
+            <ModalField label="Status User">
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setEditForm(p => ({ ...p, isActive: true }))}
+                  className={`rounded-lg px-4 py-2 text-[11.5px] font-bold ${editForm.isActive !== false ? "bg-green-600 text-white" : "border border-gray-200 bg-gray-100 text-gray-600"}`}>
+                  Aktif
+                </button>
+                <button type="button" onClick={() => setEditForm(p => ({ ...p, isActive: false }))}
+                  className={`rounded-lg px-4 py-2 text-[11.5px] font-bold ${editForm.isActive === false ? "bg-red-600 text-white" : "border border-gray-200 bg-gray-100 text-gray-600"}`}>
+                  Non-Aktif
+                </button>
+              </div>
             </ModalField>
           </div>
         </AdminModal>

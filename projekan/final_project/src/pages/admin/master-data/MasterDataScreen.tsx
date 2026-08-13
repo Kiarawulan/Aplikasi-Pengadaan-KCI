@@ -460,7 +460,18 @@ export function MasterDataScreen() {
     setAllData((previous) => ({ ...previous, vendor: vendors }));
   };
 
-  useEffect(() => { loadVendors().catch((error) => console.error("Gagal memuat master vendor:", error)); }, []);
+  const loadReferences = async (category: TabId) => {
+    if (category === "vendor") return loadVendors();
+    const response = await api.post(`/master-references/${category}/bootstrap`, { items: MOCK_DATA[category] });
+    setAllData(previous => ({ ...previous, [category]: Array.isArray(response.data) ? response.data : [] }));
+  };
+
+  useEffect(() => {
+    loadReferences(activeTab).catch((error) => {
+      console.error("Gagal memuat master data:", error);
+      setWarning({ isOpen: true, title: "Gagal Memuat Data", message: error.response?.data?.message || "Master data tidak dapat dimuat dari database.", variant: "error" });
+    });
+  }, [activeTab]);
 
   const currentTabDef = TABS.find(t => t.id === activeTab)!;
   const columns = useMemo(() => getColumns(activeTab), [activeTab]);
@@ -527,11 +538,13 @@ export function MasterDataScreen() {
       return;
     }
     const prefix = activeTab.split("-").map(w => w[0].toUpperCase()).join("");
+    const nextNumber = Math.max(0, ...data.map(item => Number(String(item.id).match(/(\d+)$/)?.[1] || 0))) + 1;
     const newItem: MasterItem = {
-      id: `${prefix}-${String(data.length + 1).padStart(3, "0")}`,
+      id: `${prefix}-${String(nextNumber).padStart(3, "0")}`,
       ...formData,
     };
-    setAllData(prev => ({ ...prev, [activeTab]: [newItem, ...prev[activeTab]] }));
+    await api.post(`/master-references/${activeTab}`, { id: newItem.id, data: newItem });
+    await loadReferences(activeTab);
     setShowAdd(false);
   };
 
@@ -573,10 +586,8 @@ export function MasterDataScreen() {
       }
       return;
     }
-    setAllData(prev => ({
-      ...prev,
-      [activeTab]: prev[activeTab].map(item => item.id === showEdit.id ? { ...item, ...formData } : item),
-    }));
+    await api.put(`/master-references/${activeTab}/${showEdit.id}`, { data: { ...showEdit, ...formData } });
+    await loadReferences(activeTab);
     setShowEdit(null);
   };
 
@@ -588,10 +599,8 @@ export function MasterDataScreen() {
       setDeleteId(null);
       return;
     }
-    setAllData(prev => ({
-      ...prev,
-      [activeTab]: prev[activeTab].filter(item => item.id !== deleteId),
-    }));
+    await api.delete(`/master-references/${activeTab}/${deleteId}`);
+    await loadReferences(activeTab);
     setDeleteId(null);
   };
 
@@ -679,11 +688,11 @@ export function MasterDataScreen() {
                   </div>
                 ))}
                 <div className="w-28 px-3 py-3 flex items-center justify-end gap-1">
-                  <button onClick={() => setShowEdit(item)} className="p-1.5 rounded-lg hover:bg-indigo-50 transition-colors" title="Edit">
-                    <Edit3 size={14} className="text-indigo-500" />
+                  <button onClick={() => setShowEdit(item)} className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center hover:bg-amber-100 transition-colors" title="Edit">
+                    <Edit3 size={11} className="text-amber-600" />
                   </button>
-                  <button onClick={() => setDeleteId(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Hapus">
-                    <Trash2 size={14} className="text-red-400" />
+                  <button onClick={() => setDeleteId(item.id)} className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors" title="Hapus">
+                    <Trash2 size={11} className="text-red-500" />
                   </button>
                 </div>
               </div>

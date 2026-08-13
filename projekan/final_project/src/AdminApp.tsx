@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CheckCircle2, Edit3, FileWarning, XCircle, Upload } from "lucide-react";
+import { CheckCircle2, Edit3, Eye, FileWarning, Trash2, XCircle, Upload } from "lucide-react";
 import logoImg from "@/imports/UserDashboard/a1d658a5f37b0b6b958626283ef2524233d0a35d.png";
 import group13Svg from "@/imports/Group13/svg-0k0x59k5bp";
 import group14Svg from "@/imports/Group14/svg-sivp8gfyg0";
@@ -17,6 +17,7 @@ import { TambahRupModal } from "./components/admin/verifikasi/TambahRupModal";
 import { NppDetailView } from "./components/admin/verifikasi/NppDetailView";
 import { PengujianDetailView } from "./components/admin/verifikasi/PengujianDetailView";
 import { api } from "./services/api";
+import { confirmFeedback, showFeedback } from "./components/common/GlobalFeedback";
 import { updateRup, updateVerifRecord } from "./store/dataStore";
 import featureUnavailableImage from "./assets/feature-unavailable.png";
 import { DIVISI_LIST } from "./constants/divisi";
@@ -90,6 +91,15 @@ type PembayaranDoc =
   | "pembayaran-spm"
   | "pembayaran-verification";
 
+function AdminTableActionButton({ kind, title, onClick }: { kind: "view" | "edit" | "delete"; title?: string; onClick: () => void }) {
+  const config = kind === "view"
+    ? { Icon: Eye, label: title || "Lihat", button: "bg-blue-50 hover:bg-blue-100", icon: "text-blue-600" }
+    : kind === "edit"
+      ? { Icon: Edit3, label: title || "Edit", button: "bg-amber-50 hover:bg-amber-100", icon: "text-amber-600" }
+      : { Icon: Trash2, label: title || "Hapus", button: "bg-red-50 hover:bg-red-100", icon: "text-red-500" };
+  return <button type="button" onClick={onClick} title={config.label} aria-label={config.label} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${config.button}`}><config.Icon size={11} className={config.icon} /></button>;
+}
+
 // Semua tabel verifikasi memakai sumber yang sama: record yang dibuat User
 // tersimpan di backend, dibaca Admin, lalu statusnya dikirim kembali ke User.
 // Bentuk data di bawah hanya menyesuaikan nama kolom lama agar tampilan tetap utuh.
@@ -144,6 +154,7 @@ function mapVerificationRow(verifikasi: any) {
     ...document,
     formData: form,
     idNpp: fromForm("idNpp", "noNpp", "nomorNpp", "nppNo") || verifikasi.pengadaan_id,
+    documentId: document.id,
     idRup: fromForm("idRup", "rupId", "noRup", "nomorRup") || (Array.isArray(fromForm("rupIds")) ? fromForm("rupIds").join(", ") : "-"),
     noCont: document.no_kontrak || fromForm("nomorKontrak", "noKontrak", "contractNo") || "-",
     opexCapex: fromForm("opexCapex", "opex_capex", "capexOpex", "cost") || "-",
@@ -176,7 +187,8 @@ function mapVerificationRow(verifikasi: any) {
     tanggalRequest: verifikasi.submit_at ? new Date(verifikasi.submit_at).toLocaleDateString("id-ID") : "-",
     pemohon: verifikasi.submit_by || "-",
     assignTo: verifikasi.verified_by || "-",
-    realisasi: form.realisasi || "-",
+    realisasi: document.realisasi || fromForm("realisasi") || "-",
+    realisation: document.realisasi || ([true, "true", 1, "1", "ya", "yes"].includes(fromForm("realisasi")) ? "Ya" : "Tidak"),
     nilaiEfisiensi: form.nilaiEfisiensi || "-",
     nomorMemoInternal: form.nomorMemoInternal || document.nomor_memo || "-",
     tanggalMemo: form.tanggalMemo || "-",
@@ -529,7 +541,7 @@ function ManajemenUserPage({ onTambahUser, onDetailUser }: ManajemenUserProps) {
   const depts = ["Semua Divisi", ...DIVISI_LIST];
 
   const deleteUser = async (user: any) => {
-    if (!window.confirm(`Hapus user ${user.name}?`)) return;
+    if (!await confirmFeedback(`Hapus user ${user.name}?`, "Hapus User")) return;
     try {
       await api.delete(`/users/${user.id}`);
       setUsers((previous) => previous.filter((entry) => entry.id !== user.id));
@@ -626,29 +638,8 @@ function ManajemenUserPage({ onTambahUser, onDetailUser }: ManajemenUserProps) {
                     )}
                   </div>
                   <div className="px-[12px] py-[14px] w-[100px] flex items-center justify-center gap-[4px]">
-                    <button
-                      onClick={() => onDetailUser(user.id)}
-                      className="p-[6px] rounded-[6px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150 group/btn"
-                      title="Lihat Detail"
-                    >
-                      <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
-                        <path d={ICONS.eye} stroke="#252271" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                        <path d={ICONS.eyePupil} stroke="#252271" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => deleteUser(user)}
-                      className="p-[6px] rounded-[6px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150"
-                      title="Hapus"
-                    >
-                      <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
-                        <path d="M1.625 3.25H11.375" stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                        <path d={ICONS.trash1} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                        <path d={ICONS.trash2} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                        <path d="M5.41667 5.95833V9.20833" stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                        <path d="M7.58333 5.95833V9.20833" stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                      </svg>
-                    </button>
+                    <AdminTableActionButton kind="view" title="Lihat Detail" onClick={() => onDetailUser(user.id)} />
+                    <AdminTableActionButton kind="delete" onClick={() => deleteUser(user)} />
                   </div>
                 </div>
               ))
@@ -674,7 +665,7 @@ function ManajemenRolePage({ onTambahRole }: ManajemenRoleProps) {
   );
 
   const deleteRole = async (role: any) => {
-    if (!window.confirm(`Hapus role ${role.name}?`)) return;
+    if (!await confirmFeedback(`Hapus role ${role.name}?`, "Hapus Role")) return;
     try {
       await api.delete(`/roles/${role.id}`);
       setRoles((previous) => previous.filter((entry) => entry.id !== role.id));
@@ -740,23 +731,8 @@ function ManajemenRolePage({ onTambahRole }: ManajemenRoleProps) {
                   <span className={`${role.menuColor} text-[11px] font-medium px-[10px] py-[4px] rounded-full`}>{role.menu}</span>
                 </div>
                 <div className="px-[12px] py-[14px] flex items-center justify-end gap-[4px]">
-                  <button
-                    className="p-[6px] rounded-[6px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150"
-                    title="Edit"
-                  >
-                    <svg fill="none" height="16" viewBox="0 0 16 16" width="16">
-                      <path d={ICONS.edit} stroke="#94A3B8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.33333" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => deleteRole(role)}
-                    className="p-[6px] rounded-[6px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150"
-                    title="Hapus"
-                  >
-                    <svg fill="none" height="15" viewBox="0 0 13.8333 15.25" width="14">
-                      <path d="M0.541667 3.375H13.2917M11.875 3.375V13.2917C11.875 14 11.1667 14.7083 10.4583 14.7083H3.375C2.66667 14.7083 1.95833 14 1.95833 13.2917V3.375M4.08333 3.375V1.95833C4.08333 1.25 4.79167 0.541667 5.5 0.541667H8.33333C9.04167 0.541667 9.75 1.25 9.75 1.95833V3.375M5.5 6.91667V11.1667M8.33333 6.91667V11.1667" stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                    </svg>
-                  </button>
+                  <AdminTableActionButton kind="edit" onClick={() => undefined} />
+                  <AdminTableActionButton kind="delete" onClick={() => deleteRole(role)} />
                 </div>
               </div>
             ))}
@@ -1843,24 +1819,9 @@ function VerifikasiPage({ category, doc }: { category: VerifCategory; doc: Verif
                     <td className="px-[16px] py-[14px]">
                       <div className="flex items-center gap-[4px]">
                         {/* Detail */}
-                        <button onClick={() => { setSelectedRow(row); setVerifView("detail"); }} className="p-[5px] rounded-[6px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150" title="Detail">
-                          <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
-                            <path d={ICONS.eye} stroke="#252271" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                            <path d={ICONS.eyePupil} stroke="#252271" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                          </svg>
-                        </button>
+                        <AdminTableActionButton kind="view" title="Lihat Detail" onClick={() => { setSelectedRow(row); setVerifView("detail"); }} />
                         {/* Delete */}
-                        <button
-                          onClick={() => { setSelectedRow(row); setShowDelete(true); }}
-                          className="p-[5px] rounded-[6px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150"
-                          title="Hapus"
-                        >
-                          <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
-                            <path d="M1.625 3.25H11.375" stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                            <path d={ICONS.trash1} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                            <path d={ICONS.trash2} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                          </svg>
-                        </button>
+                        <AdminTableActionButton kind="delete" onClick={() => { setSelectedRow(row); setShowDelete(true); }} />
                       </div>
                     </td>
                   </tr>
@@ -2308,7 +2269,7 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
   }, [breadcrumb, title]);
 
   const deleteRupRow = async (row: any) => {
-    if (!row?.idRup || !window.confirm(`Hapus RUP ${row.idRup}?`)) return;
+    if (!row?.idRup || !await confirmFeedback(`Hapus RUP ${row.idRup}?`, "Hapus RUP")) return;
     try {
       await api.delete(`/rup/${row.idRup}`);
       await fetchData();
@@ -2546,18 +2507,8 @@ function RupListPage({ breadcrumb, title }: { breadcrumb: string; title: string 
                     </td>
                     <td className="px-[14px] py-[14px]">
                       <div className="flex items-center gap-[3px] justify-center">
-                        <button onClick={() => { setSelectedRow(row); setView("detail"); }} className="p-[5px] rounded-[5px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150" title="Detail">
-                          <svg fill="none" height="12" viewBox="0 0 12 12" width="12">
-                            <path d={group14Svg.p126ce980} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d={group14Svg.p24092800} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </button>
-                        <button onClick={() => deleteRupRow(row)} className="p-[5px] rounded-[5px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150" title="Hapus">
-                          <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
-                            <path d={ICONS.trash1} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                            <path d={ICONS.trash2} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                          </svg>
-                        </button>
+                        <AdminTableActionButton kind="view" title="Lihat Detail" onClick={() => { setSelectedRow(row); setView("detail"); }} />
+                        <AdminTableActionButton kind="delete" onClick={() => deleteRupRow(row)} />
                       </div>
                     </td>
                   </tr>
@@ -2767,7 +2718,7 @@ function PengadaanSubDocPage({ title }: { title: string }) {
 
 // ─── RUP & SP3 Signed Upload Modals ──────────────────────────────────────────
 function RupSignedUploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (item: any) => void }) {
-  const [rupId, setRupId] = useState("RUP-2024-001");
+  const [rupId, setRupId] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -2781,17 +2732,22 @@ function RupSignedUploadModal({ onClose, onSuccess }: { onClose: () => void; onS
       const payload = new FormData();
       payload.append("file", selectedFile);
       payload.append("stage", "rup-signed");
-      await api.post(`/pengadaan/${rupId}/documents`, payload).catch(() => {});
+      if (!rupId.trim()) {
+        showFeedback("ID RUP wajib diisi.", "Data Belum Lengkap", "error");
+        return;
+      }
+      const response = await api.post(`/rup/${rupId.trim()}/documents`, payload);
       onSuccess({
-        idRup: rupId,
-        namaFile: selectedFile.name,
-        tanggal: new Date().toISOString().split("T")[0],
+        documentId: response.data?.data?.id,
+        idRup: response.data?.data?.pengadaan_id || rupId.trim(),
+        namaFile: response.data?.data?.original_name || selectedFile.name,
+        tanggal: response.data?.data?.created_at || new Date().toISOString(),
         status: "Uploaded"
       });
-      alert("Dokumen RUP Signed berhasil diunggah.");
+      showFeedback("Dokumen RUP Signed berhasil diunggah.", "Upload Berhasil", "success");
       onClose();
     } catch (e: any) {
-      alert(e.response?.data?.message || "Gagal mengunggah dokumen RUP Signed.");
+      showFeedback(e.response?.data?.message || "Gagal mengunggah dokumen RUP Signed.", "Upload Gagal", "error");
     } finally {
       setIsUploading(false);
     }
@@ -2910,9 +2866,46 @@ function RupSignedPage() {
   const [search, setSearch] = useState("");
   const [dateDraft, setDateDraft] = useState({ startDate: "", endDate: "" });
   const [dateFilter, setDateFilter] = useState({ startDate: "", endDate: "" });
-  const [uploaded, setUploaded] = useState([
-    { idRup: "RUP-2024-001", namaFile: "RUP-Signed-001.pdf", tanggal: "13-JAN-2026", status: "Uploaded" },
-  ]);
+  const [uploaded, setUploaded] = useState<any[]>([]);
+
+  const loadUploadedRup = async () => {
+    try {
+      const response = await api.get('/rup-documents');
+      setUploaded((response.data?.data || []).map((document: any) => ({
+        documentId: document.id,
+        idRup: document.pengadaan_id,
+        namaFile: document.original_name,
+        tanggal: document.created_at,
+        status: "Uploaded",
+      })));
+    } catch (error: any) {
+      showFeedback(error?.response?.data?.message || "Daftar RUP signed gagal dimuat.", "Gagal Memuat", "error");
+    }
+  };
+
+  useEffect(() => { loadUploadedRup(); }, []);
+
+  const viewRupSigned = async (row: any) => {
+    try {
+      const response = await api.get(`/documents/${row.documentId}/download`, { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (error: any) {
+      showFeedback(error?.response?.data?.message || "File RUP signed gagal dibuka.", "Gagal Membuka File", "error");
+    }
+  };
+
+  const deleteRupSigned = async (row: any) => {
+    if (!await confirmFeedback(`Hapus file ${row.namaFile} secara permanen?`, "Hapus RUP Signed")) return;
+    try {
+      await api.delete(`/documents/${row.documentId}`);
+      setUploaded(current => current.filter(item => item.documentId !== row.documentId));
+      showFeedback("File RUP signed berhasil dihapus dari database.", "Data Dihapus", "success");
+    } catch (error: any) {
+      showFeedback(error?.response?.data?.message || "File RUP signed gagal dihapus.", "Gagal Menghapus", "error");
+    }
+  };
 
   const filtered = uploaded.filter((row) => {
     const matchesSearch = row.idRup.toLowerCase().includes(search.toLowerCase()) || row.namaFile.toLowerCase().includes(search.toLowerCase());
@@ -2999,12 +2992,8 @@ function RupSignedPage() {
                   </td>
                   <td className="px-[14px] py-[14px]">
                     <div className="flex items-center gap-[3px] justify-center">
-                      <button onClick={() => setUploaded((prev) => prev.filter((_, j) => j !== i))} className="p-[5px] rounded-[5px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150" title="Hapus">
-                        <svg fill="none" height="12" viewBox="0 0 13 13" width="13">
-                          <path d={ICONS.trash1} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                          <path d={ICONS.trash2} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                        </svg>
-                      </button>
+                      <button onClick={() => viewRupSigned(row)} className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100 transition-colors" title="Lihat"><Eye size={11} className="text-blue-600" /></button>
+                      <button onClick={() => deleteRupSigned(row)} className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors" title="Hapus"><Trash2 size={11} className="text-red-500" /></button>
                     </div>
                   </td>
                 </tr>
@@ -3187,12 +3176,7 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
                     </td>
                     <td className="px-[14px] py-[14px]">
                       <div className="flex items-center gap-[3px] justify-center">
-                        <button onClick={() => setSp3SignedList((prev) => prev.filter((_, j) => j !== i))} className="p-[5px] rounded-[5px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150" title="Hapus">
-                          <svg fill="none" height="12" viewBox="0 0 13 13" width="13">
-                            <path d={ICONS.trash1} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                            <path d={ICONS.trash2} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                          </svg>
-                        </button>
+                        <AdminTableActionButton kind="delete" onClick={() => setSp3SignedList((prev) => prev.filter((_, j) => j !== i))} />
                       </div>
                     </td>
                   </tr>
@@ -3378,18 +3362,8 @@ function Sp3Page({ subPage }: { subPage: "task-approval" | "list-signed" }) {
                     </td>
                     <td className="px-[14px] py-[14px]">
                       <div className="flex items-center gap-[3px] justify-center">
-                        <button onClick={() => { setSelectedRow(row); setView("detail"); }} className="p-[5px] rounded-[5px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150" title="Detail">
-                          <svg fill="none" height="12" viewBox="0 0 12 12" width="12">
-                            <path d={group14Svg.p126ce980} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d={group14Svg.p24092800} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </button>
-                        <button onClick={() => { setSelectedRow(row); setShowDelete(true); }} className="p-[5px] rounded-[5px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150" title="Hapus">
-                          <svg fill="none" height="12" viewBox="0 0 13 13" width="13">
-                            <path d={ICONS.trash1} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                            <path d={ICONS.trash2} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                          </svg>
-                        </button>
+                        <AdminTableActionButton kind="view" title="Lihat Detail" onClick={() => { setSelectedRow(row); setView("detail"); }} />
+                        <AdminTableActionButton kind="delete" onClick={() => { setSelectedRow(row); setShowDelete(true); }} />
                       </div>
                     </td>
                   </tr>
@@ -4145,9 +4119,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
                       </td>
                       <td className="px-[14px] py-[12px]">
                         <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                          <button onClick={() => { setSelectedRow(r); setView("proses"); }} className="p-1 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Lihat">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                          </button>
+                          <AdminTableActionButton kind="view" onClick={() => { setSelectedRow(r); setView("proses"); }} />
                           <button onClick={() => window.print()} className="p-1 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Cetak Dokumen">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                           </button>
@@ -4184,9 +4156,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
                       </td>
                       <td className="px-[14px] py-[12px]">
                         <div className="flex items-center justify-center gap-2">
-                          <button onClick={() => { setSelectedRow(r); setView("proses"); }} className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Lihat">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                          </button>
+                          <AdminTableActionButton kind="view" onClick={() => { setSelectedRow(r); setView("proses"); }} />
                           <button onClick={() => window.print()} className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Cetak Dokumen">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                           </button>
@@ -4222,9 +4192,7 @@ function PbjPage({ subPage }: { subPage: "task-approval" | "list-pbj" | "memo-in
                       </td>
                       <td className="px-[14px] py-[12px]">
                         <div className="flex items-center justify-center gap-2">
-                          <button onClick={() => { setSelectedRow(r); setView("proses"); }} className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Lihat">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                          </button>
+                          <AdminTableActionButton kind="view" onClick={() => { setSelectedRow(r); setView("proses"); }} />
                           <button onClick={() => window.print()} className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Cetak Dokumen">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                           </button>
@@ -4718,9 +4686,7 @@ function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" 
                       </td>
                       <td className="px-[14px] py-[12px]">
                         <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                          <button onClick={() => { setSelectedRow(r); setView("proses"); }} className="p-1 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Lihat">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                          </button>
+                          <AdminTableActionButton kind="view" onClick={() => { setSelectedRow(r); setView("proses"); }} />
                           <button onClick={() => { setSelectedRow(r); setView("proses"); }} className="bg-[#252271] text-white px-2.5 py-1 rounded-md text-[11px] font-bold hover:brightness-110 flex items-center gap-1 transition-all">
                             &#10145; Proses Contract
                           </button>
@@ -4754,9 +4720,7 @@ function ContractPage({ subPage }: { subPage: "task-approval" | "list-contract" 
                       </td>
                       <td className="px-[14px] py-[12px]">
                         <div className="flex items-center justify-center gap-2">
-                          <button onClick={() => { setSelectedRow(r); setView("proses"); }} className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Lihat">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                          </button>
+                          <AdminTableActionButton kind="view" onClick={() => { setSelectedRow(r); setView("proses"); }} />
                           <button onClick={() => window.print()} className="p-1.5 rounded text-gray-500 hover:text-[#252271] hover:bg-gray-100 transition-colors" title="Cetak Dokumen">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                           </button>
@@ -4863,7 +4827,7 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
   const deleteRejectedPayment = async (row: any) => {
     const rowStatus = String(row?.status?.status || row?.status || "").toLowerCase();
     if (!rowStatus.includes("reject") && rowStatus !== "ditolak") return;
-    if (!row?.verif_id || !window.confirm(`Hapus pembayaran yang ditolak: ${row?.namaPaket || row?.noPembayaran || row?.verif_id}?`)) return;
+    if (!row?.verif_id || !await confirmFeedback(`Hapus pembayaran yang ditolak: ${row?.namaPaket || row?.noPembayaran || row?.verif_id}?`, "Hapus Pembayaran")) return;
     try {
       await api.delete(`/verifikasi/${row.verif_id}`);
       await refreshVerification();
@@ -5037,29 +5001,9 @@ function PembayaranPage({ subDoc }: { subDoc: PembayaranDoc }) {
                     </td>
                     <td className="px-[14px] py-[10px] text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => { setSelectedRow(r); setView("detail"); }}
-                          className="w-7 h-7 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all flex items-center justify-center"
-                          title="Detail"
-                          aria-label="Lihat detail pembayaran"
-                        >
-                          <svg fill="none" height="12" viewBox="0 0 12 12" width="12">
-                            <path d={group14Svg.p126ce980} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d={group14Svg.p24092800} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </button>
+                        <AdminTableActionButton kind="view" title="Lihat detail pembayaran" onClick={() => { setSelectedRow(r); setView("detail"); }} />
                         {(String(r?.status?.status || r?.status || "").toLowerCase().includes("reject") || String(r?.status?.status || r?.status || "").toLowerCase() === "ditolak") && (
-                          <button
-                            onClick={() => deleteRejectedPayment(r)}
-                            className="w-7 h-7 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all flex items-center justify-center"
-                            title="Hapus data ditolak"
-                            aria-label="Hapus pembayaran yang ditolak"
-                          >
-                            <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
-                              <path d={ICONS.trash1} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                              <path d={ICONS.trash2} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                            </svg>
-                          </button>
+                          <AdminTableActionButton kind="delete" title="Hapus pembayaran yang ditolak" onClick={() => deleteRejectedPayment(r)} />
                         )}
                       </div>
                     </td>
@@ -5123,7 +5067,7 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
   const deleteRejectedTest = async (row: any) => {
     const rowStatus = String(row?.status?.status || row?.status || "").toLowerCase();
     if (!rowStatus.includes("reject") && rowStatus !== "ditolak") return;
-    if (!row?.verif_id || !window.confirm(`Hapus pengujian yang ditolak: ${row?.namaPengujian || row?.nama || row?.verif_id}?`)) return;
+    if (!row?.verif_id || !await confirmFeedback(`Hapus pengujian yang ditolak: ${row?.namaPengujian || row?.nama || row?.verif_id}?`, "Hapus Pengujian")) return;
     try {
       await api.delete(`/verifikasi/${row.verif_id}`);
       await refresh();
@@ -5256,19 +5200,9 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
                       </td>
                       <td className="px-[14px] py-[14px]">
                         <div className="flex items-center gap-[3px] justify-center">
-                          <button onClick={() => { setSelectedItem(row); setView("detail"); }} className="p-[5px] rounded-[5px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150" title="Detail">
-                            <svg fill="none" height="12" viewBox="0 0 12 12" width="12">
-                              <path d={group14Svg.p126ce980} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d={group14Svg.p24092800} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </button>
+                          <AdminTableActionButton kind="view" title="Lihat Detail" onClick={() => { setSelectedItem(row); setView("detail"); }} />
                           {(String(row?.status?.status || row?.status || "").toLowerCase().includes("reject") || String(row?.status?.status || row?.status || "").toLowerCase() === "ditolak") && (
-                            <button onClick={() => deleteRejectedTest(row)} className="p-[5px] rounded-[5px] bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all duration-150" title="Hapus data ditolak">
-                              <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
-                                <path d={ICONS.trash1} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                                <path d={ICONS.trash2} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                              </svg>
-                            </button>
+                            <AdminTableActionButton kind="delete" title="Hapus data ditolak" onClick={() => deleteRejectedTest(row)} />
                           )}
                         </div>
                       </td>
@@ -5303,23 +5237,9 @@ function PengujianPage({ subDoc }: { subDoc: PengujianDoc }) {
                         <StatusBadge status={r.status} />
                       </td>
                       <td className="px-[14px] py-[10px] text-center">
-                        <button
-                          onClick={() => { setSelectedItem(r); setView("detail"); }}
-                          className="p-[5px] rounded-[5px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150 mx-auto"
-                          title="Detail"
-                        >
-                          <svg fill="none" height="12" viewBox="0 0 12 12" width="12">
-                            <path d={group14Svg.p126ce980} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d={group14Svg.p24092800} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </button>
+                        <AdminTableActionButton kind="view" title="Lihat Detail" onClick={() => { setSelectedItem(r); setView("detail"); }} />
                         {(String(r?.status?.status || r?.status || "").toLowerCase().includes("reject") || String(r?.status?.status || r?.status || "").toLowerCase() === "ditolak") && (
-                          <button onClick={() => deleteRejectedTest(r)} className="p-[5px] rounded-[5px] bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 transition-all duration-150" title="Hapus data ditolak">
-                            <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
-                              <path d={ICONS.trash1} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                              <path d={ICONS.trash2} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                            </svg>
-                          </button>
+                          <AdminTableActionButton kind="delete" title="Hapus data ditolak" onClick={() => deleteRejectedTest(r)} />
                         )}
                       </td>
                     </tr>
@@ -6474,19 +6394,9 @@ function PengadaanPage({ subDoc }: { subDoc: PengadaanDoc }) {
                     <td className="px-[14px] py-[14px]">
                       <div className="flex items-center gap-[3px] justify-center">
                         {/* Detail eye button */}
-                        <button onClick={() => { setSelectedRow(row); setView("detail"); }} className="p-[5px] rounded-[5px] hover:bg-[#e0e7ff] active:scale-95 transition-all duration-150" title="Detail">
-                          <svg fill="none" height="12" viewBox="0 0 12 12" width="12">
-                            <path d={group14Svg.p126ce980} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d={group14Svg.p24092800} stroke="#4A5565" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </button>
+                        <AdminTableActionButton kind="view" title="Lihat Detail" onClick={() => { setSelectedRow(row); setView("detail"); }} />
                         {/* Hapus button */}
-                        <button onClick={() => { setSelectedRow(row); setShowDelete(true); }} className="p-[5px] rounded-[5px] hover:bg-[#fef2f2] active:scale-95 transition-all duration-150" title="Hapus">
-                          <svg fill="none" height="13" viewBox="0 0 13 13" width="13">
-                            <path d={ICONS.trash1} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                            <path d={ICONS.trash2} stroke="#CC0000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                          </svg>
-                        </button>
+                        <AdminTableActionButton kind="delete" onClick={() => { setSelectedRow(row); setShowDelete(true); }} />
                       </div>
                     </td>
                   </tr>

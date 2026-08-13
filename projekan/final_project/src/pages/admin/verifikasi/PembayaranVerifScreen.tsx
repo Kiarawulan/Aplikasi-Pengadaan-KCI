@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../../../services/api";
+import { confirmFeedback } from "../../../components/common/GlobalFeedback";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/shared/AdminModal";
@@ -977,7 +978,7 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
   };
 
   const handleDeleteRejected = async (item: any) => {
-    if (!window.confirm(`Hapus permanen pembayaran yang ditolak: ${item.nama || item.id}?`)) return;
+    if (!await confirmFeedback(`Hapus permanen pembayaran yang ditolak: ${item.nama || item.id}?`, "Hapus Pembayaran")) return;
     try {
       if (item.verif_id) await api.delete(`/verifikasi/${item.verif_id}`);
       await api.delete(`/pengadaan/${item.id}`).catch(() => undefined);

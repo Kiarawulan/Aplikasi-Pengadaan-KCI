@@ -58,6 +58,10 @@ export { StatusChip };
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
+const formatFilterLabel = (value: string) => value
+  .replace(/[_-]+/g, " ")
+  .replace(/\b\w/g, letter => letter.toUpperCase());
+
 export function VerifTable<T extends { id: string }>({
   columns,
   data,
@@ -87,6 +91,15 @@ export function VerifTable<T extends { id: string }>({
   const [page, setPage] = useState(1);
 
   const hasTopFilter = topFilters.length > 0 || !!dateKey;
+  const completeOptions = (key: string, configured: { value: string; label: string }[] = []) => {
+    if (key !== "status") return configured;
+    const options = new Map(configured.map(option => [option.value, option]));
+    data.forEach(row => {
+      const value = String((row as Record<string, unknown>)[key] ?? "").trim();
+      if (value && !options.has(value)) options.set(value, { value, label: formatFilterLabel(value) });
+    });
+    return Array.from(options.values());
+  };
 
   const filtered = data.filter(row => {
     const matchSearch = searchKeys.length === 0 || searchKeys.some(k => {
@@ -158,7 +171,7 @@ export function VerifTable<T extends { id: string }>({
                     <select value={filters[tf.key] ?? ""} onChange={e => setFilter(tf.key, e.target.value)}
                       className="border border-gray-200 rounded-lg pl-2.5 pr-7 py-1.5 text-[11.5px] bg-white focus:outline-none focus:ring-1 focus:ring-[#252271]/30 appearance-none min-w-[120px]">
                       <option value="">Semua</option>
-                      {tf.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {completeOptions(tf.key, tf.options).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                     <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                   </div>
@@ -195,7 +208,7 @@ export function VerifTable<T extends { id: string }>({
               <select value={filters[fo.key] ?? ""} onChange={e => setFilter(fo.key, e.target.value)}
                 className="bg-gray-50 border border-gray-100 pl-3 pr-7 py-1.5 rounded-xl text-[11px] focus:outline-none appearance-none focus:ring-1 focus:ring-[#252271]/20">
                 <option value="">{fo.label}: Semua</option>
-                {fo.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {completeOptions(fo.key, fo.options).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
               <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>

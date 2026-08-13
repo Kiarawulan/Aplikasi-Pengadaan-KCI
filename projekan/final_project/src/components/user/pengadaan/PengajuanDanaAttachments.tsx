@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Eye, Trash2, Upload, AlertCircle, CheckCircle2 } from "lucide-react";
 import { api } from "@/services/api";
 import { WarningModal } from "@/components/common/WarningModal";
+import { confirmFeedback } from "@/components/common/GlobalFeedback";
 
 export type Flow = "pd" | "pr";
 export type UploadedFile = { id: number; stage: string; original_name: string; created_at?: string };
@@ -101,7 +102,7 @@ export function PengajuanDanaAttachments({
   };
 
   const remove = async (document: UploadedFile) => {
-    if (!window.confirm(`Hapus ${document.original_name}?`)) return;
+    if (!await confirmFeedback(`Hapus ${document.original_name}?`, "Hapus Berkas")) return;
     try {
       await api.delete(`/documents/${document.id}`);
       await refresh();

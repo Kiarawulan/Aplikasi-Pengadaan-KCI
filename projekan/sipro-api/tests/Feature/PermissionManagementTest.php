@@ -6,8 +6,13 @@ use App\Models\Role;
 use App\Models\RolePermission;
 use App\Models\User;
 use App\Models\PengadaanCompletedStep;
+use App\Models\Npp;
+use App\Models\Pengadaan;
+use App\Models\Rup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PermissionManagementTest extends TestCase
@@ -161,6 +166,63 @@ class PermissionManagementTest extends TestCase
             'roleId' => $memberRole->id,
             'departemen' => 'Testing',
         ])->assertUnprocessable();
+    }
+
+    public function test_revision_can_keep_title_when_other_data_changes(): void
+    {
+        $user = $this->user('USR-REVISION', $this->role('ROLE-REVISION', []));
+        $created = $this->actingAs($user, 'sanctum')->postJson('/api/pengadaan', [
+            'nama' => 'Judul Tetap', 'flow' => 'pd', 'nominal' => '1000', 'form_data' => ['detailPermohonan' => 'Data awal'],
+        ])->assertCreated();
+
+        $this->actingAs($user, 'sanctum')->putJson('/api/pengadaan/' . $created->json('id'), [
+            'nama' => 'Judul Tetap', 'nominal' => '2500', 'form_data' => ['detailPermohonan' => 'Data revisi'],
+        ])->assertOk()->assertJsonPath('nominal', '2500');
+    }
+
+    public function test_master_reference_delete_is_persisted_in_database(): void
+    {
+        $manager = $this->user('USR-MASTER', $this->role('ROLE-MASTER', ['masterData' => 'editor'], 'admin'));
+        $this->actingAs($manager, 'sanctum')->postJson('/api/master-references/lokasi/bootstrap', [
+            'items' => [['id' => 'LOK-001', 'nama' => 'Lokasi Lama']],
+        ])->assertOk();
+        $this->actingAs($manager, 'sanctum')->deleteJson('/api/master-references/lokasi/LOK-001')->assertOk();
+        $this->assertDatabaseMissing('master_references', ['category' => 'lokasi', 'reference_id' => 'LOK-001']);
+        $this->actingAs($manager, 'sanctum')->getJson('/api/master-references/lokasi')->assertOk()->assertExactJson([]);
+    }
+
+    public function test_admin_releases_npp_number_and_syncs_procurement_form(): void
+    {
+        $admin = $this->user('USR-NPP-ADMIN', $this->role('ROLE-NPP-ADMIN', ['pengadaan' => 'editor'], 'admin'));
+        Pengadaan::create(['id' => 'PG-NPP-001', 'nama' => 'Pengadaan NPP', 'departemen' => 'Testing', 'tanggal' => '2026-08-12', 'created_by' => $admin->id, 'form_data' => ['buat-npp' => ['judulPermohonan' => 'Pengadaan NPP']]]);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/pengadaan/PG-NPP-001/release-npp-number', ['no_npp' => 'NPP/KCI/001/2026'])
+            ->assertOk()->assertJsonPath('document.no_npp', 'NPP/KCI/001/2026');
+
+        $this->assertDatabaseHas('npp', ['pengadaan_id' => 'PG-NPP-001', 'no_npp' => 'NPP/KCI/001/2026']);
+        $this->assertSame('NPP/KCI/001/2026', Pengadaan::findOrFail('PG-NPP-001')->form_data['buat-npp']['noNpp']);
+    }
+
+    public function test_sp3_realisation_is_derived_from_npp_checkbox(): void
+    {
+        $admin = $this->user('USR-SP3-ADMIN', $this->role('ROLE-SP3-ADMIN', ['pengadaan' => 'editor'], 'admin'));
+        Pengadaan::create(['id' => 'PG-SP3-001', 'nama' => 'Pengadaan SP3', 'departemen' => 'Testing', 'tanggal' => '2026-08-12', 'created_by' => $admin->id]);
+        Npp::create(['id' => 'NPP-002', 'pengadaan_id' => 'PG-SP3-001', 'judul' => 'Pengadaan SP3', 'realisasi' => 'true', 'status' => 'approved']);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/step-documents/sp3', ['pengadaan_id' => 'PG-SP3-001', 'judul' => 'SP3 Pengadaan'])
+            ->assertCreated()->assertJsonPath('realisasi', 'Ya');
+    }
+
+    public function test_rup_signed_upload_is_listed_and_persisted(): void
+    {
+        Storage::fake('public');
+        $admin = $this->user('USR-RUP-ADMIN', $this->role('ROLE-RUP-ADMIN', ['pengadaan' => 'editor'], 'admin'));
+        Rup::create(['id' => 'RUP-TEST-001', 'nama' => 'RUP Signed Test', 'jenis' => 'Barang', 'metode' => 'Tender', 'nilai' => 'Rp 1.000.000', 'status' => 'approved', 'progress' => '14/14', 'departemen' => 'Testing', 'created_by' => $admin->id]);
+
+        $upload = $this->actingAs($admin, 'sanctum')->post('/api/rup/RUP-TEST-001/documents', ['file' => UploadedFile::fake()->create('rup-signed.pdf', 50, 'application/pdf')]);
+        $upload->assertCreated()->assertJsonPath('data.stage', 'rup-signed');
+        $this->actingAs($admin, 'sanctum')->getJson('/api/rup-documents')->assertOk()->assertJsonCount(1, 'data');
+        $this->assertDatabaseHas('uploaded_documents', ['pengadaan_id' => 'RUP-TEST-001', 'stage' => 'rup-signed', 'original_name' => 'rup-signed.pdf']);
     }
 
     private function role(string $id, array $permissions, string $type = 'user'): Role

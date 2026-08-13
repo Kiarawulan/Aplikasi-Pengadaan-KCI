@@ -30,6 +30,12 @@ class AuthController extends Controller
             ]);
         }
 
+        if ($user->role && ! $user->role->is_active) {
+            throw ValidationException::withMessages([
+                'email' => ['Role akun Anda sedang nonaktif. Hubungi administrator.'],
+            ]);
+        }
+
         $user->last_login_at = now();
         $user->save();
 
@@ -46,6 +52,7 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         $user = $request->user()->load('role.permissions');
+        abort_if($user->role && ! $user->role->is_active, 403, 'Role akun Anda sedang nonaktif. Akses ditolak.');
         return response()->json($this->formatUser($user));
     }
 

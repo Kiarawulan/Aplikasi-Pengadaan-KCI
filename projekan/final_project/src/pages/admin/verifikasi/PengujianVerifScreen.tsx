@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../../../services/api";
+import { confirmFeedback } from "../../../components/common/GlobalFeedback";
 import { AdminTopBar } from "../../../components/admin/AdminTopBar";
 import { VerifTable, FilterConfig } from "../../../components/admin/shared/VerifTable";
 import { AdminModal, ModalField, ModalInput, ModalSelect, ModalTextarea } from "../../../components/admin/shared/AdminModal";
@@ -35,7 +36,11 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
   const fetchPengadaanData = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/pengadaan');
+      const [res, rupRes] = await Promise.all([
+        api.get('/pengadaan'),
+        api.get('/rup').catch(() => ({ data: [] })),
+      ]);
+      const rupById = new Map((rupRes.data || []).map((rup: any) => [String(rup.id), rup]));
       const allData = res.data.map((item: any) => {
         const fd = typeof item.formData === 'string' ? JSON.parse(item.formData) : (item.formData || {});
         const sections = [fd, ...Object.values(fd).filter((value) => value && typeof value === "object" && !Array.isArray(value))] as any[];
@@ -51,6 +56,10 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
         const nominalStr = item.nominal || "Rp 0";
         const cleanNominal = parseInt(nominalStr.replace(/\D/g, '')) || 0;
         const isOver = cleanNominal >= 500000000;
+        const linkedIds = previousValue("rupIds", "idRup", "rupId", "noRup", "nomorRup");
+        const linkedId = Array.isArray(linkedIds) ? linkedIds[0] : String(linkedIds || "").split(",")[0].trim();
+        const linkedRup: any = rupById.get(linkedId);
+        const rupDetails = linkedRup?.details || {};
         return {
           id: item.id,
           kontrakNo: item.id,
@@ -66,8 +75,8 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
           timeline: "On Schedule",
           idNpp: previousValue("idNpp", "noNpp", "nomorNpp", "nppNo") || item.id,
           idRup: previousValue("idRup", "rupId", "noRup", "nomorRup") || (Array.isArray(previousValue("rupIds")) ? previousValue("rupIds").join(", ") : "-"),
-          opexCapex: previousValue("opexCapex", "opex_capex", "capexOpex", "cost") || "-",
-          kategori: previousValue("kategori", "category", "kategoriAnggaran", "jenisPengadaan", "jenisBarang") || "-",
+          opexCapex: previousValue("opexCapex", "opex_capex", "capexOpex", "cost") || rupDetails.opexCapex || rupDetails.opex_capex || rupDetails.capexOpex || "-",
+          kategori: previousValue("kategori", "category", "kategoriAnggaran", "jenisPengadaan", "jenisBarang") || rupDetails.kategori || rupDetails.kategoriAnggaran || rupDetails.jenisPengadaan || linkedRup?.jenis || "-",
           tahun: previousValue("tahun", "tahunAnggaran") || (item.tanggal ? new Date(item.tanggal).getFullYear().toString() : "-"),
           isOver
         };
@@ -137,7 +146,7 @@ export function PengujianVerifScreen({ activeSubItem }: ScreenProps) {
   };
 
   const handleDeleteRejected = async (item: any) => {
-    if (!window.confirm(`Hapus permanen pengujian yang ditolak: ${item.nama || item.id}?`)) return;
+    if (!await confirmFeedback(`Hapus permanen pengujian yang ditolak: ${item.nama || item.id}?`, "Hapus Pengujian")) return;
     try {
       await api.delete(`/pengadaan/${item.id}`);
       await fetchPengadaanData();

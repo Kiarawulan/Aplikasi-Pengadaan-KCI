@@ -353,21 +353,23 @@ public function submitStep(Request $request, Pengadaan $pengadaan)
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        // Foreign key lama pada verifikasi sudah dilepas, jadi data terkait harus
-        // dibersihkan secara eksplisit agar tidak menjadi data yatim.
-        Npp::where('pengadaan_id', $pengadaan->id)->delete();
-        Sp3::where('pengadaan_id', $pengadaan->id)->delete();
-        Contract::where('pengadaan_id', $pengadaan->id)->delete();
-        Pbj::where('pengadaan_id', $pengadaan->id)->delete();
-        ParkDocument::where('pengadaan_id', $pengadaan->id)->delete();
-        PurchaseRequisition::where('pengadaan_id', $pengadaan->id)->delete();
-        Payment::where('pengadaan_id', $pengadaan->id)->delete();
-        Pengujian::where('pengadaan_id', $pengadaan->id)->delete();
-        UploadedDocument::where('pengadaan_id', $pengadaan->id)->delete();
-        ProcessHistory::where('pengadaan_id', $pengadaan->id)->delete();
-        Verifikasi::where('pengadaan_id', $pengadaan->id)->delete();
-        PengadaanCompletedStep::where('pengadaan_id', $pengadaan->id)->delete();
-        $pengadaan->delete();
+        DB::transaction(function () use ($pengadaan) {
+            // Bersihkan seluruh tabel terkait secara atomik agar penghapusan
+            // tidak berhenti di UI atau meninggalkan data lama/yatim.
+            Npp::where('pengadaan_id', $pengadaan->id)->delete();
+            Sp3::where('pengadaan_id', $pengadaan->id)->delete();
+            Contract::where('pengadaan_id', $pengadaan->id)->delete();
+            Pbj::where('pengadaan_id', $pengadaan->id)->delete();
+            ParkDocument::where('pengadaan_id', $pengadaan->id)->delete();
+            PurchaseRequisition::where('pengadaan_id', $pengadaan->id)->delete();
+            Payment::where('pengadaan_id', $pengadaan->id)->delete();
+            Pengujian::where('pengadaan_id', $pengadaan->id)->delete();
+            UploadedDocument::where('pengadaan_id', $pengadaan->id)->delete();
+            ProcessHistory::where('pengadaan_id', $pengadaan->id)->delete();
+            Verifikasi::where('pengadaan_id', $pengadaan->id)->delete();
+            PengadaanCompletedStep::where('pengadaan_id', $pengadaan->id)->delete();
+            $pengadaan->delete();
+        });
         return response()->json(['message' => 'Pengadaan berhasil dihapus']);
     }
 

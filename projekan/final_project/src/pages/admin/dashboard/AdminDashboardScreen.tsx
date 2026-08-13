@@ -153,6 +153,31 @@ function currency(value: unknown) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(nominalValue(value));
 }
 
+function exportExcel(rows: Record<string, unknown>[], fileName: string) {
+  const columns = Array.from(new Set(rows.flatMap(row => Object.keys(row))));
+  const escapeXml = (value: unknown) => String(value ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const cell = (value: unknown) => `<Cell><Data ss:Type="${typeof value === "number" ? "Number" : "String"}">${escapeXml(value)}</Data></Cell>`;
+  const body = [columns, ...rows.map(row => columns.map(column => row[column]))]
+    .map(values => `<Row>${values.map(cell).join("")}</Row>`).join("");
+  const workbook = `<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Data"><Table>${body}</Table></Worksheet></Workbook>`;
+  const url = URL.createObjectURL(new Blob([workbook], { type: "application/vnd.ms-excel;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${fileName}-${new Date().toISOString().slice(0, 10)}.xls`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function ExportExcelButton({ rows, fileName }: { rows: Record<string, unknown>[]; fileName: string }) {
+  return <button type="button" disabled={!rows.length} onClick={() => exportExcel(rows, fileName)}
+    className="h-8 px-3 rounded-lg text-[10.5px] font-semibold text-[#252271] border border-[#252271]/20 flex items-center gap-1.5 hover:bg-[#252271]/5 transition-colors disabled:cursor-not-allowed disabled:opacity-40">
+    <Download size={12} /> Export Excel
+  </button>;
+}
+
 function filterRecords(rows: ApiRow[], unit: string, year: string) {
   return rows.filter((row) => {
     const matchesUnit = !unit || unit === "Pilih Divisi" || unit === "Semua Divisi" || row.departemen === unit;
@@ -286,6 +311,7 @@ function PengajuanDanaDashboard() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end"><ExportExcelButton rows={filteredPending} fileName="pengajuan-dana" /></div>
       <UnitYearFilter unit={unit} setUnit={setUnit} tahun={tahun} setTahun={setTahun} units={units} />
 
       {/* Charts Row */}
@@ -326,9 +352,6 @@ function PengajuanDanaDashboard() {
         <div className="flex items-center justify-between mb-4">
           <SectionTitle icon={AlertTriangle}>Pending Matters</SectionTitle>
           <div className="flex items-center gap-2">
-            <button className="h-8 px-3 rounded-lg text-[10.5px] font-semibold text-[#252271] border border-[#252271]/20 flex items-center gap-1.5 hover:bg-[#252271]/5 transition-colors">
-              <Download size={12} /> Export Excel
-            </button>
             <div className="flex items-center gap-1 text-[10.5px] text-gray-400">
               Show
               <select className="h-7 px-1.5 rounded border border-gray-200 text-[10.5px] text-gray-600 outline-none">
@@ -396,6 +419,7 @@ function PengujianDashboard() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end"><ExportExcelButton rows={jadwalPengujian} fileName="pengujian" /></div>
       <UnitYearFilter unit={unit} setUnit={setUnit} tahun={tahun} setTahun={setTahun} units={units} />
 
       {/* Stats */}
@@ -520,6 +544,7 @@ function PengadaanDashboard() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end"><ExportExcelButton rows={jadwalPengadaan} fileName="pengadaan" /></div>
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         {pengadaanStats.map(s => (
@@ -716,6 +741,7 @@ function PembayaranDashboard() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end"><ExportExcelButton rows={filteredPayments.map(payment => ({ nomor: payment.id, pengadaan: payment.pengadaan_id, tipe: payment.payment_type, status: payment.status, tanggal: dateLabel(recordDate(payment)), nominal: nominalValue(pengadaanById.get(payment.pengadaan_id)?.nominal) }))} fileName="pembayaran" /></div>
       {/* Title */}
       <div className="text-center mb-2">
         <h2 className="text-[18px] font-extrabold text-[#252271] uppercase tracking-wide">Payment Plan Recapitulation</h2>

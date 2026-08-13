@@ -280,10 +280,11 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
   const isDone = (idx: number) => completedStepIds.has(steps[idx].id);
   const isSubDone = (stepId: string, sid: string) => completedSubs.has(`${stepId}.${sid}`);
-  const canAccessStep = (idx: number) => idx <= activeStepIdx || isDone(idx);
+  const canAccessStep = (idx: number) => idx <= activeStepIdx || isDone(idx) || (idx > 0 && isDone(idx - 1));
   const canAccessSub = (sIdx: number) => {
     if (isDone(activeStepIdx)) return true;
-    return sIdx <= activeSubIdx || isSubDone(activeStep.id, activeStep.subSteps[sIdx]?.id ?? "");
+    return sIdx <= activeSubIdx || isSubDone(activeStep.id, activeStep.subSteps[sIdx]?.id ?? "")
+      || (sIdx > 0 && isSubDone(activeStep.id, activeStep.subSteps[sIdx - 1]?.id ?? ""));
   };
 
   const flashSave = (newCompletedSubs?: Set<string>, updatedFd?: Record<string, any>) => {
@@ -859,6 +860,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           }}
           initialStep="pengajuan-dana"
           requireChanges
+          editingId={item.id}
           onClose={() => setShowEditPopup(false)}
           onSubmit={handleRevisionSubmit}
         />
