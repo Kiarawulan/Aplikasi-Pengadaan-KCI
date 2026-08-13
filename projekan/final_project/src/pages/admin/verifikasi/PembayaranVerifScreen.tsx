@@ -860,6 +860,8 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
   const [confirmAction, setConfirmAction] = useState<{ type: "approve" | "reject" | "revisi"; item: any } | null>(null);
   const [catatanText, setCatatanText] = useState("");
   const [form, setForm] = useState({ noSp3: "", noKontrak: "", nama: "", nominal: "", namaVendor: "", noRekening: "", bank: "Bank BNI", departemen: "CUG - LOGISTIC", tgl: "" });
+  const [reportFilters, setReportFilters] = useState({ unit: "", category: "", vendor: "", jobTitle: "" });
+  const [reportSearched, setReportSearched] = useState(false);
 
   const getSubmenuInfo = () => {
     const key = (activeSubItem || "").toLowerCase();
@@ -889,6 +891,29 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
   const isUmd = tipe === "umd";
   const filteredPayments = tipe ? payments.filter(p => p.tipe === tipe) : payments;
   const filteredReports = tipe ? reports.filter(r => r.tipe === tipe) : reports;
+
+  const reportResults = payments.filter((payment) => {
+    const unitMatches = !reportFilters.unit || payment.departemen === reportFilters.unit;
+    const categoryMatches = !reportFilters.category || payment.tipe === reportFilters.category;
+    const vendorMatches = !reportFilters.vendor || payment.namaVendor === reportFilters.vendor;
+    const titleMatches = !reportFilters.jobTitle || String(payment.nama || "").toLowerCase().includes(reportFilters.jobTitle.toLowerCase());
+    return unitMatches && categoryMatches && vendorMatches && titleMatches;
+  });
+
+  const reportVendors = Array.from(new Set(payments.map(payment => payment.namaVendor).filter((vendor) => vendor && vendor !== "N/A")));
+
+  const handleExportReport = () => {
+    const rows = reportResults.map((payment, index) => `
+      <tr><td>${index + 1}</td><td>${payment.nama || "-"}</td><td>${payment.departemen || "-"}</td><td>${payment.namaVendor || "-"}</td><td>${payment.nominal || "-"}</td><td>${payment.tgl || "-"}</td></tr>
+    `).join("");
+    const printWindow = window.open("", "_blank", "width=1000,height=700");
+    if (!printWindow) {
+      showNotify("Export PDF Gagal", "Izinkan pop-up browser untuk mengekspor laporan.", "warning");
+      return;
+    }
+    printWindow.document.write(`<!doctype html><html><head><title>${label} Report Pembayaran</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#222}h1{color:#252271;margin-bottom:4px}p{color:#666;margin-top:0}table{width:100%;border-collapse:collapse;margin-top:24px;font-size:12px}th,td{border:1px solid #ddd;padding:9px;text-align:left}th{background:#252271;color:#fff}</style></head><body><h1>${label} Report</h1><p>Pembayaran · Dicetak ${new Date().toLocaleDateString("id-ID")}</p><table><thead><tr><th>No.</th><th>Job Title</th><th>Unit</th><th>Vendor Name</th><th>Nominal</th><th>Tanggal</th></tr></thead><tbody>${rows || '<tr><td colspan="6">Tidak ada data.</td></tr>'}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`);
+    printWindow.document.close();
+  };
 
   const handleAddSubmit = () => {
     if (isReport) {
@@ -1013,21 +1038,51 @@ export function PembayaranVerifScreen({ activeSubItem = "" }: ScreenProps) {
 
   if (isReport) {
     return (
-      <div className="space-y-4">
-        <AdminTopBar title={title} subtitle={subtitle} />
-        <div className="relative">
-          <div className="absolute right-5 top-4 z-10">
-            <button onClick={() => setShowAdd(true)} className="bg-[#252271] hover:bg-[#1a1753] text-white px-3 py-1.5 rounded-lg text-[11.5px] font-semibold flex items-center gap-1 shadow-sm transition-colors"><Plus size={14} />Upload Laporan</button>
-          </div>
-          <VerifTable columns={reportColumns} data={filteredReports} searchKeys={["nama", "ket", "file"]} dateKey="tgl" topFilters={[{ key: "tipe", label: "Tipe Laporan", type: "select", options: [{ value: "daily", label: "Daily" }, { value: "weekly", label: "Weekly" }] }]} showCrudActions={false} emptyMessage="Tidak ada laporan." />
+      <div>
+        <div className="mb-4">
+          <h1 className="text-[#252271] text-[36px] font-black leading-tight">Verification</h1>
+          <p className="text-[#252271] text-[16px]">Pembayaran &gt; Reports &gt; <span className="font-bold">{label} Report</span></p>
         </div>
-        {showAdd && (
-          <AdminModal title="Upload Laporan Baru" onClose={() => setShowAdd(false)} onSubmit={handleAddSubmit} submitLabel="Upload" width="max-w-md">
-            <div className="space-y-3">
-              <ModalField label="Nama Laporan" required><ModalInput value={form.nama} onChange={v => setForm(p => ({ ...p, nama: v }))} placeholder="Laporan Harian..." /></ModalField>
-              <ModalField label="Tanggal Laporan" required><ModalInput type="date" value={form.tgl} onChange={v => setForm(p => ({ ...p, tgl: v }))} /></ModalField>
-            </div>
-          </AdminModal>
+
+        <div className="rounded-[14px] border border-[#d9e2ef] bg-white px-5 py-5 shadow-[0_1px_2px_rgba(37,34,113,0.03)]">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-3">
+            <label className="block text-[13px] text-[#273955]">
+              <span className="mb-1.5 block">Unit</span>
+              <select value={reportFilters.unit} onChange={(event) => { setReportFilters(current => ({ ...current, unit: event.target.value })); setReportSearched(false); }} className="h-[33px] w-full rounded-[9px] border border-[#dbe4ef] bg-[#f8fafc] px-3 text-[13px] text-[#273955] outline-none focus:border-[#252271]">
+                <option value="">Pilih unit</option>
+                {DIVISI_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+            <label className="block text-[13px] text-[#273955]">
+              <span className="mb-1.5 block">Report Category</span>
+              <select value={reportFilters.category} onChange={(event) => { setReportFilters(current => ({ ...current, category: event.target.value })); setReportSearched(false); }} className="h-[33px] w-full rounded-[9px] border border-[#dbe4ef] bg-[#f8fafc] px-3 text-[13px] text-[#273955] outline-none focus:border-[#252271]">
+                <option value="">Pilih report category</option>
+                <option value="outsource">Outsource</option><option value="non-outsource">Non Outsource</option><option value="umd">UMD</option><option value="payment-request">Payment Request</option>
+              </select>
+            </label>
+            <label className="block text-[13px] text-[#273955]">
+              <span className="mb-1.5 block">Vendor Name</span>
+              <select value={reportFilters.vendor} onChange={(event) => { setReportFilters(current => ({ ...current, vendor: event.target.value })); setReportSearched(false); }} className="h-[33px] w-full rounded-[9px] border border-[#dbe4ef] bg-[#f8fafc] px-3 text-[13px] text-[#273955] outline-none focus:border-[#252271]">
+                <option value="">Pilih vendor name</option>
+                {reportVendors.map(vendor => <option key={vendor} value={vendor}>{vendor}</option>)}
+              </select>
+            </label>
+            <label className="block text-[13px] text-[#273955] md:col-span-2">
+              <span className="mb-1.5 block">Job Title</span>
+              <input value={reportFilters.jobTitle} onChange={(event) => { setReportFilters(current => ({ ...current, jobTitle: event.target.value })); setReportSearched(false); }} className="h-[33px] w-full rounded-[9px] border border-[#dbe4ef] bg-[#f8fafc] px-3 text-[13px] text-[#273955] outline-none focus:border-[#252271]" />
+            </label>
+          </div>
+          <div className="mt-[18px] flex gap-2 border-t border-[#edf1f5] pt-[14px]">
+            <button onClick={() => setReportSearched(true)} className="h-9 rounded-[6px] border border-[#cbd5e1] bg-white px-[14px] text-[13px] text-[#273955] hover:bg-gray-50">Search</button>
+            <button onClick={handleExportReport} className="h-9 rounded-[6px] bg-[#252271] px-[14px] text-[13px] text-white hover:bg-[#1a1753]">Export PDF</button>
+          </div>
+        </div>
+
+        {reportSearched && (
+          <div className="mt-4 overflow-hidden rounded-[14px] border border-[#d9e2ef] bg-white">
+            <div className="border-b border-[#edf1f5] px-5 py-3 text-[13px] font-semibold text-[#252271]">{reportResults.length} data ditemukan</div>
+            <div className="overflow-x-auto"><table className="w-full text-left text-[12px]"><thead className="bg-[#f8fafc] text-[#53627a]"><tr>{["Job Title", "Unit", "Category", "Vendor Name", "Nominal", "Tanggal"].map(column => <th key={column} className="px-4 py-3 font-semibold">{column}</th>)}</tr></thead><tbody className="divide-y divide-[#edf1f5]">{reportResults.length ? reportResults.map(payment => <tr key={`${payment.id}-${payment.tipe}`}><td className="px-4 py-3 font-medium text-[#273955]">{payment.nama}</td><td className="px-4 py-3">{payment.departemen}</td><td className="px-4 py-3 capitalize">{payment.tipe}</td><td className="px-4 py-3">{payment.namaVendor}</td><td className="px-4 py-3">{payment.nominal}</td><td className="px-4 py-3">{payment.tgl}</td></tr>) : <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Tidak ada data pembayaran yang sesuai.</td></tr>}</tbody></table></div>
+          </div>
         )}
       </div>
     );

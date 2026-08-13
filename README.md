@@ -87,11 +87,11 @@ Pastikan perangkat Anda telah terpasang:
 
 ---
 
-### 2. Konfigurasi Backend (`sipro-api`)
+### 2. Konfigurasi Backend (`pengadaan-kci`)
 
 ```bash
 # 1. Masuk ke folder backend
-cd sipro-api
+cd pengadaan-kci
 
 # 2. Install dependensi PHP
 composer install
@@ -101,7 +101,7 @@ cp .env.example .env
 php artisan key:generate
 
 # 4. Konfigurasi database di file .env
-# DB_DATABASE=sipro_db
+# DB_DATABASE=pengadaan_kci
 # DB_USERNAME=root
 # DB_PASSWORD=
 
@@ -160,7 +160,7 @@ KCI-PROJEKAN/
 │   │   └── store/             # Global State Management
 │   └── package.json
 │
-├── sipro-api/                 # Laravel Backend REST API
+├── pengadaan-kci/             # Laravel Backend REST API
 │   ├── app/
 │   │   ├── Http/Controllers/  # Controller API (RUP, Pengadaan, User, dsb)
 │   │   └── Models/            # Eloquent Database Models

@@ -37,7 +37,7 @@ class AuthController extends Controller
         // Revoke old tokens
         $user->tokens()->delete();
 
-        $token = $user->createToken('sipro-token')->plainTextToken;
+        $token = $user->createToken('pengadaan-kci-token')->plainTextToken;
 
         return response()->json([
             'token' => $token,
