@@ -194,6 +194,32 @@ function mapVerificationRow(verifikasi: any) {
     nilaiEfisiensi: form.nilaiEfisiensi || "-",
     nomorMemoInternal: form.nomorMemoInternal || document.nomor_memo || "-",
     tanggalMemo: form.tanggalMemo || "-",
+    noPr: fromForm("noPR", "noPr", "nomorPr", "prNo") || "-",
+    noKak: fromForm("noKAK", "noKak", "nomorKak", "kakNo") || "-",
+    tanggalKak: fromForm("tglKAK", "tanggalKAK", "tanggalKak", "tglKak") || "-",
+    nomorMiPengujian: fromForm("noMI_500", "noMI", "noMi", "nomorMI", "nomorMi", "nomorMemoInternal") || "-",
+    tanggalSpr: fromForm("tglPR", "tanggalSpr", "tanggalRequest", "tanggalPR") || (verifikasi.submit_at ? new Date(verifikasi.submit_at).toLocaleDateString("id-ID") : "-"),
+    nomorContract: fromForm("noSuratPerjanjian", "nomorContract", "noKontrak", "contractNo") || document.no_kontrak || "-",
+    tanggalContract: fromForm("tanggalContract", "tglKontrak", "tglSuratPerjanjian") || "-",
+    totalHariMppl: fromForm("totalHariMppl", "totalMppl") || "-",
+    startDateMppl: fromForm("startDateMppl", "startMppl") || "-",
+    noJamlak: fromForm("noJamlak", "nomorJamlak") || "-",
+    statusKontrak: fromForm("statusKontrak") || verifikasi.status || "-",
+    catatanHasilPengujian: fromForm("catatanHasilPengujian", "catatanPengujian", "catatan") || "-",
+    nomorDokumenPengujian: fromForm("noDO", "nomorDokumenPengujian", "noDokumenPengujian") || "-",
+    tanggalPengujian: fromForm("tanggalPengujian", "tglPengujian", "jadwal") || "-",
+    picPenguji: fromForm("assignTo", "picPenguji", "penguji") || verifikasi.submit_by || "-",
+    tanggalPermohonanPengujian: fromForm("tglMI", "tanggalPermohonanPengujian", "tanggalRequest") || (verifikasi.submit_at ? new Date(verifikasi.submit_at).toLocaleDateString("id-ID") : "-"),
+    metode: fromForm("metode", "metodePengadaan") || "-",
+    jenisBarang: fromForm("jenisBarang", "kategori", "category", "jenisPengadaan") || "-",
+    noRab: fromForm("noRAB", "noRab", "nomorRab") || "-",
+    tglRab: fromForm("tglRAB", "tanggalRAB", "tglRab") || "-",
+    noJustifikasi: fromForm("noJustifikasi", "nomorJustifikasi") || "-",
+    tglJustifikasi: fromForm("tglJustifikasi", "tanggalJustifikasi") || "-",
+    tglMi: fromForm("tglMI", "tanggalMI", "tglMi") || "-",
+    perihalMi: fromForm("perihalMI", "perihalMi") || "-",
+    kurs: fromForm("kurs") || "IDR",
+    noSuratPerjanjian: fromForm("noSuratPerjanjian") || "-",
     status: verifikasi.tipe === "umd" && document.status === "awaiting_acceptance"
       ? "pending_acceptance"
       : verifikasi.tipe === "umd" && document.status === "documents_required"
@@ -4803,9 +4829,9 @@ function DetailPengujianPage({ item, isKontrak, onBack, onProcess, onUploadBahp 
 
   const itemProp = {
     ...item,
-    judulPengadaan: titleName,
-    nomorKontrak: docNo,
-    vendorName: vendorOrDept,
+    judulPengadaan: titleName || item?.judulPengadaan,
+    nomorKontrak: (item?.nomorContract && item?.nomorContract !== "-") ? item?.nomorContract : ((item?.noSuratPerjanjian && item?.noSuratPerjanjian !== "-") ? item?.noSuratPerjanjian : docNo),
+    vendorName: vendorOrDept || item?.vendorName,
   };
 
   return (

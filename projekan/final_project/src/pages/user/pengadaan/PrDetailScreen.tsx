@@ -472,6 +472,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
     if (activeStep.id === "pengujian" && activeSubStep?.id === "request-pengujian") {
       if (verifStatus === "not_submitted" || verifStatus === "revisi" || verifStatus === "rejected") {
+        flashSave();
         const p = {
           id: generateId("PUJ"),
           pengadaan_id: item.id,
@@ -482,16 +483,24 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
           status: "pending",
           catatan: "Request pengujian dari Purchase Requisition",
         };
-        api.post("/pengujian", p).catch(() => { });
+        try {
+          await api.post(`/pengadaan/${item.id}/submit-step`, {
+            stepId: "pengujian",
+            tipe: "pengujian",
+            form_data: allFd
+          });
+        } catch (e) {
+          await api.post("/pengujian", p).catch(() => { });
+        }
         if (verifId) {
           api.put(`/verifikasi/${verifId}`, { status: "pending", catatan_admin: null }).catch(() => { });
         }
         savePengujianList([...getPengujianList(), p]);
+        revisionBaselineRef.current = null;
         setVerifStatus("pending");
         setCatatanAdmin(null);
         const curSubId = activeSubStep?.id ?? activeStep.id;
-        setCompletedSubs(p => new Set([...p, `${activeStep.id}.${curSubId}`]));
-        flashSave();
+        setCompletedSubs(prev => new Set([...prev, `${activeStep.id}.${curSubId}`]));
         return;
       }
       if (verifStatus !== "approved") {
