@@ -68,46 +68,39 @@ Aplikasi ini mencakup seluruh rantai proses pengadaan: mulai dari perencanaan (R
 ## 🏗️ Arsitektur Sistem
 
 ```mermaid
-flowchart TB
+flowchart LR
     %% ================= STYLING =================
-    classDef client fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,rx:8,ry:8,color:#14532d;
-    classDef backend fill:#eff6ff,stroke:#2563eb,stroke-width:2px,rx:8,ry:8,color:#1e3a8a;
-    classDef storage fill:#faf5ff,stroke:#9333ea,stroke-width:2px,rx:8,ry:8,color:#581c87;
-    classDef database fill:#f8fafc,stroke:#475569,stroke-width:2px,rx:8,ry:8,color:#0f172a;
-    classDef external fill:#fef2f2,stroke:#dc2626,stroke-width:2px,rx:8,ry:8,color:#991b1b;
+    classDef default fill:#ffffff,stroke:#334155,stroke-width:2px,rx:8,ry:8,color:#0f172a;
+    classDef highlight fill:#fecaca,stroke:#ef4444,stroke-width:2px,rx:8,ry:8,color:#991b1b;
 
-    %% ================= 1. CLIENT LAYER =================
-    subgraph L1["1. Client Layer (Frontend & Mobile)"]
-        direction LR
-        MOB["C-Office Mobile\n(Portal KCI)"]:::client
-        WEB["SIPRO Web App\n(React / Vite)"]:::client
-    end
+    %% ================= ROW 1 (TOP) =================
+    API_PRESENSI["API C-Office\n(Presensi)"]
+    MOB["C-Office\nMobile"]
+    WEB["Aplikasi Pengadaan\nWeb"]
 
-    %% ================= 2. APPLICATION & STORAGE LAYER =================
-    subgraph L2["2. Application & Storage Layer"]
-        direction LR
-        API_HRIS["API HRIS / SSO\n(Master Pegawai)"]:::backend
-        API_SIPRO["API SIPRO Backend\n(Laravel Core REST API)"]:::backend
-        MINIO["MINIO Object Storage\n(Dokumen & Lampiran)"]:::storage
-    end
+    %% ================= ROW 2 (MIDDLE) =================
+    API_HRIS["API HRIS"]
+    API_PENGADAAN["API Aplikasi Pengadaan\n(Backend)"]
+    MINIO["MINIO\n(Storage Dokumen)"]
 
-    %% ================= 3. DATABASE LAYER =================
-    subgraph L3["3. Database Layer"]
-        direction LR
-        DB_HRIS[("DB Presensi / HRIS\n172.100.100.96")]:::external
-        DB_SIPRO[("DB SIPRO\n(MySQL Database)")]:::database
-    end
+    %% ================= ROW 3 (BOTTOM) =================
+    DB_PRESENSI["DB Presensi\n172.100.100.96"]:::highlight
+    DB_103["DB HRIS / 103"]
+    DB_PENGADAAN["DB Aplikasi Pengadaan"]
 
     %% ================= CONNECTIONS =================
-    MOB -->|"Public / SSO"| API_SIPRO
-    WEB -->|"Public / HTTPS"| API_SIPRO
-    WEB -.->|"Download Surat / Berkas"| MINIO
+    MOB -->|"Existing"| API_PRESENSI
+    API_PRESENSI --> DB_PRESENSI
 
-    API_SIPRO <-->|"Intranet"| API_HRIS
-    API_SIPRO -->|"Generate & Upload Surat"| MINIO
-    API_SIPRO <-->|"Query & Transaksi"| DB_SIPRO
+    MOB -->|"Public"| API_PENGADAAN
+    WEB -->|"Public"| API_PENGADAAN
+    WEB -->|"Download Surat"| MINIO
 
-    API_HRIS <-->|"Intranet"| DB_HRIS
+    API_PENGADAAN <-->|"Intranet"| API_HRIS
+    API_HRIS <--> DB_103
+
+    API_PENGADAAN -->|"Generate Surat"| MINIO
+    API_PENGADAAN <--> DB_PENGADAAN
 ```
 
 ---

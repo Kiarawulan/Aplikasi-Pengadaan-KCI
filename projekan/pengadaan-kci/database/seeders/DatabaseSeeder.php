@@ -257,5 +257,82 @@ class DatabaseSeeder extends Seeder
                 ]);
             }
         }
+
+        // Seed Sample RUP Data
+        $sampleRups = [
+            [
+                'id' => 'RUP-2024-001',
+                'nama' => 'Pengadaan Server & Infrastructure Cloud IT',
+                'jenis' => 'Barang',
+                'metode' => 'Penunjukan Langsung',
+                'nilai' => '750000000',
+                'status' => 'Approved',
+                'progress' => '0/14',
+                'departemen' => 'CTIT',
+                'created_by' => 'User IT',
+                'details' => [
+                    'pilihanRup' => 'Lebih 500 Juta',
+                    'namaPaket' => 'Pengadaan Server & Infrastructure Cloud IT',
+                    'opexCapex' => 'Capex',
+                    'uraian' => 'Pengadaan server cloud untuk sistem pengadaan KCI',
+                    'metode' => 'Penunjukan Langsung',
+                    'jenisPengadaan' => 'Barang',
+                    'kategoriAnggaran' => 'RKAP',
+                    'tahunAnggaran' => '2024',
+                    'tahunRup' => '2024',
+                    'tipeKontrak' => 'Single Year',
+                    'pbj' => 'Sarana',
+                    'nilaiSebelumPajak' => '750.000.000',
+                    'tipePajak' => 'PPN 11%',
+                    'nilaiTax' => 'Rp 832.500.000',
+                ],
+            ],
+            [
+                'id' => 'RUP-2024-002',
+                'nama' => 'Pengadaan Lisensi Software & Firewall',
+                'jenis' => 'Barang',
+                'metode' => 'Pengadaan Langsung',
+                'nilai' => '350000000',
+                'status' => 'Approved',
+                'progress' => '0/14',
+                'departemen' => 'CTIT',
+                'created_by' => 'User IT',
+                'details' => [
+                    'pilihanRup' => 'Kurang 500 Juta',
+                    'namaPaket' => 'Pengadaan Lisensi Software & Firewall',
+                    'opexCapex' => 'Opex',
+                    'uraian' => 'Pembaruan lisensi antivirus & firewall tahunan',
+                    'metode' => 'Pengadaan Langsung',
+                    'jenisPengadaan' => 'Barang',
+                    'kategoriAnggaran' => 'RKAP',
+                    'tahunAnggaran' => '2024',
+                    'tahunRup' => '2024',
+                    'tipeKontrak' => 'Single Year',
+                    'pbj' => 'Non-Sarana',
+                    'nilaiSebelumPajak' => '350.000.000',
+                    'tipePajak' => 'PPN 11%',
+                    'nilaiTax' => 'Rp 388.500.000',
+                ],
+            ],
+        ];
+
+        foreach ($sampleRups as $rup) {
+            DB::table('rups')->updateOrInsert(
+                ['id' => $rup['id']],
+                [
+                    'nama' => $rup['nama'],
+                    'jenis' => $rup['jenis'],
+                    'metode' => $rup['metode'],
+                    'nilai' => $rup['nilai'],
+                    'status' => $rup['status'],
+                    'progress' => $rup['progress'],
+                    'departemen' => $rup['departemen'],
+                    'created_by' => $rup['created_by'],
+                    'details' => json_encode($rup['details'], JSON_UNESCAPED_UNICODE),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
     }
 }

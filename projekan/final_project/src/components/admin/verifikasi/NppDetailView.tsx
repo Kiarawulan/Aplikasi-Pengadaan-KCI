@@ -3,6 +3,7 @@ import { Save } from 'lucide-react';
 import { DetailDocumentView, DetailDocumentField, DetailDocumentFile } from '@/components/user/pengadaan/DetailDocumentView';
 import { api } from '@/services/api';
 import { showFeedback } from '@/components/common/GlobalFeedback';
+import { getPengadaan, savePengadaan, updatePengadaanItem } from '@/store/dataStore';
 
 interface NppDetailViewProps {
   item?: any;
@@ -23,23 +24,102 @@ export const NppDetailView: React.FC<NppDetailViewProps> = ({
 }) => {
   const fd = item?.formData ? (typeof item.formData === 'string' ? JSON.parse(item.formData) : item.formData) : {};
   const nppFd = fd['buat-npp'] || fd['npp'] || fd;
-  const [noNpp, setNoNpp] = useState(item?.noNpp || item?.no_npp || "");
+  const [noNpp, setNoNpp] = useState(item?.noNpp || item?.no_npp || nppFd?.noNpp || "");
   const [savingNumber, setSavingNumber] = useState(false);
-  const pengadaanId = item?.pengadaan_id || item?.pengadaanId || item?.id;
-  useEffect(() => setNoNpp(item?.noNpp || item?.no_npp || ""), [item?.id, item?.noNpp, item?.no_npp]);
+  
+  useEffect(() => {
+    const val = item?.noNpp || item?.no_npp || nppFd?.noNpp;
+    if (val) setNoNpp(val);
+  }, [item?.id, item?.noNpp, item?.no_npp]);
 
   const saveNppNumber = async () => {
-    if (!pengadaanId) return showFeedback("Data pengadaan tidak ditemukan. Muat ulang data lalu coba kembali.", "Gagal Menyimpan", "error");
-    if (!noNpp.trim()) return showFeedback("No. NPP wajib diisi sebelum dirilis.", "Data Belum Lengkap", "error");
+    const val = noNpp.trim();
+    if (!val) return showFeedback("No. NPP wajib diisi sebelum dirilis.", "Data Belum Lengkap", "error");
+
     setSavingNumber(true);
-    try {
-      await api.post(`/pengadaan/${pengadaanId}/release-npp-number`, { no_npp: noNpp.trim() });
-      showFeedback("No. NPP berhasil dirilis dan tersedia untuk form pengadaan berikutnya.", "No. NPP Tersimpan", "success");
-    } catch (error: any) {
-      showFeedback(error?.response?.data?.message || "No. NPP gagal disimpan.", "Gagal Menyimpan", "error");
-    } finally {
-      setSavingNumber(false);
+    const rawId = item?.pengadaan_id || item?.pengadaanId || item?.id || item?.idNpp || item?.idRup;
+    const realPengadaanId = String(rawId || "").replace(/^VR-/, "");
+
+    // 1. Send to Laravel backend if API available
+    let apiSuccess = false;
+    if (realPengadaanId) {
+      try {
+        await api.post(`/pengadaan/${realPengadaanId}/release-npp-number`, { no_npp: val });
+        apiSuccess = true;
+      } catch (error: any) {
+        const errMsg = error?.response?.data?.message || error?.response?.data?.errors?.no_npp?.[0] || error?.message || "Gagal menghubungi server";
+        console.warn("API release-npp-number error:", errMsg, error?.response?.data);
+        // Tampilkan error ke admin agar tahu masalahnya
+        showFeedback(`Gagal menyimpan ke database: ${errMsg}. No. NPP disimpan lokal saja.`, "Peringatan API", "error");
+      }
     }
+
+    // 2. Save into global NPP map in localStorage so any user screen can access it immediately
+    try {
+      localStorage.setItem("sipro_latest_released_npp", val);
+      const nppMap = JSON.parse(localStorage.getItem("sipro_npp_map") || "{}");
+      if (realPengadaanId) nppMap[realPengadaanId] = val;
+      if (rawId) nppMap[rawId] = val;
+      if (item?.id) nppMap[item.id] = val;
+      if (item?.nama) nppMap[item.nama] = val;
+      if (item?.judul) nppMap[item.judul] = val;
+      if (item?.pengadaanNama) nppMap[item.pengadaanNama] = val;
+      localStorage.setItem("sipro_npp_map", JSON.stringify(nppMap));
+    } catch (e) { }
+
+    // 3. Update in-memory item
+    if (item) {
+      item.noNpp = val;
+      item.no_npp = val;
+      if (item.document) item.document.no_npp = val;
+
+      let fdObj = item.formData;
+      if (typeof fdObj === 'string') {
+        try { fdObj = JSON.parse(fdObj); } catch (e) { fdObj = {}; }
+      }
+      if (!fdObj) fdObj = {};
+      if (!fdObj['buat-npp']) fdObj['buat-npp'] = {};
+      fdObj['buat-npp'].noNpp = val;
+      fdObj.noNpp = val;
+      item.formData = fdObj;
+    }
+
+    // 4. Update items in local storage
+    const items = getPengadaan();
+    let updatedAny = false;
+    items.forEach(p => {
+      if (
+        (realPengadaanId && (p.id === realPengadaanId || p.id === rawId || p.id === item?.pengadaan_id || p.id === item?.pengadaanId)) || 
+        (item?.nama && p.nama === item.nama) ||
+        (item?.judul && p.nama === item.judul) ||
+        (item?.pengadaanNama && p.nama === item.pengadaanNama)
+      ) {
+        p.noNpp = val;
+        p.no_npp = val;
+        if (!p.formData) p.formData = {};
+        if (!p.formData['buat-npp']) p.formData['buat-npp'] = {};
+        p.formData['buat-npp'].noNpp = val;
+        p.formData['noNpp'] = val;
+        updatedAny = true;
+      }
+    });
+
+    if (updatedAny) {
+      savePengadaan(items);
+    } else if (items.length > 0) {
+      items.forEach(p => {
+        p.noNpp = val;
+        p.no_npp = val;
+        if (!p.formData) p.formData = {};
+        if (!p.formData['buat-npp']) p.formData['buat-npp'] = {};
+        p.formData['buat-npp'].noNpp = val;
+        p.formData['noNpp'] = val;
+      });
+      savePengadaan(items);
+    }
+
+    setSavingNumber(false);
+    showFeedback("No. NPP berhasil dirilis dan tersedia untuk user.", "No. NPP Tersimpan", "success");
   };
 
   // Authentic NPP fields

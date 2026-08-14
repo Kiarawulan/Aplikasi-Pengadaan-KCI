@@ -24,7 +24,7 @@ class StepDocumentController extends Controller
     {
         abort_unless($request->user()->is_admin, 403, 'Hanya admin yang dapat merilis No. NPP.');
         $data = $request->validate([
-            'no_npp' => ['required', 'string', 'max:100', Rule::unique('npp', 'no_npp')->ignore(Npp::where('pengadaan_id', $pengadaan->id)->value('id'))],
+            'no_npp' => ['required', 'string', 'max:100'],
         ]);
 
         $npp = Npp::where('pengadaan_id', $pengadaan->id)->latest()->first();

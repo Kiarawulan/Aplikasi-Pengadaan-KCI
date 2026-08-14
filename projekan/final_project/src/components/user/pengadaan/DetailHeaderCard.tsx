@@ -17,6 +17,8 @@ export function DetailHeaderCard({ item, allFd, verifStatus }: { item: Pengadaan
     ? "Ditolak"
     : "Menunggu Verifikasi Admin";
 
+  const releasedNoNpp = (item as any)?.noNpp || (item as any)?.no_npp || fd["buat-npp"]?.noNpp || fd["buat-npp"]?.no_npp || fd.noNpp;
+
   return (
     <div className="rounded-[16px] p-5 mb-5 shadow-[0px_0px_4px_rgba(0,0,0,0.22)]"
       style={{ background: "linear-gradient(76deg, #8c0505 11%, #e30000 121%)" }}>
@@ -25,6 +27,7 @@ export function DetailHeaderCard({ item, allFd, verifStatus }: { item: Pengadaan
           <p className="text-white font-black text-xl">{item.nama}</p>
           <div className="flex flex-wrap gap-6 mt-2.5">
             {[
+              ...(releasedNoNpp ? [{ label: "No. NPP:", val: releasedNoNpp }] : []),
               { label: "Tanggal Pembuatan:", val: formatDisplayDate(item.tanggal) },
               { label: "Divisi:", val: item.departemen },
               { label: "Nominal:", val: item.nominal },

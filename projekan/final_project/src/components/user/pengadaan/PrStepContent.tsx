@@ -1,4 +1,4 @@
-import { FileText, Check, Download } from "lucide-react";
+import { FileText, Check, Download, FileCheck, Copy, CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ParkStep } from "@/types";
 import { FieldInput } from "@/components/common/FieldInput";
@@ -93,23 +93,47 @@ export function PrStepContent({ step, subStepId, allFd, upd, status, item }: {
     return <span className="bg-gray-100 text-gray-500 text-[10px] font-semibold px-2 py-0.5 rounded">Draft</span>;
   };
 
-  if (step === "npp" && subStepId === "detail-npp") return (
-    <div>
-      <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p><StatusDisplay /></div>
-      <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
-        <SummaryRow label="Vendor" value={fdFrom("buat-npp").vendor || "PT Pete"} />
-        <SummaryRow label="COA" value={fdFrom("buat-npp").coa || "1.234.56.7"} />
-        <SummaryRow label="Nilai PR" value={fdFrom("buat-npp").nilaiPr || "Rp 100.000.000"} />
-        <SummaryRow label="Kurs" value={fdFrom("buat-npp").kurs || "IDR"} />
-        <SummaryRow label="Jenis Barang" value={fdFrom("buat-npp").jenisBarang || "Barang Jadi"} />
-        <SummaryRow label="Metode" value={fdFrom("buat-npp").metode || "Pengadaan Langsung"} />
-        {fdFrom("buat-npp").keterangan && <SummaryRow label="Keterangan" value={fdFrom("buat-npp").keterangan} />}
+  if (step === "npp" && subStepId === "detail-npp") {
+    const getSavedMapNpp = () => {
+      try {
+        const map = JSON.parse(localStorage.getItem("sipro_npp_map") || "{}");
+        return map[item?.id] || map[item?.pengadaan_id] || map[item?.nama] || map[item?.judul] || map[item?.pengadaanNama] || "";
+      } catch { return ""; }
+    };
+
+    const releasedNoNpp = 
+      item?.noNpp || 
+      item?.no_npp || 
+      item?.npp?.no_npp || 
+      item?.document?.no_npp ||
+      fdFrom("buat-npp").noNpp || 
+      fdFrom("buat-npp").no_npp || 
+      item?.formData?.noNpp || 
+      item?.formData?.['buat-npp']?.noNpp || 
+      item?.formData?.['buat-npp']?.no_npp || 
+      (allFd as any)?.noNpp || 
+      (allFd as any)?.['buat-npp']?.noNpp ||
+      (allFd as any)?.['buat-npp']?.no_npp ||
+      getSavedMapNpp() ||
+      localStorage.getItem("sipro_latest_released_npp") ||
+      "";
+
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-4"><p className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Summary</p><StatusDisplay /></div>
+        <div className="grid grid-cols-2 gap-x-[24px] gap-y-[12px]">
+          <SummaryRow label="Nomor NPP" value={releasedNoNpp || "Belum Dirilis"} />
+          <SummaryRow label="Vendor" value={fdFrom("buat-npp").vendor || "PT Pete"} />
+          <SummaryRow label="COA" value={fdFrom("buat-npp").coa || "1.234.56.7"} />
+          <SummaryRow label="Nilai PR" value={fdFrom("buat-npp").nilaiPr || "Rp 100.000.000"} />
+          <SummaryRow label="Kurs" value={fdFrom("buat-npp").kurs || "IDR"} />
+          <SummaryRow label="Jenis Barang" value={fdFrom("buat-npp").jenisBarang || "Barang Jadi"} />
+          <SummaryRow label="Metode" value={fdFrom("buat-npp").metode || "Pengadaan Langsung"} />
+          {fdFrom("buat-npp").keterangan && <SummaryRow label="Keterangan" value={fdFrom("buat-npp").keterangan} />}
+        </div>
       </div>
-      {status === "approved" && (
-        <div className="mt-4 pt-4 border-t border-[#e2e2e2]"><button className="flex items-center gap-2 text-[11.5px] font-medium text-[#252271] hover:underline"><FileText size={13} /> NPP — Lihat Dokumen</button></div>
-      )}
-    </div>
-  );
+    );
+  }
   if (step === "pengajuan-dana" && subStepId === "buat-pr") {
     const d = fdFrom("buat-pr");
     const isApproved = item?.status === "approved" || item?.status === "Selesai";

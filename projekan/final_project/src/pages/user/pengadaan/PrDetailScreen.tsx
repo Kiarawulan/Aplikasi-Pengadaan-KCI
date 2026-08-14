@@ -10,7 +10,7 @@ import { PengajuanDanaAttachments, FILES, stageFor } from "@/components/user/pen
 import { WarningModal } from "@/components/common/WarningModal";
 import { PembelianBaruPopup } from "@/components/user/pengadaan/PembelianBaruPopup";
 import { api } from "@/services/api";
-import { generateId, getPengujianList, savePengujianList, updatePengadaanItem } from "@/store/dataStore";
+import { generateId, getPengadaan, getPengujianList, savePengujianList, updatePengadaanItem } from "@/store/dataStore";
 import { useAuth } from "@/store/authStore";
 import { remindIncompleteFields } from "@/utils/formValidation";
 
@@ -82,6 +82,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
   const [activeStepIdx, setActiveStepIdx] = useState(defaultStepIdx);
   const [activeSubIdx, setActiveSubIdx] = useState(0);
 
+  const [currentItem, setCurrentItem] = useState<any>(item);
   const [allFd, setAllFd] = useState<Record<string, Record<string, string>>>(() => item.formData ?? {});
   const [completedStepIds, setCompletedStepIds] = useState<Set<string>>(() => new Set(item.completedSteps ?? []));
   const [verifStatus, setVerifStatus] = useState<string>("not_submitted");
@@ -146,50 +147,88 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     return () => { subscribed = false; };
   }, [showPrPaymentModal, item.id, allFd]);
 
-  // Fetch latest item data on mount
+  // Fetch latest item data & poll for updates (e.g. released No. NPP)
   useEffect(() => {
-    api.get(`/pengadaan/${item.id}`).then(res => {
-      const fresh = res.data;
-      setAllFd(fresh.formData || {});
-      setCompletedStepIds(new Set(fresh.completedSteps || []));
+    let isSubscribed = true;
 
-      const s = new Set<string>();
-      if (fresh.formData && fresh.formData["__meta"] && fresh.formData["__meta"]["completedSubs"]) {
-        try { JSON.parse(fresh.formData["__meta"]["completedSubs"]).forEach((x: string) => s.add(x)); } catch (e) { }
-      }
-      if (fresh.completedSteps) {
-        fresh.completedSteps.forEach((cs: string) => {
-          const pStep = steps.find(x => x.id === cs);
-          pStep?.subSteps?.forEach(sub => s.add(`${cs}.${sub.id}`));
-        });
-      }
-      setCompletedSubs(s);
+    const fetchLatestData = () => {
+      const localList = getPengadaan();
+      const localMatch = localList.find((p: any) => 
+        p.id === item.id || 
+        p.id === (item as any).pengadaan_id || 
+        (item.nama && p.nama === item.nama)
+      );
 
-      let targetIdx = defaultStepIdx;
-      if (fromScreen && (fromScreen.includes("pengujian") || fromScreen === "daftar-pengujian")) {
-        const pIdx = steps.findIndex(st => st.id === "pengujian");
-        if (pIdx !== -1) targetIdx = pIdx;
-      } else if (fromScreen && (fromScreen.includes("pembayaran") || fromScreen.startsWith("pembayaran-"))) {
-        const pIdx = steps.findIndex(st => st.id === "pembayaran");
-        if (pIdx !== -1) targetIdx = pIdx;
-      } else {
-        const pIdx = steps.findIndex(st => st.id === fresh.currentStep);
-        if (pIdx !== -1) targetIdx = pIdx;
-      }
-      setActiveStepIdx(targetIdx);
+      api.get(`/pengadaan/${item.id}`).then(res => {
+        if (!isSubscribed) return;
+        const fresh = res.data;
 
-      const step = steps[targetIdx];
-      if (step && step.subSteps) {
-        let firstUncompleted = 0;
-        for (let i = 0; i < step.subSteps.length; i++) {
-          if (!s.has(`${step.id}.${step.subSteps[i].id}`)) {
-            firstUncompleted = i;
-            break;
-          }
+        const getSavedMapNpp = () => {
+          try {
+            const map = JSON.parse(localStorage.getItem("sipro_npp_map") || "{}");
+            return map[item?.id] || map[(item as any)?.pengadaan_id] || map[item?.nama] || localStorage.getItem("sipro_latest_released_npp") || "";
+          } catch { return ""; }
+        };
+
+        const combinedNoNpp = fresh.no_npp || fresh.noNpp || fresh.npp?.no_npp || fresh.document?.no_npp || fresh.formData?.noNpp || fresh.formData?.['buat-npp']?.noNpp || localMatch?.noNpp || localMatch?.no_npp || localMatch?.formData?.noNpp || localMatch?.formData?.['buat-npp']?.noNpp || item.noNpp || (item as any).no_npp || getSavedMapNpp();
+
+        const newFd = { ...(localMatch?.formData || {}), ...(fresh.formData || {}) };
+        if (!newFd['buat-npp']) newFd['buat-npp'] = {};
+        if (combinedNoNpp) {
+          newFd['buat-npp']['noNpp'] = combinedNoNpp;
+          newFd['noNpp'] = combinedNoNpp;
         }
-        setActiveSubIdx(firstUncompleted);
-      }
-    }).catch(console.error);
+
+        setAllFd(newFd);
+        setCurrentItem((prev: any) => ({
+          ...prev,
+          ...localMatch,
+          ...fresh,
+          noNpp: combinedNoNpp,
+          no_npp: combinedNoNpp,
+          formData: newFd
+        }));
+        setCompletedStepIds(new Set(fresh.completedSteps || localMatch?.completedSteps || []));
+
+        const s = new Set<string>();
+        if (newFd["__meta"] && newFd["__meta"]["completedSubs"]) {
+          try { JSON.parse(newFd["__meta"]["completedSubs"]).forEach((x: string) => s.add(x)); } catch (e) { }
+        }
+        if (fresh.completedSteps) {
+          fresh.completedSteps.forEach((cs: string) => {
+            const pStep = steps.find(x => x.id === cs);
+            pStep?.subSteps?.forEach(sub => s.add(`${cs}.${sub.id}`));
+          });
+        }
+        setCompletedSubs(s);
+      }).catch(() => {
+        if (!isSubscribed) return;
+        if (localMatch) {
+          const combinedNoNpp = localMatch.noNpp || localMatch.no_npp || localMatch.formData?.noNpp || localMatch.formData?.['buat-npp']?.noNpp || item.noNpp || (item as any).no_npp;
+          const newFd = { ...(localMatch.formData || {}) };
+          if (!newFd['buat-npp']) newFd['buat-npp'] = {};
+          if (combinedNoNpp) {
+            newFd['buat-npp']['noNpp'] = combinedNoNpp;
+            newFd['noNpp'] = combinedNoNpp;
+          }
+          setAllFd(newFd);
+          setCurrentItem((prev: any) => ({
+            ...prev,
+            ...localMatch,
+            noNpp: combinedNoNpp,
+            no_npp: combinedNoNpp,
+            formData: newFd
+          }));
+        }
+      });
+    };
+
+    fetchLatestData();
+    const timer = setInterval(fetchLatestData, 3000);
+    return () => {
+      isSubscribed = false;
+      clearInterval(timer);
+    };
   }, [item.id]);
 
   const activeStep = steps[activeStepIdx] || steps[0];
@@ -665,7 +704,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
 
   return (
     <div>
-      {isFocusedProcessDetail ? <button type="button" onClick={() => onNavigate("daftar-pengadaan")} className="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11.5px] font-semibold text-[#252271] hover:bg-slate-50"><ChevronLeft size={14} /> Kembali ke List Pengadaan</button> : <><Breadcrumb segments={[{ label: "Daftar Pengadaan", screen: "daftar-pengadaan" }, { label: "Pengajuan Dana", screen: "purchase-requisition" }, { label: item.nama }]} onNavigate={onNavigate} /><DetailHeaderCard item={item} allFd={allFd} /></>}
+      {isFocusedProcessDetail ? <button type="button" onClick={() => onNavigate("daftar-pengadaan")} className="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11.5px] font-semibold text-[#252271] hover:bg-slate-50"><ChevronLeft size={14} /> Kembali ke List Pengadaan</button> : <><Breadcrumb segments={[{ label: "Daftar Pengadaan", screen: "daftar-pengadaan" }, { label: "Pengajuan Dana", screen: "purchase-requisition" }, { label: item.nama }]} onNavigate={onNavigate} /><DetailHeaderCard item={currentItem} allFd={allFd} /></>}
       {flash && <div className="mb-3 bg-green-50 border border-green-200 rounded-xl px-4 py-2 flex items-center gap-2"><Check size={12} className="text-green-600" /><span className="text-green-700 text-[11px]">Data berhasil disimpan!</span></div>}
 
       <div className="flex gap-5 items-start">
@@ -724,7 +763,7 @@ export function PrDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
                   </div>
                 </div>
               )}
-              <PrStepContent step={activeStep.id} subStepId={subId} allFd={allFd} upd={upd} status={verifStatus} item={item} />
+              <PrStepContent step={activeStep.id} subStepId={subId} allFd={allFd} upd={upd} status={verifStatus} item={currentItem} />
               {activeStep.id === "pengajuan-dana" && <PengajuanDanaAttachments pengadaanId={item.id} flow="pr" />}
             </div>
             <div className="px-4 pb-3.5 pt-3.5 border-t border-[#e2e2e2] flex items-center justify-between">

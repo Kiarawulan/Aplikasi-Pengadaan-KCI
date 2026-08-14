@@ -110,7 +110,8 @@ export function PengadaanVerifScreen({ activeSubItem }: ScreenProps) {
           uniqueVerifMap.set(key, {
             id: pId,
             documentId: item.document?.id,
-            noNpp: item.document?.no_npp,
+            noNpp: item.document?.no_npp || matchingPeng?.no_npp || matchingPeng?.noNpp || buatNpp.noNpp || buatNpp.no_npp || fd.noNpp || fd.no_npp || item.noNpp || item.no_npp || "",
+            no_npp: item.document?.no_npp || matchingPeng?.no_npp || matchingPeng?.noNpp || buatNpp.noNpp || buatNpp.no_npp || fd.noNpp || fd.no_npp || item.noNpp || item.no_npp || "",
             verif_id: item.id,
             judul: buatNpp.judulPermohonan || buatPd.judulPermohonan || matchingPeng?.nama || item.pengadaan_nama || item.judul || "Pengadaan Baru",
             title: buatNpp.judulPermohonan || buatPd.judulPermohonan || matchingPeng?.nama || item.pengadaan_nama || item.judul || "Pengadaan Baru",

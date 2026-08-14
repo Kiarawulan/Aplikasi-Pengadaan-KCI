@@ -27,6 +27,16 @@ return new class extends Migration
                 ['id' => 'MP-003', 'nama' => 'Pemilihan Langsung', 'kode' => 'PML'],
                 ['id' => 'MP-004', 'nama' => 'Pengadaan Langsung', 'kode' => 'PGL'],
             ],
+            'opex-capex' => [
+                ['id' => 'OC-001', 'nama' => 'Opex', 'kode' => 'OPEX'],
+                ['id' => 'OC-002', 'nama' => 'Capex', 'kode' => 'CAPEX'],
+            ],
+            'kategori-anggaran' => [
+                ['id' => 'KA-001', 'nama' => 'Investasi', 'kode' => 'INV'],
+                ['id' => 'KA-002', 'nama' => 'Eksploitasi', 'kode' => 'EKS'],
+                ['id' => 'KA-003', 'nama' => 'Pemeliharaan', 'kode' => 'HAR'],
+                ['id' => 'KA-004', 'nama' => 'RKAP', 'kode' => 'RKAP'],
+            ],
             'kategori-barang' => [
                 ['id' => 'KB-001', 'nama' => 'IT Hardware', 'kode' => 'ITH'],
                 ['id' => 'KB-002', 'nama' => 'IT Software', 'kode' => 'ITS'],

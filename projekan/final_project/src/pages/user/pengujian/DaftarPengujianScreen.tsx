@@ -115,19 +115,23 @@ export function DaftarPengujianScreen({ onSelectItem }: {
                     <td className="px-4 py-3.5"><StatusBadge status={item.status} /></td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-0.5">
-                        {PARK_STEPS.map((s) => {
-                          const isAllDone = item.status === "Selesai" || item.status === "approved" || item.status === "completed" || item.currentStep === "completed" || (item.completedSteps || []).length >= PARK_STEPS.length;
-                          const isCompleted = isAllDone || (item.completedSteps || []).includes(s.id);
+                        {PARK_STEPS.map((s, sIdx) => {
+                          const currentStepIdx = PARK_STEPS.findIndex(x => x.id === item.currentStep);
+                          const isAllDone = item.status === "Selesai" || item.status === "completed" || item.currentStep === "completed" || (item.completedSteps || []).length >= PARK_STEPS.length;
+                          const isCompleted = isAllDone || (item.completedSteps || []).includes(s.id) || (currentStepIdx > -1 && sIdx < currentStepIdx);
+                          const isCurrent = !isCompleted && (item.currentStep === s.id || (currentStepIdx === -1 && sIdx === 0));
+
                           return (
                             <div
                               key={s.id}
-                              title={s.label}
-                              className={`w-3 h-3 rounded-full ${isCompleted
+                              title={`${s.label}${isCompleted ? ' (Diverifikasi)' : isCurrent ? ' (Dalam Proses)' : ''}`}
+                              className={`w-3 h-3 rounded-full ${
+                                isCompleted
                                   ? "bg-[#4ACE22]"
-                                  : item.currentStep === s.id
-                                    ? "bg-[#252271]"
-                                    : "bg-gray-100 border border-gray-200"
-                                }`}
+                                  : isCurrent
+                                  ? "bg-[#252271]"
+                                  : "bg-gray-100 border border-gray-200"
+                              }`}
                             />
                           );
                         })}

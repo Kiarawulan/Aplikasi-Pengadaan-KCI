@@ -107,6 +107,8 @@ class PengadaanController extends Controller
 
     private function present(Pengadaan $pengadaan, bool $includeHistory = false): array
     {
+        $nppNo = $pengadaan->no_npp ?? ($pengadaan->form_data['buat-npp']['noNpp'] ?? ($pengadaan->form_data['noNpp'] ?? Npp::where('pengadaan_id', $pengadaan->id)->value('no_npp')));
+
         $data = [
             'id'             => $pengadaan->id,
             'flowType'       => $pengadaan->flow_type,
@@ -119,6 +121,8 @@ class PengadaanController extends Controller
             'createdBy'      => $pengadaan->created_by,
             'completedSteps' => $pengadaan->completedSteps->pluck('step_id'),
             'formData'       => $pengadaan->form_data ?? [],
+            'no_npp'         => $nppNo,
+            'noNpp'          => $nppNo,
         ];
 
         if ($includeHistory) {

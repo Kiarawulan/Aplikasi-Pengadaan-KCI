@@ -72,6 +72,12 @@ class VerifikasiController extends Controller
                 is_array($pengadaanFormData) ? $pengadaanFormData : [],
             );
 
+            $noNpp = null;
+            if ($verifikasi->tipe === 'npp' || in_array($verifikasi->tipe, ['purchase-requisition', 'pengajuan-dana', 'sp3', 'pbj', 'contract', 'pengujian', 'outsource', 'non-outsource', 'umd', 'payment-request'])) {
+                $noNpp = Npp::where('pengadaan_id', $verifikasi->pengadaan_id)->value('no_npp')
+                    ?? ($pengadaan?->form_data['buat-npp']['noNpp'] ?? ($pengadaan?->form_data['noNpp'] ?? null));
+            }
+
             return array_merge($verifikasi->toArray(), [
                 'document' => $document,
                 'document_form_data' => $documentFormData,
@@ -81,6 +87,8 @@ class VerifikasiController extends Controller
                 // halaman Admin kembali memakai snapshot dokumen yang lama.
                 'effective_form_data' => $effectiveFormData,
                 'current_step' => $pengadaan?->current_step,
+                'no_npp' => $noNpp,
+                'noNpp' => $noNpp,
             ]);
         }));
     }

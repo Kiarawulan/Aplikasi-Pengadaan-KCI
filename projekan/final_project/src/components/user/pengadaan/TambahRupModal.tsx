@@ -315,7 +315,10 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
                   className="w-full h-[34px] border border-gray-200 rounded-md px-2.5 text-[10.5px] outline-none focus:border-[#252271] focus:ring-1 focus:ring-[#252271]/20 transition-all bg-white font-medium"
                 >
                   <option value="">-- Pilih Opex / Capex --</option>
-                  {opexCapexReferences.map(item => <option key={item.id} value={item.nama}>{item.nama}</option>)}
+                  {opexCapexReferences.map(item => {
+                    const label = item.nama || item.kode || item.id;
+                    return <option key={item.id} value={label}>{label}</option>;
+                  })}
                 </select>
               </div>
 
@@ -330,7 +333,10 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
                   className="w-full h-[34px] border border-gray-200 rounded-md px-2.5 text-[10.5px] outline-none focus:border-[#252271] focus:ring-1 focus:ring-[#252271]/20 transition-all bg-white font-medium"
                 >
                   <option value="">-- Pilih Metode Pengadaan --</option>
-                  {methodReferences.map(item => <option key={item.id} value={item.nama}>{item.nama}</option>)}
+                  {methodReferences.map(item => {
+                    const label = item.nama || item.kode || item.id;
+                    return <option key={item.id} value={label}>{label}</option>;
+                  })}
                 </select>
               </div>
             </div>
@@ -348,7 +354,10 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
                   className="w-full h-[34px] border border-gray-200 rounded-md px-2.5 text-[10.5px] outline-none focus:border-[#252271] focus:ring-1 focus:ring-[#252271]/20 transition-all bg-white font-medium"
                 >
                   <option value="">-- Pilih Jenis Pengadaan --</option>
-                  {procurementTypeReferences.map(item => <option key={item.id} value={item.nama}>{item.nama}</option>)}
+                  {procurementTypeReferences.map(item => {
+                    const label = item.nama || item.kode || item.id;
+                    return <option key={item.id} value={label}>{label}</option>;
+                  })}
                 </select>
               </div>
 
@@ -363,7 +372,10 @@ export const TambahRupModal: React.FC<TambahRupModalProps> = ({
                   className="w-full h-[34px] border border-gray-200 rounded-md px-2.5 text-[10.5px] outline-none focus:border-[#252271] focus:ring-1 focus:ring-[#252271]/20 transition-all bg-white font-medium"
                 >
                   <option value="">-- Pilih Kategori Anggaran --</option>
-                  {budgetCategoryReferences.map(item => <option key={item.id} value={item.nama}>{item.nama}</option>)}
+                  {budgetCategoryReferences.map(item => {
+                    const label = item.nama || item.kode || item.id;
+                    return <option key={item.id} value={label}>{label}</option>;
+                  })}
                 </select>
               </div>
             </div>
