@@ -1,5 +1,4 @@
-#APLIKASI PENGADAAN KCI
-**Aplikasi Terintegrasi Manajemen & Digitalisasi Proses Pengadaan Barang/Jasa PT Kereta Commuter Indonesia**
+**#APLIKASI PENGADAAN KCI**
 
 </div>
 
