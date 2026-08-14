@@ -29,9 +29,9 @@ class EnsureModulePermission
         $role = $user->loadMissing('role.permissions')->role;
         if ($role && ! $role->is_active) return false;
 
-        // Only built-in full-access administrator identities bypass the matrix.
-        // Custom roles with role_type=admin must still honor their permissions.
+        // Built-in admin identities or any user marked as is_admin bypass the matrix.
         if (
+            $user->is_admin ||
             $user->email === 'admin@sipro.com' ||
             $user->role_id === 'role-admin' ||
             in_array($user->role?->name, ['Super Admin', 'Admin Full Access', 'Admin'], true)
@@ -46,17 +46,27 @@ class EnsureModulePermission
             }
         }
 
-        $permission = $role?->permissions->firstWhere('module', $module);
-        $level = $permission?->access_level;
+        // Module permission check with cross-module support for core workflow endpoints (e.g. document uploads/downloads for pengadaan)
+        $modulesToCheck = ($module === 'pengadaan') ? ['pengadaan', 'pengujian', 'pengajuanDana', 'pembayaran'] : [$module];
+
+        foreach ($modulesToCheck as $mod) {
+            $permission = $role?->permissions->firstWhere('module', $mod);
+            $level = $permission?->access_level;
+
+            if ($required === 'editor' && $level === 'editor') {
+                return true;
+            }
+            if ($required === 'viewer' && in_array($level, ['viewer', 'editor'], true)) {
+                return true;
+            }
+        }
 
         // Default fallback for core user workflow modules if not explicitly set
-        if (!$permission && (!$role || $role->role_type === 'user' || empty($role->role_type))
+        if ((!$role || $role->role_type === 'user' || empty($role->role_type))
             && in_array($module, ['pengadaan', 'pengajuanDana', 'pembayaran', 'pengujian', 'dashboard'], true)) {
             return true;
         }
 
-        return $required === 'editor'
-            ? $level === 'editor'
-            : in_array($level, ['viewer', 'editor'], true);
+        return false;
     }
 }

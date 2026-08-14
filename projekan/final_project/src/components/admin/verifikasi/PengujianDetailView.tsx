@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DetailDocumentView, DetailDocumentField, DetailDocumentFile } from '@/components/user/pengadaan/DetailDocumentView';
+import { api } from '@/services/api';
 import { FileUploadInput } from '@/components/common/FileUploadInput';
 
 interface PengujianDetailViewProps {
@@ -21,6 +22,20 @@ export const PengujianDetailView: React.FC<PengujianDetailViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'informasi' | 'checklist'>('informasi');
   const [bahpFile, setBahpFile] = useState("");
+
+  useEffect(() => {
+    const targetId = item?.pengadaan_id || item?.pengadaanId || item?.id;
+    if (!targetId) return;
+    api.get(`/pengadaan/${targetId}/documents`)
+      .then((res) => {
+        const docs = Array.isArray(res.data?.data) ? res.data.data : [];
+        const bahpDoc = docs.find((d: any) => d.stage === 'bahp-signed');
+        if (bahpDoc) {
+          setBahpFile(bahpDoc.original_name);
+        }
+      })
+      .catch(() => {});
+  }, [item?.pengadaan_id, item?.pengadaanId, item?.id]);
 
   // Interactive Checklist rows state
   const [checklistRows, setChecklistRows] = useState([
