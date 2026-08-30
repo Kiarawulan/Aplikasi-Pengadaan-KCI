@@ -37,8 +37,19 @@ export const NppDetailView: React.FC<NppDetailViewProps> = ({
     if (!val) return showFeedback("No. NPP wajib diisi sebelum dirilis.", "Data Belum Lengkap", "error");
 
     setSavingNumber(true);
-    const rawId = item?.pengadaan_id || item?.pengadaanId || item?.id || item?.idNpp || item?.idRup;
-    const realPengadaanId = String(rawId || "").replace(/^VR-/, "");
+    // Determine the real pengadaan ID. The item.id coming from PengadaanVerifScreen
+    // is already the pengadaan_id (e.g. "PR-001"), but item.verif_id might be "NPP-PR-001".
+    // Prefer explicit pengadaan_id fields; fall back to stripping NPP-/VR- prefixes.
+    const rawId =
+      item?.pengadaan_id ||
+      item?.pengadaanId ||
+      item?.id ||
+      item?.idNpp ||
+      item?.idRup;
+    // Strip any document-type prefixes that are NOT part of the pengadaan ID.
+    const realPengadaanId = String(rawId || "")
+      .replace(/^VR-/, "")
+      .replace(/^NPP-/, "");
 
     // 1. Send to Laravel backend if API available
     let apiSuccess = false;
