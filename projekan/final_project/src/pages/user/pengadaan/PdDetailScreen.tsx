@@ -67,6 +67,18 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         parsed.forEach((x: string) => s.add(x));
       } catch (e) { }
     }
+    const payment = (item as any).payment;
+    if (payment && payment.payment_type === 'umd') {
+      if (['awaiting_acceptance', 'documents_required', 'waiting_approval', 'approved'].includes(payment.status)) {
+        s.add("pembayaran.payment-request");
+      }
+      if (['waiting_approval', 'approved'].includes(payment.status)) {
+        s.add("pembayaran.pelunasan");
+      }
+      if (['approved'].includes(payment.status)) {
+        s.add("pembayaran.proses-selesai");
+      }
+    }
     return s;
   });
 
@@ -79,6 +91,18 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
     const s = new Set<string>();
     if (item.formData && item.formData["__meta"] && item.formData["__meta"]["submittedSubs"]) {
       try { JSON.parse(item.formData["__meta"]["submittedSubs"]).forEach((x: string) => s.add(x)); } catch (e) { }
+    }
+    const payment = (item as any).payment;
+    if (payment && payment.payment_type === 'umd') {
+      if (['awaiting_acceptance', 'documents_required', 'waiting_approval', 'approved'].includes(payment.status)) {
+        s.add("pembayaran.payment-request");
+      }
+      if (['waiting_approval', 'approved'].includes(payment.status)) {
+        s.add("pembayaran.pelunasan");
+      }
+      if (['approved'].includes(payment.status)) {
+        s.add("pembayaran.proses-selesai");
+      }
     }
 
     for (let i = 0; i < step.subSteps.length; i++) {
@@ -179,6 +203,18 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
       if (fresh.formData && fresh.formData["__meta"] && fresh.formData["__meta"]["submittedSubs"]) {
         try { JSON.parse(fresh.formData["__meta"]["submittedSubs"]).forEach((x: string) => s.add(x)); } catch (e) { }
       }
+      const payment = (item as any).payment;
+      if (payment && payment.payment_type === 'umd') {
+        if (['awaiting_acceptance', 'documents_required', 'waiting_approval', 'approved'].includes(payment.status)) {
+          s.add("pembayaran.payment-request");
+        }
+        if (['waiting_approval', 'approved'].includes(payment.status)) {
+          s.add("pembayaran.pelunasan");
+        }
+        if (['approved'].includes(payment.status)) {
+          s.add("pembayaran.proses-selesai");
+        }
+      }
       if (fresh.status === "Selesai" || fresh.status === "approved" || fresh.currentStep === "completed" || fresh.currentStep === "proses-selesai") {
         s.add("pembayaran.payment-request");
         s.add("pembayaran.pelunasan");
@@ -253,6 +289,19 @@ export function PdDetailScreen({ item, fromScreen, onBack, onNavigate, onSelectI
         setCompletedStepIds(prev => new Set([...prev, stepId]));
         if (stepId === "pembayaran") {
           setSubmittedSubs(prev => new Set([...prev, "pembayaran.payment-request", "pembayaran.pelunasan", "pembayaran.proses-selesai"]));
+        }
+      } else if (res.data.status === "accepted") {
+        if (stepId === "pembayaran") {
+          setSubmittedSubs(prev => new Set([...prev, "pembayaran.payment-request"]));
+          setActiveSubIdx(prev => prev === 0 ? 1 : prev);
+        }
+      } else if (res.data.status === "pending_acceptance") {
+        if (stepId === "pembayaran") {
+          setSubmittedSubs(prev => new Set([...prev, "pembayaran.payment-request"]));
+        }
+      } else if (res.data.status === "pending") {
+        if (stepId === "pembayaran") {
+          setSubmittedSubs(prev => new Set([...prev, "pembayaran.payment-request", "pembayaran.pelunasan"]));
         }
       } else if (["revisi", "revision_required", "perlu revisi", "rejected"].includes(String(res.data.status).toLowerCase())) {
         if (stepId === "pembayaran") {
