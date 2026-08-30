@@ -258,7 +258,8 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        // Seed Sample RUP Data
+        // Seed Sample RUP Data (Commented out to start with a clean database with no dummy data)
+        /*
         $sampleRups = [
             [
                 'id' => 'RUP-2024-001',
@@ -334,5 +335,6 @@ class DatabaseSeeder extends Seeder
                 ]
             );
         }
+        */
     }
 }
